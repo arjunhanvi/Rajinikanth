@@ -6,7 +6,7 @@ extends RefCounted
 const IDS := ["home", "bar", "police", "tailor", "godown"]
 # id: [width, depth, height, wall colour, floor colour, light colour, light energy]
 const ROOMS := {
-	"home": [5.0, 4.6, 2.9, Color(0.55, 0.68, 0.62), Color(0.45, 0.2, 0.16), Color(1.0, 0.85, 0.6), 1.6],
+	"home": [6.4, 5.4, 2.9, Color(0.86, 0.82, 0.66), Color(0.5, 0.2, 0.15), Color(1.0, 0.88, 0.68), 1.7],
 	"bar": [10.0, 8.0, 3.1, Color(0.35, 0.16, 0.16), Color(0.2, 0.17, 0.15), Color(1.0, 0.45, 0.3), 1.3],
 	"police": [9.0, 6.5, 3.3, Color(0.78, 0.76, 0.6), Color(0.5, 0.5, 0.48), Color(0.9, 0.95, 1.0), 1.7],
 	"tailor": [6.5, 5.0, 3.0, Color(0.75, 0.82, 0.9), Color(0.6, 0.55, 0.5), Color(0.9, 0.95, 1.0), 1.9],
@@ -24,9 +24,9 @@ static func hotspots(id: String) -> Array:
 	var out := [{"pos": Vector3(0, 0, d * 0.5 - 0.5), "label": "LEAVE", "key": "leave"}]
 	match id:
 		"home":
-			out.append({"pos": Vector3(-1.4, 0, -1.2), "label": "SLEEP", "key": "sleep"})
-			out.append({"pos": Vector3(1.7, 0, -1.6), "label": "CLOTHES", "key": "wardrobe"})
-			out.append({"pos": Vector3(1.9, 0, 0.6), "label": "RADIO", "key": "radio"})
+			out.append({"pos": Vector3(-1.9, 0, -1.0), "label": "SLEEP", "key": "sleep"})
+			out.append({"pos": Vector3(2.5, 0, -1.6), "label": "CLOTHES", "key": "wardrobe"})
+			out.append({"pos": Vector3(2.1, 0, 0.9), "label": "RADIO", "key": "radio"})
 		"bar":
 			out.append({"pos": Vector3(0, 0, -2.3), "label": "ORDER", "key": "bar"})
 		"tailor":
@@ -54,19 +54,36 @@ static func build(id: String, _world) -> Node3D:
 	var solids: Array = []
 	match id:
 		"home":
-			_box(mb, solids, Vector3(-1.5, 0.28, -1.75), Vector3(1.9, 0.12, 0.9), Color(0.35, 0.25, 0.18))   # cot
-			mb.box(Vector3(-1.5, 0.38, -1.75), Vector3(1.8, 0.1, 0.8), Color(0.7, 0.7, 0.85))
-			mb.box(Vector3(-2.25, 0.46, -1.75), Vector3(0.3, 0.1, 0.5), Color(0.9, 0.88, 0.8))
-			_box(mb, solids, Vector3(1.8, 0.25, -1.9), Vector3(1.0, 0.5, 0.55), Color(0.3, 0.4, 0.5))        # steel trunk
-			mb.box(Vector3(2.2, 0.45, 0.6), Vector3(0.35, 0.22, 0.2), Color(0.25, 0.2, 0.16))                # transistor radio
-			_box(mb, solids, Vector3(2.2, 0.17, 0.6), Vector3(0.5, 0.34, 0.5), Color(0.5, 0.36, 0.25))
-			mb.box(Vector3(-2.2, 0.12, 0.9), Vector3(0.45, 0.24, 0.45), Color(0.15, 0.3, 0.6))               # kerosene stove
-			mb.box(Vector3(0.6, 0.02, 0.4), Vector3(1.8, 0.03, 0.75), Color(0.75, 0.6, 0.3))                 # Kitty's mat
-			mb.wall(Vector3(0.9, 1.3, -d / 2 + 0.02), Vector3(0, 0, 1), 0.5, 0.75, Rect2(0, 0, 1, 1), Color(0.95, 0.93, 0.85))   # calendar
-			mb.wall(Vector3(-0.6, 1.5, -d / 2 + 0.02), Vector3(0, 0, 1), 0.4, 0.5, Rect2(0, 0, 1, 1), Color(0.85, 0.7, 0.2))    # framed god photo
-			_text(root, "JULY 2002\nSri Ganesha Stores", Vector3(0.9, 1.68, -d / 2 + 0.04), 0.0, 20, Color(0.6, 0.1, 0.1))
-			for i in 4:   # clothes on a line
-				mb.wall(Vector3(-w / 2 + 0.05, 1.3, -0.6 + i * 0.4), Vector3(1, 0, 0), 0.34, 0.6, Rect2(0, 0, 1, 1), [Color(0.76, 0.66, 0.5), Color(0.9, 0.9, 0.9), Color(0.3, 0.4, 0.6), Color(0.76, 0.66, 0.5)][i])
+			_box(mb, solids, Vector3(-1.9, 0.28, -2.0), Vector3(2.0, 0.14, 1.4), Color(0.35, 0.25, 0.18))    # the double cot
+			mb.box(Vector3(-1.9, 0.4, -2.0), Vector3(1.9, 0.12, 1.3), Color(0.75, 0.3, 0.3))
+			for sd: float in [-1.0, 1.0]:
+				mb.box(Vector3(-2.7, 0.5, -2.0 + sd * 0.33), Vector3(0.3, 0.1, 0.5), Color(0.92, 0.9, 0.84))
+			mb.box(Vector3(-1.5, 0.5, -1.9), Vector3(0.5, 0.06, 0.34), Color(0.75, 0.68, 0.5))               # her files, on the cot as always
+			_box(mb, solids, Vector3(2.6, 1.0, -2.3), Vector3(1.0, 2.0, 0.55), Color(0.42, 0.5, 0.56))       # steel almirah
+			mb.box(Vector3(2.6, 1.0, -2.02), Vector3(0.02, 1.9, 0.02), Color(0.2, 0.25, 0.3))
+			_box(mb, solids, Vector3(2.75, 0.3, 0.9), Vector3(0.7, 0.6, 0.5), Color(0.4, 0.28, 0.2))         # TV stand
+			mb.box(Vector3(2.75, 0.85, 0.9), Vector3(0.55, 0.5, 0.45), Color(0.12, 0.12, 0.13))              # CRT television
+			mb.wall(Vector3(2.47, 0.65, 0.9), Vector3(-1, 0, 0), 0.38, 0.36, Rect2(0, 0, 1, 1), Color(0.25, 0.32, 0.3))
+			mb.box(Vector3(2.75, 1.14, 0.9), Vector3(0.3, 0.08, 0.2), Color(0.3, 0.22, 0.16))                # radio on top of it
+			_box(mb, solids, Vector3(0.3, 0.38, -2.35), Vector3(1.3, 0.76, 0.6), Color(0.45, 0.32, 0.22))    # her desk
+			for i in 5:
+				mb.box(Vector3(-0.15 + i * 0.2, 0.86 + (i % 2) * 0.03, -2.4), Vector3(0.17, 0.16 + (i % 3) * 0.05, 0.28), [Color(0.5, 0.15, 0.12), Color(0.15, 0.25, 0.4), Color(0.75, 0.68, 0.5)][i % 3])
+			mb.box(Vector3(0.8, 0.82, -2.2), Vector3(0.22, 0.1, 0.2), Color(0.1, 0.1, 0.1))                  # landline telephone
+			mb.wall(Vector3(0.3, 1.25, -d / 2 + 0.02), Vector3(0, 0, 1), 1.3, 0.75, Rect2(0, 0, 1, 1), Color(0.35, 0.25, 0.18))   # bookshelf
+			for i in 12:
+				mb.wall(Vector3(-0.28 + i * 0.105, 1.3, -d / 2 + 0.05), Vector3(0, 0, 1), 0.09, 0.3, Rect2(0, 0, 1, 1), [Color(0.5, 0.12, 0.1), Color(0.75, 0.7, 0.55), Color(0.12, 0.2, 0.35)][i % 3])
+			_box(mb, solids, Vector3(-2.8, 0.4, 1.6), Vector3(0.6, 0.8, 1.6), Color(0.55, 0.55, 0.52))       # kitchen platform
+			mb.box(Vector3(-2.8, 0.86, 1.3), Vector3(0.45, 0.08, 0.6), Color(0.15, 0.15, 0.16))              # gas stove
+			for i in 4:
+				mb.box(Vector3(-2.85, 0.9 + i * 0.01, 2.0 + (i % 2) * 0.16), Vector3(0.2, 0.2 - i * 0.03, 0.14), Color(0.72, 0.73, 0.76))   # steel vessels
+			mb.box(Vector3(-2.9, 0.3, 0.55), Vector3(0.35, 0.6, 0.35), Color(0.75, 0.15, 0.12))              # gas cylinder
+			mb.wall(Vector3(1.6, 1.3, -d / 2 + 0.02), Vector3(0, 0, 1), 0.5, 0.75, Rect2(0, 0, 1, 1), Color(0.95, 0.93, 0.85))  # calendar
+			mb.wall(Vector3(-1.9, 1.6, -d / 2 + 0.02), Vector3(0, 0, 1), 0.5, 0.6, Rect2(0, 0, 1, 1), Color(0.85, 0.7, 0.2))   # Srirangam Ranganatha, framed
+			mb.wall(Vector3(-0.9, 2.2, -d / 2 + 0.02), Vector3(0, 0, 1), 0.32, 0.32, Rect2(0, 0, 1, 1), Color(0.9, 0.9, 0.86))  # wall clock
+			mb.wall(Vector3(-w / 2 + 0.03, 1.3, -0.6), Vector3(1, 0, 0), 0.5, 1.1, Rect2(0, 0, 1, 1), Color(0.76, 0.66, 0.5))    # the ironed uniform on its nail
+			mb.wall(Vector3(-w / 2 + 0.03, 1.35, 0.0), Vector3(1, 0, 0), 0.5, 1.2, Rect2(0, 0, 1, 1), Color(0.07, 0.07, 0.08))   # her coat and gown
+			_text(root, "JULY 2002\nSri Ganesha Stores", Vector3(1.6, 1.68, -d / 2 + 0.04), 0.0, 20, Color(0.6, 0.1, 0.1))
+			_text(root, "KARNATAKA\nLAW JOURNAL", Vector3(0.3, 1.75, -d / 2 + 0.06), 0.0, 14, Color(0.9, 0.85, 0.6))
 		"bar":
 			_box(mb, solids, Vector3(0, 0.55, -3.0), Vector3(6.0, 1.1, 0.6), Color(0.3, 0.18, 0.1))
 			for i in 9:
@@ -150,7 +167,7 @@ static func _text(root: Node3D, text: String, pos: Vector3, yaw: float, size: in
 ## Put the right people in the room for this hour (plus any the story demands).
 static func populate(id: String, world, origin: Vector3) -> void:
 	var spots := {
-		"home": [Vector3(0.6, 0, 0.4), Vector3(-0.3, 0, -0.5)],
+		"home": [Vector3(0.3, 0, -1.6), Vector3(-0.3, 0, -0.5)],
 		"bar": [Vector3(0, 0, -3.7), Vector3(-3.2, 0, 0.35), Vector3(3.2, 0, 0.35), Vector3(-3.2, 0, 2.85), Vector3(3.2, 0, 2.85)],
 		"police": [Vector3(-1.5, 0, -2.5), Vector3(-3.3, 0, 0.8), Vector3(2.6, 0, 2.2)],
 		"tailor": [Vector3(0, 0, -2.0), Vector3(2.5, 0, 0.2)],
@@ -161,7 +178,7 @@ static func populate(id: String, world, origin: Vector3) -> void:
 	for nid in People.DB:
 		var sl := People.slot(nid, t)
 		var present: bool = sl[0] == id and (sl[1] != "off" or id == "home")
-		if id == "home" and nid != "kitty":
+		if id == "home" and nid != "kamakshi":
 			present = false
 		if world.story.interior_cast(id).has(nid):
 			present = true
@@ -170,7 +187,7 @@ static func populate(id: String, world, origin: Vector3) -> void:
 		if present:
 			here.append(nid)
 	# the proprietor always takes the first spot
-	var lead := {"bar": "mani", "police": "lokesh", "tailor": "rafiq", "godown": "tiger", "home": "kitty"}
+	var lead := {"bar": "mani", "police": "lokesh", "tailor": "rafiq", "godown": "tiger", "home": "kamakshi"}
 	here.sort_custom(func(a, b): return a == lead[id] and b != lead[id])
 	var list: Array = spots[id]
 	for i in mini(here.size(), list.size()):

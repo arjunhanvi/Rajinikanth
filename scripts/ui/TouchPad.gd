@@ -31,10 +31,11 @@ const BTN := {
 	"right": ["bl", 262, -115, 64, ">", ["drive"]],
 	"whistle": ["br", -110, -110, 60, "RIGHT!", ["bus"]],
 	"bell": ["br", -255, -100, 46, "BELL", ["bus"]],
-	"pause": ["tr", -44, 44, 28, "II", ["foot", "drive", "bus"]],
+	"pause": ["tr", -44, 44, 28, "II", ["foot", "drive", "bus", "ride"]],
+	"radio": ["br", -330, -340, 38, "RADIO", ["drive"]],
 	"phone": ["tr", -44, 190, 30, "TEL", ["foot", "drive"]],
 	"map": ["tr", -44, 262, 30, "MAP", ["foot", "drive", "bus"]],
-	"cam": ["tr", -44, 334, 30, "CAM", ["foot", "drive"]],
+	"cam": ["tr", -44, 334, 30, "CAM", ["foot", "drive", "ride"]],
 }
 
 func _ready() -> void:
@@ -60,6 +61,8 @@ func _visible_btn(id: String) -> bool:
 	if id == "interact" and interact_text == "":
 		return false
 	if id in ["left", "right"] and int(Game.settings.steer) == 1:
+		return false
+	if id == "radio" and (Game.world == null or not Game.world.radio_ok()):
 		return false
 	if id == "phone" and not Game.s.get("phone", false):
 		return false

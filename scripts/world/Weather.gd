@@ -145,6 +145,7 @@ func update(delta: float, t: float, weather: String, cam_pos: Vector3, lamp_posi
 	var mist := clampf(1.0 - absf(t - 6.6) / 1.6, 0.0, 1.0) * 0.004 + clampf(1.0 - absf(t - 13.0) / 3.0, 0.0, 1.0) * 0.0008
 	env.fog_density = lerpf(0.0011 + mist, 0.009, maxf(raining, cloud * 0.3))
 	Mats.set_wetness(wet)
+	Mats.set_rain(raining)
 	var ph := 0
 	if t >= 21.5 or t < 6.0:
 		ph = 2

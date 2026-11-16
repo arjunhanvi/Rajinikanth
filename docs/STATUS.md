@@ -1,6 +1,101 @@
-# Status (v0.2.0, realism and immersion upgrade)
+# Status (v0.3.0, new canon and living-world upgrade)
 
-v0.1.0 is kept as the rollback point: git tag `v0.1.0`. Saves from v0.1.0 load in v0.2.0.
+Same application (`com.hanvisoriginal.rajinikanth`), same project, same build pipeline. Rollback
+points: git tags `v0.1.0` and `v0.2.0`.
+
+## Completed in v0.3.0
+
+**Story (Chapter One rebuilt around the new canon)**
+- Opening tea sequence with no controls: water, leaves, boil, milk, stirring, the long pour between
+  tumblers, the glass filling, the tray; the tray carried down the street into Upparpet Police
+  Station; glasses handed to officers; the last glass taken to the lock-up, where Rajinikanth is revealed.
+- Backstory told in the station: the harassment on bus 27E was real and happened to a student,
+  Shwetha; the F.I.R. names the conductor because Kamakshi had stopped Devaraj's Peenya land deal.
+  The complaint is never treated as a joke.
+- Kamakshi serves the bail order and faces down the Sub-Inspector. Control begins inside the station:
+  look around, talk to the writer, the head constable, Lokesh and the Inspector, walk out.
+- Umashankar (surety, best friend, driver of 27E) and Kamakshi wait outside. She drives the family
+  scooter; Rajinikanth rides pillion, leaning back and looking around, while they talk all the way to
+  Malleshwaram. Rides are repeatable: to the depot, to any known place, to the evening show.
+- Five chapters: Bail; Back on the Route (the ticketing game, the man who jumps off the last bus);
+  Eighteen Lakhs (police, hide it, or let Kamakshi deposit it in court); Wrong Number (Umashankar
+  can come along; Thimmaiah's godown; the raid); The Conductor's Bag (ends face to face with Devaraj).
+- Devaraj is a businessman with an office, a finance company, a nephew, a temple committee and a
+  collector; his offer at the end can be accepted, refused or taken home to "ask my wife".
+- Side stories: Umashankar's loan from Devaraj Finance (pay, fight, or Kamakshi's legal notice),
+  the reporter, the film with Kamakshi, work shifts, a promise to tell Kamakshi before going anywhere.
+- New and reworked cast: Kamakshi, Umashankar, Girija, Putti, Devaraj, Vicky, Advocate Mohan Rao;
+  every named person has family, money circumstances, a personal gait and a voice pitch.
+- New places: your house in Malleshwaram (new interior), Umashankar's vatara, the High Court,
+  Sri Devaraj Enterprises.
+- Old saves load. v0.1/v0.2 saves keep money, standing, clothes, vehicles, statistics and calendar;
+  the story restarts from the new opening and the player is told so.
+
+**Music rule**
+- No background score anywhere on foot, in dialogue, in missions or in cinematics; the generated
+  music has been removed from the build. The supplied intro soundtrack is unchanged.
+- Vehicle radio: plays only user-supplied tracks from `assets/audio/radio/` (or the app's `radio`
+  folder), only while driving a car or auto-rickshaw; RADIO button for next track, volume and mute in
+  Settings, track remembered between sessions. **No Kannada tracks have been supplied yet, so the
+  radio is currently silent** and says so.
+
+**People**
+- Faces: iris, pupil with catch-light, eyelids that blink at irregular intervals (double blinks,
+  faster when nervous), eyes that move before the head, teeth, lip and jaw movement while speaking,
+  brow movement, moods (surprise, nervous, angry, sad, tired, smile), age lines, per-face asymmetry.
+- Bodies: heavier builds (Umashankar), fingers and knuckles, buttons and lash lines on important
+  characters, skin and woven-cloth textures, hems that sway with the stride, an advocate's coat.
+- Movement: personal walking styles (stride, sway, arm swing, lean), leaning into turns, a pillion
+  pose, tray carrying, tea pouring, umbrellas, children playing.
+- Three tiers: hero (player and named cast) with extra detail; nearby people; distant people with
+  reduced detail and throttled animation.
+
+**World**
+- Tea stall with vessel, stove, milk can, glasses, tumblers, biscuit jars, sugar tin, cash box,
+  papers, hanging packets, price board, stools; the owner pours.
+- Streets: tar patches, potholes, manhole covers, faded markings, puddles that appear in rain,
+  litter, weeds, torn film and election posters, newspaper stands, coin telephones.
+- Homes: chappals at the step, buckets or flower pots and plastic chairs by household, old
+  bicycles, nameplates, people sweeping in the morning, children playing, a television heard from inside.
+- Rain: umbrellas come out, vendors' carts get blue tarpaulins, puddles form, fewer people about.
+- Animals: stray dogs that trot, sleep, bark and move for traffic; pigeons and crows that take off.
+- Positional sound: tea stall, eating houses, market, bus station, bars, televisions.
+
+## Verified in this build
+
+By automated play-through and by looking at the captured frames:
+- New Chapter One from the tea sequence to the meeting with Devaraj (34 checks), including the
+  first playable moment, the pillion ride, the home scenes, both conductor runs, the raid.
+- Save and load; a v1 save migrating correctly.
+- Music rule: nothing playing on foot; radio available in a car, not on a scooter, off on exit.
+- APK: same package name, zip-aligned, signature verified; exported pack boots without script errors.
+
+## Not verified
+
+- **No Android device or emulator has ever run this game.** Frame rate, memory, touch and audio on
+  real hardware are unmeasured. This version adds more people detail, props and sounds; on the
+  software renderer busy scenes run slower than v0.1. Treat performance as unknown; try the Low preset first.
+- The opening's pacing and framing were checked from still frames, not watched in motion.
+- The radio has only been tested with no tracks installed.
+- Traffic, animals and rain behaviour were not observed over long periods.
+
+## Requested but not achieved
+
+- Photographic human realism (pores, wrinkles in cloth, simulated fabric, articulated fingers,
+  blendshape faces, motion-captured or IK movement, recorded voices). People are still procedural
+  low-poly figures; they are more expressive, not realistic.
+- Depth of field and liquid or steam simulation in the tea sequence: the mobile renderer in use has
+  no depth of field, so close-ups use long lenses, and liquids and steam are animated meshes and particles.
+- Interactive shop interiors for grocers, mechanics, barbers and clothing shops; only the tea stall
+  got a full inventory. Shopkeepers do not physically hand over goods or take coins.
+- Obstruction-aware audio, heat haze, wet clothing, water spray, drips, flowing drains.
+- Occlusion culling and asynchronous loading. Level of detail, instancing, atlases and streaming exist.
+- The story beyond Chapter One: the gradual rise, betrayals and endings are set up by recorded
+  choices but not written.
+
+---
+
+# Earlier: v0.2.0
 
 ## What changed in v0.2.0
 

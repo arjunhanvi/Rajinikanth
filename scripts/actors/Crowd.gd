@@ -129,7 +129,12 @@ func _named_tick(dt: float) -> void:
 
 func _spawn_named(id: String, rec: Dictionary, travelling: bool) -> void:
 	var n := NPC.new()
-	n.setup(People.look_of(id), {"name": People.NAMES[id], "job": People.DB[id].job}, id)
+	var lk := People.look_of(id)
+	if id == "kamakshi" and rec.place == "court":
+		lk.top = 11
+	n.hero = true
+	n.setup(lk, {"name": People.NAMES[id], "job": People.DB[id].job}, id)
+	n.human.walk = People.DB[id].get("walk", [1.0, 1.0, 1.0, 0.0])
 	add_child(n)
 	n.global_position = Vector3(rec.pos.x, 0, rec.pos.y)
 	npcs.append(n)
@@ -262,6 +267,16 @@ func time_factor() -> float:
 
 func _ambient_tick() -> void:
 	var pp := ppos()
+	var wet: bool = world.weather.raining > 0.4
+	for n in npcs:
+		# when it rains, out come the black umbrellas; vendors and porters just get wet
+		if is_instance_valid(n) and n.mode in ["grid", "mate"] and n.id == "":
+			var has: bool = absi(hash(n.display_name())) % 10 < 6
+			if wet and has and n.human.activity in ["", "carry"]:
+				n.human.activity = "umbrella"
+				n.speed = maxf(n.speed, 1.7)
+			elif not wet and n.human.activity == "umbrella":
+				n.human.activity = ""
 	var count := 0
 	for n in npcs.duplicate():
 		if not is_instance_valid(n):
@@ -334,6 +349,14 @@ func _spawn_at_spot(pp: Vector2, kind: String) -> bool:
 			act = ["read", "tea", ""][rng.randi() % 3]; sit = true
 		"school":
 			ident.job = "student"; cat = "student"; act = "laugh" if rng.randf() < 0.4 else ""
+		"play":
+			ident.job = "student"; cat = "student"; act = "play"
+		"sweep":
+			ident.sex = 1 if rng.randf() < 0.7 else 0; cat = "shopper"; act = "sweep" if float(Game.s.time) < 10.0 else ("listen" if rng.randf() < 0.5 else "wait")
+		"paper":
+			cat = "office" if rng.randf() < 0.6 else "elder"; act = "read"
+		"phone":
+			act = "phone"
 	var n := _make(ident, sp.pos, cat)
 	n.face_yaw = sp.yaw
 	n.human.rotation.y = sp.yaw
@@ -414,6 +437,8 @@ func bus_halt(veh: Vehicle) -> void:
 		n2._regrid()
 
 func _street_chatter() -> void:
+	if world.hud == null or world.hud.cinematic or world.busy:
+		return
 	_greetings()
 	var pp: Vector3 = world.player.global_position
 	var cands: Array = []
@@ -489,7 +514,7 @@ func _named_chat(n: NPC) -> void:
 	var lines: Array = People.CHAT[id]
 	var key := "chat_day%d" % int(Game.s.day)
 	await hud.say(nm, lines[rng.randi() % lines.size()])
-	if not Game.recalls(id, key) and id in ["nanjappa", "meena", "basanna", "kitty", "immu", "shalini"]:
+	if not Game.recalls(id, key) and id in ["nanjappa", "meena", "uma", "kamakshi", "immu", "shalini", "girija", "putti"]:
 		Game.remember(id, key)
 		Game.s.rel[id] = clampi(Game.rel(id) + 1, -100, 100)
 

@@ -19,6 +19,7 @@ var timer := 0.0
 var attack_cd := 0.0
 var story_tag := ""          # story actors carry a tag so missions can find them
 var no_despawn := false
+var hero := false
 var partner: NPC = null
 var _bubble: Label3D = null
 var _bubble_t := 0.0
@@ -37,7 +38,9 @@ var _glance := 0.0
 func setup(look: Dictionary, identity: Dictionary, named_id := "") -> void:
 	id = named_id
 	ident = identity
-	human = Human.make(look)
+	human = Human.make(look, 2 if (hero or named_id != "") else 1)
+	if named_id == "":
+		human.walk = [randf_range(0.85, 1.15), randf_range(0.6, 1.6), randf_range(0.6, 1.3), randf_range(-0.04, 0.06)]
 	add_child(human)
 	speed = randf_range(1.15, 1.6)
 

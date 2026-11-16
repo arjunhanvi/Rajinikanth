@@ -72,7 +72,33 @@ static func grass() -> StandardMaterial3D: return _std("grass", "grass", 1.0)
 static func concrete() -> StandardMaterial3D: return _std("concrete", "concrete", 0.9, true, true)
 static func shed() -> StandardMaterial3D: return _std("shed", "shed", 0.7, true, true)
 
+static func puddle() -> StandardMaterial3D:
+	if _m.has("puddle"):
+		return _m["puddle"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.2, 0.22, 0.25, 0.0)
+	m.roughness = 0.03
+	m.metallic_specular = 1.0
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_m["puddle"] = m
+	return m
+
+## Blue plastic sheets that vendors pull over their goods when it rains.
+static func tarp() -> StandardMaterial3D:
+	if _m.has("tarp"):
+		return _m["tarp"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.12, 0.3, 0.7, 0.0)
+	m.roughness = 0.35
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_m["tarp"] = m
+	return m
+
+static func set_rain(r: float) -> void:
+	tarp().albedo_color.a = clampf(r * 2.0, 0.0, 1.0)
+
 static func set_wetness(w: float) -> void:
+	puddle().albedo_color.a = clampf(w * 1.2, 0.0, 0.8)
 	for k in ["road", "street", "footpath"]:
 		var m: StandardMaterial3D = _m.get(k)
 		if m != null:
@@ -99,6 +125,19 @@ static func col(c: Color, rough := 0.85, metal := 0.0) -> StandardMaterial3D:
 	m.metallic = metal
 	if c.a < 1.0:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_m[key] = m
+	return m
+
+static func skin(c: Color) -> StandardMaterial3D:
+	var key := "skin_" + c.to_html()
+	if _m.has(key):
+		return _m[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.albedo_texture = tex("skin")
+	m.uv1_scale = Vector3(2, 2, 1)
+	m.roughness = 0.6
+	m.metallic_specular = 0.35
 	_m[key] = m
 	return m
 

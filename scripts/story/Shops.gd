@@ -118,7 +118,7 @@ static func wardrobe(world) -> void:
 			items.append({"text": "%s: %s" % [slot.capitalize(), SLOT_NAMES[slot][int(look[slot])]], "sub": "tap to change"})
 		items.append({"text": "Shirt colour: %s" % COLOUR_NAMES[int(look.top_col) % 14], "sub": "tap to change"})
 		items.append({"text": "Lower colour: %s" % COLOUR_NAMES[int(look.bot_col) % 14], "sub": "tap to change"})
-		var c: int = await world.hud.menu("Steel Trunk - Your Clothes", items, "Everything you own is in here. Buy more at New Modern Tailors.")
+		var c: int = await world.hud.menu("Steel Almirah - Your Clothes", items, "Your half of the almirah. Kamakshi's half is not to be opened.")
 		if c < 0:
 			break
 		if c < 6:

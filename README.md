@@ -1,8 +1,9 @@
 # RAJINIKANTH
 
 **A HANVI'S ORIGINAL production.** An Android-first, third-person, open-world crime drama set in
-Bangalore, 2002. You are Rajinikanth, conductor on Route 27E. One night a passenger jumps off the
-last bus and leaves a bag behind.
+Bangalore, 2002. You are Rajinikanth, conductor on Route 27E, just out on bail for something
+another man did. Your wife Kamakshi argued you out. Your friend Umashankar stood surety. Then a
+passenger jumps off the last bus and leaves a bag behind.
 
 *One city. Countless stories. One man's unexpected transformation.*
 
@@ -37,7 +38,9 @@ Mouse acts as touch. Keys: WASD move, Shift run, Space jump, C crouch, E interac
 
 ## What is playable now
 
-v0.2.0 is a realism upgrade over the first milestone (see [docs/STATUS.md](docs/STATUS.md) for the list); `git checkout v0.1.0` is the rollback point.
+v0.3.0 rebuilds Chapter One around the new canon and adds a living-world pass (see [docs/STATUS.md](docs/STATUS.md)). Rollback points: tags `v0.1.0`, `v0.2.0`.
+
+**Music:** the game has no background score. Put your own Kannada tracks (`.ogg` / `.mp3`) in `assets/audio/radio/` before building; they play only while driving a car or an auto.
 
 - Animated HANVI'S ORIGINAL opening, yellow-star title, main menu, 4 independent save slots.
 - Character creation with live 3D preview (face, skin, hair, facial hair, build, clothes, accessories).
@@ -46,8 +49,8 @@ v0.2.0 is a realism upgrade over the first milestone (see [docs/STATUS.md](docs/
 - Day/night, weather, rain with wet roads, street lamps, shops that shutter at night, power cuts.
 - 22 named characters with jobs, homes, daily schedules, friends and memory; ambient pedestrians with generated identities; police response.
 - Left-hand traffic with 10 period vehicle types, buses that halt at stops, parked and ownable vehicles, a dealer.
-- **Chapter One, "Ticket"** (five missions): the conductor ticketing game, the last-trip incident with two slow-motion sequences, the bag, the phone call, Thimmaiah's godown and the raid, the courier job. Choices change money, relationships, faction standing and later scenes.
-- Side stories: Meena and the evening show (promise, misunderstanding, reconciliation), Kitty's loan, the reporter, repeatable work shifts, chain-snatchers, street-corner rallies.
+- **Chapter One, "Ticket"** (five chapters): the tea-sequence opening and bail, riding pillion behind Kamakshi, the conductor ticketing game with Umashankar, the last-trip incident, the bag, Thimmaiah's godown and the raid, the courier job that ends in Devaraj's office. Choices change money, relationships, faction standing and later scenes.
+- Side stories: Umashankar's loan, the evening show with Kamakshi, the reporter, repeatable work shifts, chain-snatchers, street-corner rallies.
 - In-game 2002 mobile phone (contacts, messages, call register, missions, profile, people) and a pannable, zoomable city map with waypoints and routes.
 - Economy: wages, tea stall, darshini, bar, tailor and wardrobe, cinema, buses and autos for travel, rent, property.
 

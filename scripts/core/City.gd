@@ -334,7 +334,8 @@ func np(id: String) -> Vector2:
 
 func _define_places() -> void:
 	# --- the starting neighbourhood (Majestic / Cottonpet lanes) ---
-	_site("home", "Raji's Room (Lakshmi Vatara)", 25, 104.5, "N", 16, 11, "home", "home")
+	_site("uma_home", "Umashankar's House (Lakshmi Vatara)", 25, 104.5, "N", 16, 11, "house", "home")
+	_site("devaraj", "Sri Devaraj Enterprises", -125, 104.5, "N", 14, 10, "office", "flag")
 	_site("tea", "Nanjappa's Tea Stall", -25, 104.5, "N", 8, 5, "tea", "tea")
 	_site("std", "Meena's S.T.D. Booth", -25, 95.5, "S", 7, 6, "std", "phone")
 	_site("darshini", "Hotel Dwaraka Darshini", 25, 95.5, "S", 14, 9, "food", "food")
@@ -360,8 +361,9 @@ func _define_places() -> void:
 	_site("jpp", "J.P.P. Party Office", np("gandhinagar").x + 25, np("gandhinagar").y + 54.5, "N", 14, 10, "office", "flag")
 	_site("knv", "K.N.V. Party Office", np("malleshwaram").x + 75, np("malleshwaram").y + 45.5, "S", 14, 10, "office", "flag")
 	_site("paper", "Sanje Vaani Press", np("corporation").x - 75, np("corporation").y - 54.5, "S", 14, 10, "office", "news")
-	_site("shetty", "Shetty Steel & Castings", np("peenya").x + 75, np("peenya").y + 54.5, "N", 30, 20, "factory", "factory")
-	_site("meena_home", "Meena's House", np("malleshwaram").x - 75, np("malleshwaram").y + 104.5, "N", 10, 9, "house", "home")
+	_site("shetty", "Devaraj Steel Rolling Mills", np("peenya").x + 75, np("peenya").y + 54.5, "N", 30, 20, "factory", "factory")
+	_site("home", "Your House (8th Cross, Malleshwaram)", np("malleshwaram").x - 75, np("malleshwaram").y + 104.5, "N", 11, 9, "home", "home")
+	_site("court", "High Court of Karnataka", v.x + 75, v.y + 54.5, "N", 30, 16, "court", "landmark")
 	_site("flat", "Flat for Sale (Jayanagar 4th Block)", np("jayanagar").x + 75, np("jayanagar").y + 54.5, "N", 14, 12, "property", "home")
 	var u := np("ulsoor")
 	_zone("ulsoor", "Ulsoor Lake", Rect2(u.x - 130, u.y - 150, 110, 120), "lake", "park", Vector2(u.x - 60, u.y - 25))

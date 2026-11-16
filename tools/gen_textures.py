@@ -300,3 +300,16 @@ if __name__ == "__main__":
     noise_tex("footpath.png", (150, 146, 138), 7, 256, 0, pavers); noise_tex("ground.png", (140, 124, 100), 8, 256, 6)
     noise_tex("grass.png", (74, 108, 58), 10, 256, 5); noise_tex("concrete.png", (156, 154, 150), 6, 256, 8); noise_tex("water.png", (40, 70, 78), 5, 128, 6)
     print("textures ok")
+
+def skin_and_cloth():
+    # skin: fine pores, a few blemishes; multiplies with the skin tone
+    a = rng.normal(238, 5, (128, 128)); 
+    for _ in range(26):
+        x, y = rng.integers(4, 124, 2); a[y - 1:y + 2, x - 1:x + 2] -= rng.uniform(8, 20)
+    im = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6)).convert("RGB"); im.save(OUT + "skin.png")
+    # plain cloth: woven threads, soft creases
+    w = np.full((64, 64), 232.0); w[::2, :] -= 9; w[:, ::2] -= 6; w += rng.normal(0, 3, w.shape)
+    for _ in range(4):
+        y = int(rng.integers(4, 60)); w[y:y + 2, :] -= 14
+    Image.fromarray(np.clip(w, 0, 255).astype(np.uint8)).convert("RGB").save(OUT + "cloth_plain.png")
+skin_and_cloth()

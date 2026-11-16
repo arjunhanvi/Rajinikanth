@@ -49,10 +49,14 @@ func s_tour() -> void:
 	w.player.yaw = PI
 	await wait(0.6)
 	await shot("t2_home_front")
-	await tp(Vector3(-25, 0, 100.5), 0.6)
+	Game.s.time = 8.0
+	w.crowd.resync()
+	await tp(Vector3(-25, 0, 100.0), 0.6)
 	w.player.yaw = PI
-	await wait(1.5)
+	w.player.pitch = -0.1
+	await wait(3.0)
 	await shot("t3_tea_stall")
+	Game.s.time = 6.3
 	await tp(Vector3(52, 0, -6), 0.0)
 	await wait(2.0)
 	await shot("t4_bus_station")
@@ -113,106 +117,159 @@ func _do_run(tag: String) -> void:
 			Engine.time_scale = 6.0
 	Engine.time_scale = 1.0
 
+func _poll(cond: Callable, secs: float) -> bool:
+	var t := 0.0
+	while t < secs:
+		if cond.call():
+			return true
+		await wait(0.2)
+		t += 0.2
+	return false
+
+func _actor(nm: String):
+	for a in world().crowd.npcs:
+		if is_instance_valid(a) and (a.id == nm or a.ident.get("name", "") == nm):
+			return a
+	return null
+
+func _op_shots() -> void:
+	var k := 0
+	while k < 44 and Game.s.active == "c1" and int(Game.s.step) == 0:
+		await shot("op_%02d" % k)
+		k += 1
+		await wait(0.55)
+
 func s_story() -> void:
 	var w = world()
 	var st = w.story
-	await wait(1.5)
-	ok(Game.s.active == "m0" and int(Game.s.step) == 0, "story starts at m0/0")
-	await tp(Vector3(-25, 0, 100.5))
-	var n = await npc("nanjappa")
-	ok(n != null, "Nanjappa is at his stall in the morning")
+	Game.set_meta("cine_wait", 0.7)
+	_op_shots()
+	ok(await _poll(func(): return int(Game.s.step) == 1, 150.0), "opening tea sequence runs through to bail (step=%d)" % int(Game.s.step))
+	Game.set_meta("cine_wait", 0.03)
+	ok(w.interior == "police" and not w.player.locked and not w.busy, "first playable moment is inside the police station")
+	ok(not Sfx._music_a.playing and not Sfx._music_b.playing and not Sfx._radio.playing, "no music is playing on foot")
+	await wait(1.0)
+	await shot("s1_station_playable")
+	var wr = _actor("Station writer")
+	ok(wr != null and _actor("lokesh") != null, "officers are in the station to talk to")
+	Game.set_meta("test_choices", [1])
+	await w.crowd.talk(wr)
+	ok(Game.flag("belongings"), "belongings returned by the writer")
+	w.leave_interior()
+	await wait(1.0)
+	ok(int(Game.s.step) == 2, "walking out advances to 'Kamakshi is waiting'")
+	var k = await npc("kamakshi")
+	ok(k != null and await npc("uma") != null, "Kamakshi and Umashankar wait outside")
+	await shot("s2_outside_station")
+	Game.set_meta("test_choices", [1])
+	w.crowd.talk(k)
+	await _poll(func(): return w.player.ride != null, 20.0)
+	ok(w.player.ride != null and w.player.human.state == "pillion", "riding pillion behind Kamakshi")
+	Game.test_mode = false
+	await wait(4.0)
+	await shot("s3_scooter_ride")
+	Game.test_mode = true
+	ok(await _poll(func(): return int(Game.s.step) == 3, 60.0), "ride ends at home in Malleshwaram")
+	ok(w.player.global_position.distance_to(City.PLACES["home"].pos) < 25.0, "arrived near the house (%.0f m)" % w.player.global_position.distance_to(City.PLACES["home"].pos))
+	await shot("s4_home_outside")
 	Game.set_meta("test_choices", [0])
-	await w.crowd.talk(n)
-	ok(int(Game.s.step) == 1, "m0 advances after tea (money now %d)" % int(Game.s.money))
+	w.enter_interior("home")
+	ok(await _poll(func(): return int(Game.s.step) == 4, 20.0), "home scene with Kamakshi")
+	await shot("s5_home_interior")
+	await Shops.sleep(w)
+	ok(await _poll(func(): return Game.s.active == "c2" and not w.busy, 20.0), "c1 complete, c2 begins next morning")
+	k = _actor("kamakshi")
+	ok(k != null, "Kamakshi is at home in the morning")
+	Game.set_meta("test_choices", [1])
+	await w.crowd.talk(k)
+	ok(await _poll(func(): return w.player.ride == null and w.player.global_position.distance_to(Story.DEPOT) < 60.0, 60.0), "Kamakshi drops you near the depot")
 	await tp(Story.DEPOT + Vector3(2, 0, 0.5))
-	n = await npc("basanna")
-	ok(n != null, "Basanna waits at the depot")
-	await shot("s1_depot")
+	var u = await npc("uma")
+	ok(u != null, "Umashankar waits at the depot")
+	await shot("s6_uma_depot")
 	_slow_shots()
-	await w.crowd.talk(n)
-	ok(st.bus != null and w.player.bus == st.bus, "conductor run started, player aboard")
+	Game.set_meta("test_choices", [2])
+	await w.crowd.talk(u)
+	ok(st.bus != null and w.player.bus == st.bus, "conductor run started")
 	await wait(0.5)
-	await _do_run("s2_day")
+	await _do_run("s7_day")
 	await wait(4.0)
 	Game.set_meta("test_choices", [])
-	await _do_run("s3_night")
+	await _do_run("s8_night")
 	await wait(2.0)
-	ok(Game.s.missions.has("m1"), "m1 complete")
-	ok(Game.s.active == "m2" and int(Game.s.step) == 1 and Game.s.phone, "m2 step 1, phone acquired (active=%s step=%d)" % [Game.s.active, int(Game.s.step)])
-	await shot("s4_after_m1")
-	Game.set_meta("test_choices", [1, 1])
+	ok(Game.s.missions.has("c2") and Game.s.active == "c3" and int(Game.s.step) == 1 and Game.s.phone, "c2 complete; bag opened, phone acquired (active=%s step=%d)" % [Game.s.active, int(Game.s.step)])
 	w.enter_interior("home")
-	await wait(1.5)
-	await shot("s5_home_interior")
-	ok(int(Game.s.step) == 2 and Game.flag("bag") == "home", "bag hidden at home")
-	await Shops.sleep(w)
-	await wait(1.5)
-	ok(Game.s.active == "m3" and int(Game.s.step) == 1, "m3 call happened on waking (active=%s step=%d day=%d)" % [Game.s.active, int(Game.s.step), int(Game.s.day)])
-	w.leave_interior()
-	Game.s.time = 9.5
-	w.crowd.resync()
-	await tp(Vector3(-25, 0, 98.0))
-	n = await npc("meena")
-	ok(n != null, "Meena is at the booth at 9:30")
+	await wait(1.0)
+	k = _actor("kamakshi")
 	Game.set_meta("test_choices", [0, 0])
-	await w.crowd.talk(n)
-	ok(int(Game.s.step) == 2 and Game.flag("promise_meena"), "m3 step 2, promise made")
+	await w.crowd.talk(k)
+	ok(int(Game.s.step) == 2 and str(Game.flag("bag")) == "court", "Kamakshi takes the bag to the Magistrate")
+	await Shops.sleep(w)
+	ok(await _poll(func(): return Game.s.active == "c4" and int(Game.s.step) == 1 and not w.busy, 20.0), "c4 phone call on waking")
+	w.leave_interior()
+	Game.s.time = 9.0
+	w.crowd.resync()
+	await tp(w.crowd.named_pos("uma") + Vector3(1.5, 0, 1.5))
+	u = await npc("uma")
+	Game.set_meta("test_choices", [0, 1])
+	await w.crowd.talk(u)
+	ok(int(Game.s.step) == 2 and Game.flag("uma_came"), "Umashankar insists on coming")
 	await tp(City.PLACES["godown"].pos)
-	await shot("s6_godown_outside")
 	w.enter_interior("godown")
 	await wait(1.0)
-	await shot("s7_godown_inside")
-	var tiger = null
-	for a in w.crowd.actors("interior"):
-		if a.id == "tiger": tiger = a
-	ok(tiger != null, "Thimmaiah is in his godown")
-	Game.set_meta("test_choices", [0, 0])
-	await w.crowd.talk(tiger)
+	Game.set_meta("test_choices", [1])
+	await w.crowd.talk(_actor("tiger"))
 	await wait(1.0)
-	ok(int(Game.s.step) == 3 and w.interior == "", "raid: thrown out of the godown, m3 step 3")
-	ok(w.crowd.actors("raid").size() == 3 and w.traffic.owned.size() == 1, "3 hostiles and the scooter exist")
-	await shot("s8_raid")
-	w.player.enter_vehicle(w.traffic.owned[0])
-	Input.action_press("mv_u")
-	await wait(1.5)
-	await shot("s9_scooter")
-	ok(absf(w.traffic.owned[0].v) > 2.0, "scooter accelerates (v=%.1f)" % w.traffic.owned[0].v)
-	Input.action_release("mv_u")
-	w.traffic.owned[0].global_position = City.PLACES["godown"].pos + Vector3(0, 0, 220)
+	ok(int(Game.s.step) == 3 and w.interior == "" and w.crowd.actors("raid").size() == 2, "raid: out of the godown, Umashankar holds one back")
+	await shot("s9_raid")
+	var sc = w.traffic.owned[w.traffic.owned.size() - 1]
+	w.player.enter_vehicle(sc)
+	ok(not w.radio_ok(), "a scooter has no radio")
+	sc.global_position = City.PLACES["godown"].pos + Vector3(0, 0, 220)
 	await wait(2.0)
-	ok(Game.s.missions.has("m3") and Game.s.active == "m3wait", "m3 complete after escaping")
+	ok(Game.s.missions.has("c4") and Game.s.active == "c4wait", "c4 complete after escaping")
 	w.player.exit_vehicle()
-	ok(Game.save_game(false), "save written")
-	var money := int(Game.s.money)
-	var snap := JSON.stringify(Game.s.flags)
-	Game.s = {}
-	ok(Game.load_game(Game.SLOTS - 1) and int(Game.s.money) == money and JSON.stringify(Game.s.flags) == snap and Game.s.vehicles.size() == 1, "load restores money, flags and vehicle")
-	print("final: money=%d rep=%d rel=%s faction=%s" % [int(Game.s.money), int(Game.s.rep), Game.s.rel, Game.s.faction])
-
-	# --- M4 ---
-	w = world()
+	var car = Vehicle.create("car", 2)
+	w.traffic.add_child(car)
+	car.global_position = w.player.global_position + Vector3(3, 0, 0)
+	w.player.enter_vehicle(car)
+	await wait(0.5)
+	ok(w.radio_ok() and Sfx._radio_on and not Sfx._radio.playing, "radio switches on in a car; silent because no tracks are installed (%d found)" % Sfx.radio_tracks.size())
+	w.player.exit_vehicle()
+	await wait(0.3)
+	ok(not Sfx._radio_on, "radio off on leaving the car")
 	Game.s.day = int(Game.s.day) + 1
-	w.story.on_wake()
-	ok(Game.s.active == "m4", "m4 offered the next day")
+	st.on_wake()
+	ok(Game.s.active == "c5", "c5 offered the next day")
 	Game.s.time = 20.5
 	w.crowd.resync()
 	w.enter_interior("bar")
 	await wait(1.0)
-	await shot("s10_bar")
-	var oil = null
-	for a in w.crowd.actors("interior"):
-		if a.id == "oilkumar": oil = a
-	ok(oil != null, "Oil Kumar is in the bar after 8")
-	if oil != null:
-		await w.crowd.talk(oil)
-	ok(int(Game.s.step) == 1, "m4 briefed")
+	await w.crowd.talk(_actor("oilkumar"))
+	ok(int(Game.s.step) == 1, "c5 briefed")
 	w.leave_interior()
-	w.story._check_done = true
-	w.story._m4_mark("tailor")
+	st._check_done = true
+	st._m4_mark("tailor")
+	await st._m4_deliver("cinema")
+	await tp(City.PLACES["devaraj"].pos + Vector3(0, 0, -3))
 	Game.set_meta("test_choices", [2])
-	await w.story._m4_deliver("cinema")
-	await w.story._m4_deliver("jpp")
-	ok(Game.s.active == "end" and Game.s.missions.has("m4"), "chapter one ends (money=%d)" % int(Game.s.money))
+	await st._m4_deliver("devaraj")
+	await shot("s10_devaraj")
+	ok(Game.s.active == "end" and str(Game.flag("devaraj_answer")) == "refuse", "chapter ends after meeting Devaraj (money=%d)" % int(Game.s.money))
+	ok(Game.save_game(false), "save written")
+	var money := int(Game.s.money)
+	var snap := JSON.stringify(Game.s.flags)
+	Game.s = {}
+	ok(Game.load_game(Game.SLOTS - 1) and int(Game.s.money) == money and JSON.stringify(Game.s.flags) == snap, "load restores money and flags")
+	# an old v1 save must still load
+	var old := {"v": 1, "mode": "story", "name": "Rajinikanth", "look": Human.default_look(), "money": 4321, "rep": 12, "day": 9, "active": "m3", "step": 2,
+		"flags": {"bag": "home"}, "vehicles": [{"type": "scooter", "col": 2, "uid": "v77", "pos": [10, 10], "rot": 0}], "wardrobe": ["top:6"], "props": [], "playtime": 999.0, "stats": {"tickets": 40, "km": 3.2, "talks": 9}, "rel": {"meena": 20}}
+	var f := FileAccess.open(Game.slot_path(0), FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	ok(Game.load_game(0) and int(Game.s.money) == 4321 and Game.s.active == "" and Game.s.vehicles.size() == 1 and Game.s.wardrobe.has("top:6") and Game.flag("migrated") and int(Game.s.v) == 2, "v1 save migrates: money, vehicle and clothes kept, story restarts")
+	Game.delete_slot(0)
+	print("final: rel=%s faction=%s" % [Game.s.rel, Game.s.faction])
 
 func s_ui() -> void:
 	var intro = Game.boot.current

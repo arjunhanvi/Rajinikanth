@@ -100,6 +100,21 @@ static func label(ctx: Dictionary, text: String, pos: Vector3, yaw: float, size 
 	lb.visibility_range_end = 90.0
 	ctx.root.add_child(lb)
 
+## A looping, positional sound that belongs to a place (heard only when near).
+static func sound(ctx: Dictionary, stream_name: String, pos: Vector3, dist := 18.0, db := -6.0) -> void:
+	var st := Sfx.stream(stream_name)
+	if st == null:
+		return
+	var p := AudioStreamPlayer3D.new()
+	p.stream = st
+	p.bus = "Amb"
+	p.unit_size = 3.0
+	p.max_distance = dist
+	p.volume_db = db
+	p.autoplay = true
+	p.position = pos
+	ctx.root.add_child(p)
+
 static func solid(ctx: Dictionary, centre: Vector3, size: Vector3, c: Color, yaw := 0.0) -> void:
 	ctx.vc.box(centre, size, c, Rect2(0, 0, 1, 1), true, Basis(Vector3.UP, yaw))
 	ctx.solids.append([centre, size, yaw])
@@ -139,6 +154,30 @@ static func _site(ctx: Dictionary, id: String, s: Dictionary) -> void:
 			for sd: float in [-1.0, 1.0]:
 				vc.box(front + f3 * 1.0 + right * sd * (w * 0.5 + 0.2) + Vector3(0, 0.45, 0), Vector3(0.4, 0.08, 2.2), Color(0.4, 0.28, 0.18), Rect2(0, 0, 1, 1), true, basis)
 			ctx.solids.append([c - f3 * (d * 0.5 - 0.15) + Vector3(0, 1.4, 0), Vector3(w, 2.8, 0.3), yaw])
+			# everything a working stall needs, on and around the counter
+			var ct := front - f3 * 1.2 + Vector3(0, 1.0, 0)
+			var steel := Color(0.72, 0.73, 0.76)
+			vc.box(ct + right * 1.25 + Vector3(0, 0.1, 0), Vector3(0.36, 0.2, 0.36), Color(0.15, 0.3, 0.55), Rect2(0, 0, 1, 1), true, basis)      # kerosene stove
+			vc.box(ct + right * 1.25 + Vector3(0, 0.32, 0), Vector3(0.34, 0.24, 0.34), Color(0.1, 0.09, 0.09), Rect2(0, 0, 1, 1), true, basis)     # blackened tea vessel
+			vc.box(ct + right * 0.75 + Vector3(0, 0.16, -0.05), Vector3(0.24, 0.32, 0.24), steel, Rect2(0, 0, 1, 1), true, basis)                  # milk can
+			for i in 6:
+				vc.box(ct + right * (-0.1 + (i % 3) * 0.13) - f3 * (0.12 - (i / 3) * 0.14) + Vector3(0, 0.05, 0), Vector3(0.07, 0.1, 0.07), Color(0.82, 0.88, 0.9, 1), Rect2(0, 0, 1, 1), true, basis)   # tea glasses
+			for i in 3:
+				vc.box(ct + right * (0.32 + i * 0.12) + Vector3(0, 0.05, 0.1), Vector3(0.08, 0.1, 0.08), steel, Rect2(0, 0, 1, 1), true, basis)     # steel tumblers
+			for i in 3:
+				vc.box(ct - right * (0.7 + i * 0.28) + Vector3(0, 0.14, 0), Vector3(0.2, 0.28, 0.2), Color(0.8, 0.86, 0.88), Rect2(0, 0, 1, 1), true, basis)                       # biscuit jars
+				vc.box(ct - right * (0.7 + i * 0.28) + Vector3(0, 0.3, 0), Vector3(0.21, 0.04, 0.21), [Color(0.8, 0.15, 0.1), Color(0.1, 0.4, 0.2), Color(0.85, 0.7, 0.1)][i], Rect2(0, 0, 1, 1), true, basis)
+			vc.box(ct - right * 1.5 + Vector3(0, 0.08, -0.1), Vector3(0.2, 0.16, 0.16), Color(0.2, 0.4, 0.7), Rect2(0, 0, 1, 1), true, basis)         # sugar tin
+			vc.box(ct - right * 0.3 + Vector3(0, 0.04, 0.22), Vector3(0.26, 0.08, 0.18), Color(0.3, 0.3, 0.32), Rect2(0, 0, 1, 1), true, basis)       # cash box
+			vc.box(ct + right * 0.2 + Vector3(0, 0.02, 0.26), Vector3(0.34, 0.03, 0.24), Color(0.9, 0.88, 0.8), Rect2(0, 0, 1, 1), true, basis)       # today's papers
+			for i in 9:
+				vc.box(front - f3 * 0.9 + right * (-1.6 + i * 0.4) + Vector3(0, 2.35 - (i % 2) * 0.05, 0), Vector3(0.16, 0.26, 0.02), [Color(0.85, 0.15, 0.15), Color(0.95, 0.8, 0.15), Color(0.15, 0.5, 0.25), Color(0.2, 0.35, 0.75)][i % 4], Rect2(0, 0, 1, 1), true, basis)   # hanging snack packets
+			vc.box(c - f3 * (d * 0.5 - 0.32) + right * 1.6 + Vector3(0, 1.9, 0), Vector3(0.7, 0.5, 0.03), Color(0.08, 0.1, 0.08), Rect2(0, 0, 1, 1), true, basis)   # slate price board
+			label(ctx, "TEA  2/-\nCOFFEE  3/-\nBUN  3/-", c - f3 * (d * 0.5 - 0.35) + right * 1.6 + Vector3(0, 1.9, 0) + f3 * 0.02, yaw, 22, Color(0.95, 0.95, 0.9), Color(0.1, 0.1, 0.1))
+			for i in 3:
+				vc.box(front + f3 * (0.4 + i * 0.5) - right * (0.9 - i * 0.7) + Vector3(0, 0.22, 0), Vector3(0.32, 0.44, 0.32), [Color(0.7, 0.15, 0.12), Color(0.15, 0.3, 0.65), Color(0.7, 0.15, 0.12)][i], Rect2(0, 0, 1, 1), true, basis)   # plastic stools
+			vc.box(front + f3 * 0.3 + right * (w * 0.5 + 0.5) + Vector3(0, 0.25, 0), Vector3(0.4, 0.5, 0.4), Color(0.25, 0.25, 0.27), Rect2(0, 0, 1, 1), true, basis)   # bucket of used glasses
+			sound(ctx, "amb_plates", ct, 16.0, -8.0)
 			label(ctx, "NANJAPPA TEA STALL\nBY-TWO COFFEE  BUN  BEEDI", front + Vector3(0, 3.35, 0) + f3 * 1.6, yaw, 44)
 			return
 		"std":
@@ -147,9 +186,17 @@ static func _site(ctx: Dictionary, id: String, s: Dictionary) -> void:
 			sign_bg = Color(1, 0.9, 0.2)
 			text = "S.T.D  -  I.S.D  -  P.C.O\nLOCAL CALL Rs. 1"
 		"home":
-			h = 6.4
-			tint = Color(0.78, 0.86, 0.8)
-			text = "LAKSHMI VATARA\nROOMS FOR BACHELORS"
+			h = 3.4
+			tint = Color(0.95, 0.9, 0.72)
+			sign_col = Color(0.1, 0.1, 0.1)
+			sign_bg = Color(0.85, 0.82, 0.7)
+			text = "No. 14   KAMAKSHI R., B.A., LL.B.\nADVOCATE, HIGH COURT"
+		"court":
+			h = 9.0
+			tint = Color(0.72, 0.2, 0.16)
+			sign_col = Color(1, 0.95, 0.85)
+			sign_bg = Color(0.4, 0.08, 0.06)
+			text = "HIGH COURT OF KARNATAKA"
 		"food":
 			tint = Color(0.95, 0.95, 0.9)
 			sign_bg = Color(0.1, 0.4, 0.15)
@@ -187,8 +234,9 @@ static func _site(ctx: Dictionary, id: String, s: Dictionary) -> void:
 			h = 7.0
 			tint = Color(0.6, 0.62, 0.66)
 		"house":
-			tint = Color(0.95, 0.8, 0.82)
-			text = ""
+			h = 6.4
+			tint = Color(0.78, 0.86, 0.8)
+			text = "LAKSHMI VATARA" if id == "uma_home" else ""
 		"property":
 			h = 6.4
 			tint = Color(0.8, 0.9, 0.95)
@@ -204,20 +252,30 @@ static func _site(ctx: Dictionary, id: String, s: Dictionary) -> void:
 		for b in nb:
 			var tile := 0
 			if f == 0:
-				tile = 10 if b == nb / 2 else (4 + (b % 4) if type in ["food", "tailor", "std", "dealer", "parlour"] else (2 if type in ["police", "office", "factory"] else 1))
+				tile = 10 if b == nb / 2 else (4 + (b % 4) if type in ["food", "tailor", "std", "dealer", "parlour"] else (2 if type in ["police", "office", "factory"] else (16 if type == "court" else 1)))
 				if type in ["godown", "cinema"] and b != nb / 2:
 					tile = 9
 			else:
-				tile = [0, 3, 2, 1][(b + f) % 4] if type != "cinema" else 12
+				tile = ([0, 3, 2, 1][(b + f) % 4] if type != "court" else 16) if type != "cinema" else 12
 			fac.wall(front + right * (-w * 0.5 + bw * (b + 0.5)) + Vector3(0, f * fh, 0), f3, bw, fh, MB.atlas(tile), tint)
 	fac.wall(front - f3 * d, -f3, w, h, MB.atlas(12), tint.darkened(0.1))
 	fac.wall(c + right * w * 0.5, right, d, h, MB.atlas(11), tint.darkened(0.05))
 	fac.wall(c - right * w * 0.5, -right, d, h, MB.atlas(13), tint.darkened(0.05))
 	ctx.con.quad(c + Vector3(0, h, 0) - right * w * 0.5 + f3 * d * 0.5, c + Vector3(0, h, 0) + right * w * 0.5 + f3 * d * 0.5, c + Vector3(0, h, 0) + right * w * 0.5 - f3 * d * 0.5, c + Vector3(0, h, 0) - right * w * 0.5 - f3 * d * 0.5, Vector3.UP, Rect2(0, 0, 2, 2), Color(0.6, 0.58, 0.56))
+	if type == "food":
+		sound(ctx, "amb_plates", front + f3 * 1.0 + Vector3(0, 1.2, 0), 18.0, -6.0)
+	elif type in ["bar", "godown"]:
+		sound(ctx, "amb_crowd", front + Vector3(0, 1.5, 0), 14.0, -14.0)
 	if text != "":
 		vc.box(front + f3 * 0.12 + Vector3(0, minf(h - 0.6, 3.25), 0), Vector3(minf(w - 0.6, 9.0), 1.1, 0.1), sign_bg, Rect2(0, 0, 1, 1), true, basis)
 		label(ctx, text, front + f3 * 0.2 + Vector3(0, minf(h - 0.6, 3.25), 0), yaw, 40 if text.length() > 30 else 56, sign_col, sign_bg.darkened(0.3))
 	match type:
+		"court":
+			for i in 9:
+				vc.box(front + f3 * 1.6 + right * (-w * 0.5 + 1.5 + i * (w - 3.0) / 8.0) + Vector3(0, 3.2, 0), Vector3(0.6, 6.4, 0.6), Color(0.93, 0.9, 0.84), Rect2(0, 0, 1, 1), true, basis)
+			vc.box(front + f3 * 1.0 + Vector3(0, 6.6, 0), Vector3(w, 0.5, 2.6), Color(0.93, 0.9, 0.84), Rect2(0, 0, 1, 1), true, basis)
+			for st in 4:
+				vc.box(front + f3 * (2.6 - st * 0.4) + Vector3(0, 0.1 + st * 0.2, 0), Vector3(w * 0.6, 0.2, 0.5), Color(0.8, 0.78, 0.74), Rect2(0, 0, 1, 1), true, basis)
 		"cinema":
 			vc.box(front + f3 * 0.3 + Vector3(0, 7.5, 0), Vector3(12, 5, 0.2), Color(0.5, 0.05, 0.05), Rect2(0, 0, 1, 1), true, basis)
 			label(ctx, "NOW SHOWING\nBENKI BASAVA\n4 SHOWS DAILY", front + f3 * 0.45 + Vector3(0, 7.5, 0), yaw, 90)
@@ -256,6 +314,7 @@ static func _scatter_trees(ctx: Dictionary, r: Rect2, n: int, seed_v: int, avoid
 
 static func _busstation(ctx: Dictionary, r: Rect2) -> void:
 	_slab(ctx, r, "con", 8.0, Color(0.78, 0.77, 0.75))
+	sound(ctx, "amb_crowd", Vector3(r.get_center().x, 1.5, r.get_center().y), 50.0, -8.0)
 	var vc: MB = ctx.vc
 	# four long platforms with tin shelters, running north-south
 	for i in 4:
@@ -348,6 +407,7 @@ static func _vidhana(ctx: Dictionary, r: Rect2) -> void:
 
 static func _market(ctx: Dictionary, r: Rect2) -> void:
 	_slab(ctx, r, "con", 8.0, Color(0.7, 0.68, 0.64))
+	sound(ctx, "amb_crowd", Vector3(r.get_center().x, 1.5, r.position.y + 8.0), 45.0, -4.0)
 	var c := r.get_center()
 	var w := r.size.x - 18.0
 	var cz := c.y + 8.0

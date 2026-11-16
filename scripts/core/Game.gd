@@ -8,12 +8,12 @@ signal settings_changed
 const SAVE_DIR := "user://saves/"
 const SETTINGS_PATH := "user://settings.json"
 const SLOTS := 4
-const VERSION := 1
+const VERSION := 2
 
 var settings := {
 	"gfx": 1, "sens": 1.0, "btn_scale": 1.0, "btn_alpha": 0.75, "lefty": false,
 	"music": 0.8, "sfx": 1.0, "subtitles": true, "grain": true, "fps60": false,
-	"invert_y": false, "steer": 0, "intro_seen": false,
+	"invert_y": false, "steer": 0, "intro_seen": false, "radio": 0.8, "radio_mute": false, "radio_track": 0,
 }
 var slot := -1
 var s := {}               # the live save state (plain JSON-able data)
@@ -74,10 +74,10 @@ func new_state(mode: String, pname: String, look: Dictionary) -> Dictionary:
 	return {
 		"v": VERSION, "mode": mode, "name": pname, "look": look,
 		"money": 140 if mode == "story" else 2500, "rep": 0, "heat": 0.0, "hp": 100.0,
-		"time": 6.25, "day": 1, "weather": "clear", "pos": [25.0, 0.0, 102.4], "rot": 0.0, "interior": "",
+		"time": 16.2 if mode == "story" else 7.0, "day": 1, "weather": "clear", "pos": [125.0, 0.0, -11.0], "rot": 0.0, "interior": "",
 		"flags": {}, "missions": {}, "active": "", "step": 0, "mvars": {},
-		"rel": {}, "faction": {"tiger": 0, "soda": 0, "police": 0, "jpp": 0, "knv": 0},
-		"npc_mem": {}, "discovered": ["home", "tea", "majestic"], "vehicles": [], "props": [], "wardrobe": [],
+		"rel": {}, "faction": {"tiger": 0, "devaraj": 0, "soda": 0, "police": 0, "jpp": 0, "knv": 0},
+		"npc_mem": {}, "discovered": ["home", "tea", "majestic", "police", "court", "uma_home"], "vehicles": [], "props": [], "wardrobe": [],
 		"contacts": [], "messages": [], "calls": [], "log": [], "phone": mode != "story",
 		"playtime": 0.0, "stats": {"tickets": 0, "km": 0.0, "talks": 0}, "politics": {"jpp": 50.0, "knv": 50.0, "day": 0},
 		"waypoint": null,
@@ -112,11 +112,32 @@ func load_game(i: int) -> bool:
 	if not (d is Dictionary) or not d.has("look"):
 		return false
 	var base := new_state(str(d.get("mode", "story")), str(d.get("name", "Rajinikanth")), d.look)
+	if int(d.get("v", 1)) < 2:
+		d = _migrate_v1(d, base)
 	for k in d:
 		base[k] = d[k]
 	s = base
 	slot = i
 	return true
+
+## v0.1 / v0.2 saves told a different Chapter One. The player's own things are
+## carried over (money, standing, clothes, vehicles, statistics, calendar); the
+## story restarts from the new opening.
+func _migrate_v1(d: Dictionary, fresh: Dictionary) -> Dictionary:
+	var out := {}
+	for k in ["mode", "name", "look", "money", "rep", "day", "vehicles", "props", "wardrobe", "playtime", "stats", "politics", "phone"]:
+		if d.has(k):
+			out[k] = d[k]
+	if str(d.get("mode", "story")) == "story":
+		out["phone"] = false
+	else:
+		for k in ["pos", "rot", "time", "discovered", "contacts"]:
+			if d.has(k):
+				out[k] = d[k]
+	out["flags"] = {"migrated": true}
+	out["log"] = [{"d": int(d.get("day", 1)), "t": "An older diary ends here. The story begins again."}]
+	out["v"] = VERSION
+	return out
 
 func delete_slot(i: int) -> void:
 	if FileAccess.file_exists(slot_path(i)):

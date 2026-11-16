@@ -19,6 +19,8 @@ var bus: Node3D = null         # conductor mode: we ride inside this bus
 var bus_local := Vector3.ZERO
 var talk_focus: Node3D = null   # whoever we are speaking with: the camera frames both
 var cam_zoom := 1.0             # 0.6 close .. 1.6 wide
+var pose := ""                  # cinematics can hold the body in a pose ("sit")
+var ride: Vehicle = null        # riding pillion: somebody else is driving
 var cam_override := false      # cinematics drive the camera
 var _vy := 0.0
 var _step := 0.0
@@ -40,7 +42,7 @@ func _ready() -> void:
 	cs.shape = cap
 	cs.position.y = 0.85
 	add_child(cs)
-	human = Human.make(Game.s.look)
+	human = Human.make(Game.s.look, 2)
 	add_child(human)
 	cam = Camera3D.new()
 	cam.fov = 62.0
@@ -59,6 +61,33 @@ func look_input(d: Vector2) -> void:
 	pitch = clampf(pitch - d.y * sens * (-1.0 if Game.settings.invert_y else 1.0), -1.25, 0.6)
 	_look_idle = 0.0
 
+func mount_pillion(veh: Vehicle) -> void:
+	ride = veh
+	crouching = false
+	collision_layer = 0
+	collision_mask = 0
+	human.get_parent().remove_child(human)
+	veh._lean.add_child(human)
+	human.position = veh.seat_pos() + Vector3(0, 0.03, 0.5)
+	human.rotation = Vector3.ZERO
+	human.state = "pillion"
+	human.speed = 0.0
+	yaw = veh.rotation.y + 0.35
+
+func dismount() -> void:
+	if ride == null:
+		return
+	var out := ride.exit_point()
+	human.get_parent().remove_child(human)
+	add_child(human)
+	human.position = Vector3.ZERO
+	human.rotation = Vector3(0, ride.rotation.y, 0)
+	human.state = "idle"
+	ride = null
+	global_position = Vector3(out.x, 0, out.z)
+	collision_layer = 4
+	collision_mask = 1 | 2
+
 func in_vehicle() -> bool:
 	return vehicle != null
 
@@ -69,7 +98,12 @@ func _physics_process(delta: float) -> void:
 	var kb := Input.get_vector("mv_l", "mv_r", "mv_d", "mv_u")
 	if kb.length() > 0.1:
 		mv = kb
-	if bus != null:
+	if ride != null:
+		global_position = ride.global_position
+		if _look_idle > 2.5:
+			yaw = lerp_angle(yaw, ride.rotation.y + 0.35, 1.0 - exp(-1.5 * delta))
+			pitch = lerpf(pitch, -0.16, 1.0 - exp(-1.5 * delta))
+	elif bus != null:
 		_bus_move(delta, mv)
 	elif vehicle != null:
 		_drive(delta, mv)
@@ -106,6 +140,9 @@ func _walk(delta: float, mv: Vector2) -> void:
 	var hs := Vector2(velocity.x, velocity.z).length()
 	human.speed = hs
 	human.state = "air" if not on_floor else ("crouch" if crouching else "idle")
+	if pose != "":
+		human.state = pose
+		human.speed = 0.0
 	if hs > 0.5 and on_floor:
 		_step -= delta * hs
 		if _step <= 0.0:
@@ -229,6 +266,9 @@ func _camera(delta: float) -> void:
 		pitch = lerpf(pitch, -0.12, 1.0 - exp(-3.0 * delta))
 		target = target.lerp(mid, 0.6)
 		dist = 2.6
+	if ride != null:
+		dist = 4.4 * cam_zoom
+		target = ride.global_position + Vector3(0, 1.45, 0)
 	if vehicle != null:
 		dist = (5.5 + float(vehicle.spec.l) * 0.75) * cam_zoom
 		target = vehicle.global_position + Vector3(0, float(vehicle.spec.h) * 0.75 + 0.5, 0)
@@ -243,7 +283,7 @@ func _camera(delta: float) -> void:
 		cam.global_position = eye
 		cam.global_transform.basis = rot
 		return
-	if vehicle == null:
+	if vehicle == null and not cam_override:
 		human.visible = true
 	var want := target + back * dist
 	if bus == null:

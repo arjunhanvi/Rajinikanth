@@ -48,6 +48,9 @@ func _ready() -> void:
 	_want_chunks(true)
 	add_child(crowd)
 	add_child(traffic)
+	var cr := Critters.new()
+	cr.world = self
+	add_child(cr)
 	hud = HUD.new()
 	hud.world = self
 	add_child(hud)
@@ -70,7 +73,6 @@ func _ready() -> void:
 	_beacon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_beacon)
 	get_viewport().scaling_3d_scale = Game.gfx("scale")
-	Sfx.music("")
 	if str(Game.s.interior) != "":
 		enter_interior(str(Game.s.interior), false)
 	weather.update(1.0, float(Game.s.time), Game.s.weather, player.global_position, [])
@@ -155,6 +157,7 @@ func _process(delta: float) -> void:
 	weather.indoors = interior != ""
 	weather.update(delta, float(Game.s.time), Game.s.weather, player.cam.global_position, lamp_positions() if interior == "" else [])
 	_ambience()
+	Sfx.radio_set(radio_ok())
 	_int_t -= delta
 	if _int_t <= 0.0:
 		_int_t = 0.12
@@ -191,8 +194,11 @@ func _ambience() -> void:
 	var k := 0.25 if inside else 1.0
 	Sfx.ambience({"amb_city": (0.25 if night else 0.75) * dens * k, "amb_night": (0.6 if night else 0.0) * k, "amb_rain": weather.raining * (0.4 if inside else 0.9),
 		"amb_crowd": (0.5 if (interior in ["bar", "godown"] or story.crowd_noise) else 0.0)})
-	if not busy and not _slow:
-		Sfx.music("music_city" if (not night and not inside and float(Game.s.heat) < 20.0) else ("music_tension" if float(Game.s.heat) >= 20.0 else ""), 3.0)
+const RADIO_VEHICLES := ["car", "hatch", "taxi", "jeep", "auto"]
+
+## Music exists in exactly one place: the radio of a car or auto the player is driving.
+func radio_ok() -> bool:
+	return player != null and player.vehicle != null and player.vehicle.type in RADIO_VEHICLES
 
 func _new_day() -> void:
 	Game.s.day = int(Game.s.day) + 1
@@ -451,13 +457,10 @@ func slowmo(scale: float, on: bool) -> void:
 	AudioServer.set_bus_volume_db(i, linear_to_db(maxf(float(Game.settings.sfx) * (0.35 if on else 1.0), 0.001)))
 	hud.slow_fx(on)
 	if on:
-		Sfx.music("music_slowmo", 0.2)
 		Sfx.play("heart", 1.0)
-	else:
-		Sfx.music("", 2.0)
 
 func wait(t: float) -> void:
-	await get_tree().create_timer(t if not Game.test_mode else minf(t, 0.03), true, false, true).timeout
+	await get_tree().create_timer(t if not Game.test_mode else minf(t, float(Game.get_meta("cine_wait", 0.03))), true, false, true).timeout
 
 # ------------------------------------------------------------------ living-city events
 func _random_event() -> void:

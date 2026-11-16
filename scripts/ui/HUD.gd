@@ -11,6 +11,7 @@ var world
 var pad: TouchPad
 var mini: MapView
 var modal := 0
+var voice := 1.0               # pitch of the speech blip for whoever is talking
 var cinematic := false
 var _money: Label
 var _clock: Label
@@ -280,6 +281,7 @@ func _on_pad(id: String) -> void:
 				open_phone()
 		"map": open_map()
 		"pause": open_pause()
+		"radio": Sfx.radio_next()
 		"whistle": world.story.bus_signal("whistle")
 		"bell": world.story.bus_signal("bell")
 
@@ -316,7 +318,7 @@ func say(who: String, text: String) -> void:
 	_dlg_text.visible_characters = 0
 	_dlg_hint.visible = true
 	_typing = 1.0
-	Sfx.play("blip", 0.25, randf_range(0.9, 1.1))
+	Sfx.play("blip", 0.25, voice * randf_range(0.95, 1.05))
 	if Game.test_mode:
 		await _wait(0.02)
 	else:

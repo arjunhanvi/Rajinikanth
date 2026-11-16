@@ -18,7 +18,7 @@ var _intro_tw: Tween           # slow-motion ducks everything but the cue
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for bus_name in ["Music", "Sfx", "Amb"]:
+	for bus_name in ["Music", "Sfx", "Amb", "Radio"]:
 		AudioServer.add_bus()
 		AudioServer.set_bus_name(AudioServer.bus_count - 1, bus_name)
 	for i in 10:
@@ -35,6 +35,11 @@ func _ready() -> void:
 		_amb[n] = p
 		_amb_target[n] = 0.0
 	_intro = _mk("Music")
+	_radio = _mk("Radio")
+	_radio.finished.connect(func():
+		if _radio_on:
+			_radio_play(int(get_node("/root/Game").settings.radio_track) + 1))
+	radio_scan()
 	apply_volumes()
 
 func intro_available() -> bool:
@@ -80,6 +85,7 @@ func apply_volumes() -> void:
 	_set_bus("Music", float(g.settings.music))
 	_set_bus("Sfx", float(g.settings.sfx))
 	_set_bus("Amb", float(g.settings.sfx) * 0.8)
+	_set_bus("Radio", 0.0 if g.settings.get("radio_mute", false) else float(g.settings.get("radio", 0.8)))
 
 func _set_bus(n: String, v: float) -> void:
 	var i := AudioServer.get_bus_index(n)
@@ -125,22 +131,73 @@ func make_loop(n: String, parent: Node3D) -> AudioStreamPlayer3D:
 	parent.add_child(p)
 	return p
 
-func music(n: String, fade := 2.0) -> void:
-	if n == _music_name:
+## House rule: no background score. Walking, talking, exploring and missions are
+## carried by the city's own sound. (Kept as a no-op so old call sites are harmless.)
+func music(_n: String, _fade := 2.0) -> void:
+	if _music_a.playing:
+		_music_a.stop()
+	if _music_b.playing:
+		_music_b.stop()
+
+# ------------------------------------------------------------------ vehicle radio
+## Plays only user-supplied Kannada tracks, only while the player drives a car or
+## an auto-rickshaw. Drop .ogg / .mp3 files in res://assets/audio/radio/ before
+## building, or in user://radio/ on the device.
+var radio_tracks: Array = []
+var _radio: AudioStreamPlayer
+var _radio_on := false
+
+func radio_scan() -> void:
+	radio_tracks.clear()
+	for dir in ["res://assets/audio/radio/", "user://radio/"]:
+		var d := DirAccess.open(dir)
+		if d == null:
+			continue
+		for f in d.get_files():
+			var base := f.trim_suffix(".import")
+			if base.get_extension().to_lower() in ["ogg", "mp3"] and not radio_tracks.has(dir + base):
+				radio_tracks.append(dir + base)
+	radio_tracks.sort()
+
+func _radio_stream(path: String) -> AudioStream:
+	if path.begins_with("res://"):
+		return load(path)
+	if path.get_extension().to_lower() == "ogg":
+		return AudioStreamOggVorbis.load_from_file(path)
+	var st := AudioStreamMP3.new()
+	st.data = FileAccess.get_file_as_bytes(path)
+	return st
+
+func radio_set(on: bool) -> void:
+	if on == _radio_on:
 		return
-	_music_name = n
-	var old := _music_a
-	_music_a = _music_b
-	_music_b = old
-	if old.playing:
+	_radio_on = on
+	var g = get_node("/root/Game")
+	if on:
+		if radio_tracks.is_empty():
+			g.toast.emit("Radio: no Kannada tracks installed yet.")
+			return
+		_radio_play(int(g.settings.radio_track))
+	elif _radio.playing:
 		var tw := create_tween()
-		tw.tween_property(old, "volume_db", -60.0, fade)
-		tw.tween_callback(old.stop)
-	if n != "":
-		_music_a.stream = stream(n)
-		_music_a.volume_db = -40.0
-		_music_a.play()
-		create_tween().tween_property(_music_a, "volume_db", -5.0, fade)
+		tw.tween_property(_radio, "volume_db", -60.0, 0.8)
+		tw.tween_callback(_radio.stop)
+
+func _radio_play(i: int) -> void:
+	if radio_tracks.is_empty():
+		return
+	var g = get_node("/root/Game")
+	i = posmod(i, radio_tracks.size())
+	g.settings.radio_track = i
+	_radio.stream = _radio_stream(radio_tracks[i])
+	_radio.volume_db = 0.0
+	_radio.play()
+	g.toast.emit("Radio: " + str(radio_tracks[i]).get_file().get_basename().replace("_", " "))
+
+func radio_next() -> void:
+	if _radio_on:
+		_radio_play(int(get_node("/root/Game").settings.radio_track) + 1)
+		get_node("/root/Game").save_settings()
 
 func ambience(targets: Dictionary) -> void:
 	for k in _amb_target:

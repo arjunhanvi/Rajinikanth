@@ -20,6 +20,10 @@ var _palms: Array = []      # coconut palms
 var spots: Array = []       # activity anchors for the crowd: {pos, yaw, kind}
 var g_pool: MB
 var g_shop: MB
+var g_puddle: MB
+var g_tarp: MB
+var _hoard: MB
+var _tv = null
 
 func build(chunk: Vector2i) -> void:
 	c = chunk
@@ -41,6 +45,9 @@ func build(chunk: Vector2i) -> void:
 	var p_col := MB.new()
 	g_pool = MB.new()
 	g_shop = MB.new()
+	g_puddle = MB.new()
+	g_tarp = MB.new()
+	_hoard = b_hoard
 
 	g_ground.flat(Vector3(mid.x, 0, mid.y), City.CHUNK, City.CHUNK, Rect2(0, 0, 12, 12))
 	# --- side-street grid ---
@@ -113,6 +120,18 @@ func build(chunk: Vector2i) -> void:
 	var pm := ArrayMesh.new()
 	g_pool.add_to(pm, Mats.pool(false))
 	g_shop.add_to(pm, Mats.pool(true))
+	g_puddle.add_to(pm, Mats.puddle())
+	g_tarp.add_to(pm, Mats.tarp())
+	if _tv != null:
+		var tvp := AudioStreamPlayer3D.new()
+		tvp.stream = Sfx.stream("amb_tv")
+		tvp.bus = "Amb"
+		tvp.unit_size = 2.5
+		tvp.max_distance = 13.0
+		tvp.volume_db = -10.0
+		tvp.autoplay = true
+		tvp.position = _tv
+		add_child(tvp)
 	if pm.get_surface_count() > 0:
 		_add_mesh(pm, false)
 	_props()
@@ -214,6 +233,29 @@ func _dress_street(o: Vector2, d: Vector2, foot: MB, pc: MB) -> void:
 	for i in 5:
 		if rng.randf() < 0.7:
 			pc.box(a + dv * (8.0 + i * 8.0) + sv * ds * 3.95 + Vector3(0, 0.08, 0), Vector3(0.5, 0.06, 2.2), Color(0.55, 0.54, 0.5), Rect2(0, 0, 1, 1), true, basis)
+	# the road itself: patched tar, potholes, a manhole, rain puddles, litter in the gutter, weeds
+	for i in rng.randi_range(2, 5):
+		var rp := a + dv * rng.randf_range(4.0, 46.0) + sv * rng.randf_range(-2.2, 2.2) + Vector3(0, 0.056, 0)
+		var r2 := rng.randf()
+		if r2 < 0.45:
+			pc.flat(rp, rng.randf_range(1.0, 3.2), rng.randf_range(1.0, 2.6), Rect2(0, 0, 1, 1), Color(0.14, 0.14, 0.15))        # fresh tar patch
+		elif r2 < 0.7:
+			pc.flat(rp, rng.randf_range(0.6, 1.3), rng.randf_range(0.5, 1.0), Rect2(0, 0, 1, 1), Color(0.3, 0.26, 0.22))         # pothole, down to the mud
+			g_puddle.flat(rp + Vector3(0, 0.004, 0), 0.9, 0.7)
+		elif r2 < 0.82:
+			pc.flat(rp, 0.85, 0.85, Rect2(0, 0, 1, 1), Color(0.2, 0.2, 0.21))                                                  # manhole cover
+			pc.flat(rp + Vector3(0, 0.003, 0), 0.6, 0.6, Rect2(0, 0, 1, 1), Color(0.28, 0.27, 0.26))
+		else:
+			pc.flat(rp, rng.randf_range(1.5, 4.0), 0.12, Rect2(0, 0, 1, 1), Color(0.5, 0.5, 0.48))                              # ghost of an old road marking
+	for i in rng.randi_range(1, 3):
+		g_puddle.flat(a + dv * rng.randf_range(5.0, 45.0) + sv * (2.5 * (1.0 if rng.randf() < 0.5 else -1.0)) + Vector3(0, 0.06, 0), rng.randf_range(1.0, 2.6), rng.randf_range(0.7, 1.5))
+	for i in rng.randi_range(3, 8):
+		var ls := 1.0 if rng.randf() < 0.5 else -1.0
+		var lp4 := a + dv * rng.randf_range(4.0, 46.0) + sv * ls * rng.randf_range(2.5, 3.9)
+		if rng.randf() < 0.55:
+			pc.flat(lp4 + Vector3(0, 0.15, 0), rng.randf_range(0.15, 0.4), rng.randf_range(0.12, 0.3), Rect2(0, 0, 1, 1), [Color(0.88, 0.86, 0.8), Color(0.7, 0.6, 0.45), Color(0.8, 0.3, 0.25), Color(0.9, 0.85, 0.4)][rng.randi() % 4])   # paper, cardboard, wrappers
+		else:
+			pc.box(lp4 + Vector3(0, 0.2, 0), Vector3(0.25, rng.randf_range(0.15, 0.4), 0.25), Color(0.25, 0.42, 0.2))            # weeds through the slabs
 	# electric poles along the other side, wires strung between them
 	var ps := -ds
 	var prev := Vector3.INF
@@ -269,6 +311,18 @@ func _dress_street(o: Vector2, d: Vector2, foot: MB, pc: MB) -> void:
 		elif r < 0.86:
 			spots.append({"pos": p + sv * s2 * 0.9, "yaw": face, "kind": "idle"})
 			pc.box(p + sv * s2 * 1.3 + Vector3(0, 0.25, 0), Vector3(0.5, 0.5, 1.6), Color(0.6, 0.58, 0.54), Rect2(0, 0, 1, 1), true, basis)   # stone bench (katte)
+		elif r < 0.91 and kind in ["com", "gov", "old"]:
+			var np3 := p + sv * s2 * 1.1                                                                           # newspaper stand
+			pc.box(np3 + Vector3(0, 0.5, 0), Vector3(0.3, 1.0, 1.2), Color(0.4, 0.3, 0.2), Rect2(0, 0, 1, 1), true, basis)
+			for k in 4:
+				pc.box(np3 - sv * s2 * 0.18 + dv * (-0.42 + k * 0.28) + Vector3(0, 0.75, 0), Vector3(0.04, 0.34, 0.24), [Color(0.9, 0.88, 0.8), Color(0.85, 0.3, 0.25), Color(0.9, 0.88, 0.8), Color(0.25, 0.4, 0.7)][k], Rect2(0, 0, 1, 1), true, basis)
+			spots.append({"pos": np3 - sv * s2 * 0.9, "yaw": face + PI, "kind": "paper"})
+		elif r < 0.96:
+			var pb := p + sv * s2 * 1.15                                                                           # coin telephone on a stand
+			pc.box(pb + Vector3(0, 0.6, 0), Vector3(0.1, 1.2, 0.1), Color(0.3, 0.3, 0.32))
+			pc.box(pb + Vector3(0, 1.3, 0), Vector3(0.34, 0.42, 0.28), Color(0.9, 0.75, 0.1))
+			pc.box(pb + Vector3(0, 1.62, 0), Vector3(0.5, 0.06, 0.4), Color(0.2, 0.3, 0.6))
+			spots.append({"pos": pb - sv * s2 * 0.6, "yaw": face + PI, "kind": "phone"})
 		else:
 			pc.box(p + sv * s2 * 1.0 + Vector3(0, 0.6, 0), Vector3(0.34, 1.2, 0.34), Color(0.75, 0.1, 0.1))            # post box
 			pc.box(p + sv * s2 * 1.0 + Vector3(0, 1.25, 0), Vector3(0.4, 0.12, 0.4), Color(0.1, 0.1, 0.1))
@@ -293,6 +347,7 @@ func _cart(pc: MB, p: Vector3, basis: Basis, kind: int) -> void:
 		pc.box(p + Vector3(0, 2.15, 0), Vector3(1.5, 0.05, 2.0), [Color(0.2, 0.4, 0.7), Color(0.75, 0.2, 0.2), Color(0.9, 0.8, 0.3), Color(0.25, 0.5, 0.3)][kind], Rect2(0, 0, 1, 1), true, basis)
 		for s: float in [-1.0, 1.0]:
 			pc.box(p + basis * Vector3(s * 0.48, 1.5, 0.8), Vector3(0.04, 1.3, 0.04), Color(0.3, 0.22, 0.15))
+	g_tarp.box(p + Vector3(0, 1.08, 0), Vector3(1.15, 0.34, 1.85), Color.WHITE, Rect2(0, 0, 1, 1), true, basis)
 	_boxes.append([p + Vector3(0, 0.6, 0), Vector3(1.2, 1.2, 1.2)])
 
 # ------------------------------------------------------------------ buildings
@@ -440,6 +495,11 @@ func _building(r: Rect2, nz: float, kind: String, corner: int, fac: MB, sg: MB, 
 					fac.wall(Vector3(sx, f * FLOOR_H, zc - dp * 0.5 + sbw * (b + 0.5)), sn, sbw, FLOOR_H, MB.atlas(t2), tint)
 		else:
 			fac.wall(Vector3(sx, 0, zc), sn, dp, h, MB.atlas([11, 13, 24][rng.randi() % 3]), tint.darkened(0.06))
+			if rng.randf() < 0.3:          # bill-stickers have been here: film and election posters, some half torn
+				for k in rng.randi_range(1, 3):
+					var pi2 := rng.randi() % 8
+					var torn := 0.5 if rng.randf() < 0.3 else 1.0
+					hoard.wall(Vector3(sx + s * 0.03, 0.9 + (k % 2) * 0.75, zc - dp * 0.25 + k * 1.5), sn, 1.4 * torn, 0.7, Rect2((pi2 % 2) * 0.5, (pi2 / 2) * 0.25, 0.5 * torn, 0.25))
 	# roof
 	if sloped:
 		var ridge := Vector3(cx, h + 1.5, centre.z)
@@ -528,6 +588,32 @@ func _building(r: Rect2, nz: float, kind: String, corner: int, fac: MB, sg: MB, 
 			pc.box(Vector3(gate_x + 2.2, 0.45, front_z + nz * (setback * 0.5)), Vector3(0.45, 0.9, 0.45), Color(0.8, 0.5, 0.35))   # tulasi katte
 			pc.box(Vector3(gate_x + 2.2, 1.1, front_z + nz * (setback * 0.5)), Vector3(0.35, 0.5, 0.35), Color(0.2, 0.45, 0.2))
 			pc.flat(Vector3(gate_x, 0.07, wz + nz * 0.9), 1.1, 1.1, Rect2(0, 0, 1, 1), Color(0.95, 0.95, 0.92))              # rangoli at the gate
+			pc.flat(Vector3(gate_x, 0.075, wz + nz * 0.9), 0.5, 0.5, Rect2(0, 0, 1, 1), Color(0.85, 0.2, 0.2))
+			for k in rng.randi_range(1, 3):                                                                              # chappals left at the step
+				pc.box(Vector3(bxd - 0.3 + k * 0.22, 0.27, front_z + nz * 1.05), Vector3(0.09, 0.03, 0.24), [Color(0.2, 0.3, 0.6), Color(0.3, 0.2, 0.15), Color(0.7, 0.2, 0.3)][k % 3])
+			var wealth := rng.randf()
+			if wealth < 0.5:
+				pc.box(Vector3(bxd + bw * 0.5 + 0.5, 0.2, front_z + nz * 0.6), Vector3(0.34, 0.4, 0.34), Color(0.15, 0.35, 0.7))      # water bucket
+				pc.box(Vector3(bxd + bw * 0.5 + 0.95, 0.15, front_z + nz * 0.6), Vector3(0.28, 0.3, 0.28), Color(0.7, 0.2, 0.2))
+			else:
+				for k in 3:
+					pc.box(Vector3(cx - w * 0.4 + k * 0.5, 0.18, front_z + nz * 0.5), Vector3(0.3, 0.36, 0.3), Color(0.7, 0.4, 0.28))   # flower pots
+					pc.box(Vector3(cx - w * 0.4 + k * 0.5, 0.5, front_z + nz * 0.5), Vector3(0.34, 0.34, 0.34), [Color(0.2, 0.45, 0.2), Color(0.8, 0.3, 0.4), Color(0.25, 0.5, 0.25)][k])
+				pc.box(Vector3(cx + w * 0.3, 0.42, front_z + nz * 1.3), Vector3(0.5, 0.05, 0.5), Color(0.75, 0.15, 0.12))            # plastic chair
+				pc.box(Vector3(cx + w * 0.3, 0.7, front_z + nz * 1.05), Vector3(0.5, 0.55, 0.05), Color(0.75, 0.15, 0.12))
+			if rng.randf() < 0.4:                                                                                        # the old bicycle against the wall
+				var by := Vector3(cx - w * 0.3, 0, wz - nz * 0.4)
+				for sd3: float in [-0.5, 0.5]:
+					pc.wheel(by + Vector3(sd3, 0.33, 0), 0.33, 0.03, Color(0.1, 0.1, 0.1), Basis(Vector3.UP, PI * 0.5), 8)
+				pc.box(by + Vector3(0, 0.55, 0), Vector3(1.0, 0.04, 0.04), Color(0.2, 0.3, 0.25))
+				pc.box(by + Vector3(-0.2, 0.75, 0), Vector3(0.04, 0.4, 0.04), Color(0.2, 0.3, 0.25))
+			pc.box(Vector3(gate_x + 1.55, 1.3, wz + nz * 0.13), Vector3(0.32, 0.16, 0.02), Color(0.12, 0.12, 0.14))            # nameplate
+			spots.append({"pos": Vector3(gate_x - 0.6, 0, wz + nz * 1.2), "yaw": atan2(0.0, nz), "kind": "sweep"})
+			if rng.randf() < 0.5:
+				spots.append({"pos": Vector3(gate_x + 3.0, 0, wz + nz * 2.2), "yaw": rng.randf() * TAU, "kind": "play"})
+				spots.append({"pos": Vector3(gate_x + 4.2, 0, wz + nz * 2.6), "yaw": rng.randf() * TAU, "kind": "play"})
+			if _tv == null and rng.randf() < 0.35:
+				_tv = Vector3(cx, 1.5, front_z - nz * 1.0)
 			if rng.randf() < 0.5:
 				_palms.append([Vector3(cx + w * 0.38, 0, front_z + nz * setback * 0.5), rng.randf_range(0.9, 1.3)])
 			elif rng.randf() < 0.6:
