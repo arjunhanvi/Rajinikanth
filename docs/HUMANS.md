@@ -15,7 +15,7 @@ make them read as human. The architecture was replaced, not extended.
   Source: github.com/makehumancommunity/mpfb2 at 9de0707fdc88 (directory src/mpfb/data) and
   github.com/makehumancommunity/makehuman at a8bc2d54ff0a (eyes). The data is not copied
   into this repository; only the generated models are.
-- **Generator** (): sculpts each person from morph targets, splits the skin into
+- **Generator** (`tools/humans/`): sculpts each person from morph targets, splits the skin into
   regions, fits eyes, builds clothing from the clothing helper surface (shirts, an open
   over-shirt, trousers with a straight leg, belt, lungi, saree with pleats and pallu, blouse,
   kurta, kameez), adds buttons and pockets as geometry, grows hair and facial hair as layered
@@ -23,13 +23,13 @@ make them read as human. The architecture was replaced, not extended.
   UV space from 3D position maps (pores, creases by age, brows, stubble, lips, nails), creates
   13 expression morphs and 8 identity morphs, decimates to lower levels of detail and writes
   rigged binary glTF.
-- **Runtime** (): same interface as before, so story, crowd, vehicles,
+- **Runtime** (`scripts/actors/Human.gd`): same interface as before, so story, crowd, vehicles,
   saves and the character creator are unchanged. It drives the skeleton (arms re-posed from the
   authored A-pose to a natural hang, fingers curl per joint, feet held level through the stride),
   blends the face morphs (irregular blinking, speech, moods that ease in and out), turns the
   eyes on their own bones, and swaps detail levels by distance.
 
-Rebuild everything: 
+Rebuild everything: `python3 tools/humans/gen_humans.py <mpfb data dir> <makehuman data dir>`
 
 ## Models
 
@@ -44,7 +44,7 @@ Rebuild everything:
 Full detail is shown within 5 m, mid to 15 m, far to 115 m. Crowd faces differ by body model
 plus per-person identity morphs, skin tone, hair, facial hair and clothing.
 
-Acceptance images are in  (A close-ups, B full body, C expressions, D hands and
+Acceptance images are in `docs/humans/` (A close-ups, B full body, C expressions, D hands and
 clothing, E movement, F before/after, G in game).
 
 ## Measured
