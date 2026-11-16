@@ -1,0 +1,256 @@
+class_name Player
+extends CharacterBody3D
+## The player: third-person on foot, driving, or working the aisle of a bus.
+
+const WALK := 2.6
+const RUN := 5.6
+const CROUCH := 1.3
+
+var human: Human
+var cam: Camera3D
+var yaw := 0.0
+var pitch := -0.25
+var cam_dist := 4.2
+var first_person := false
+var vehicle: Vehicle = null
+var locked := false            # dialogue / cutscene
+var crouching := false
+var bus: Node3D = null         # conductor mode: we ride inside this bus
+var bus_local := Vector3.ZERO
+var cam_override := false      # cinematics drive the camera
+var _vy := 0.0
+var _step := 0.0
+var _look_idle := 0.0
+var _punch_cd := 0.0
+var input_move := Vector2.ZERO  # from HUD stick (x right, y forward)
+var input_sprint := false
+var input_throttle := 0.0
+var input_steer := 0.0
+var input_handbrake := false
+
+func _ready() -> void:
+	collision_layer = 4
+	collision_mask = 1 | 2
+	var cs := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.3
+	cap.height = 1.7
+	cs.shape = cap
+	cs.position.y = 0.85
+	add_child(cs)
+	human = Human.make(Game.s.look)
+	add_child(human)
+	cam = Camera3D.new()
+	cam.fov = 62.0
+	cam.near = 0.12
+	cam.far = 900.0
+	cam.top_level = true
+	add_child(cam)
+	cam.current = true
+
+func set_look(l: Dictionary) -> void:
+	human.set_look(l)
+
+func look_input(d: Vector2) -> void:
+	var sens: float = float(Game.settings.sens) * 0.005
+	yaw -= d.x * sens
+	pitch = clampf(pitch - d.y * sens * (-1.0 if Game.settings.invert_y else 1.0), -1.25, 0.6)
+	_look_idle = 0.0
+
+func in_vehicle() -> bool:
+	return vehicle != null
+
+func _physics_process(delta: float) -> void:
+	_punch_cd -= delta
+	_look_idle += delta
+	var mv := input_move
+	var kb := Input.get_vector("mv_l", "mv_r", "mv_d", "mv_u")
+	if kb.length() > 0.1:
+		mv = kb
+	if bus != null:
+		_bus_move(delta, mv)
+	elif vehicle != null:
+		_drive(delta, mv)
+	else:
+		_walk(delta, mv)
+	_camera(delta)
+
+func _walk(delta: float, mv: Vector2) -> void:
+	if locked:
+		mv = Vector2.ZERO
+	var sprint := (input_sprint or Input.is_action_pressed("sprint")) and not crouching
+	var spd := CROUCH if crouching else (RUN if sprint else WALK)
+	var dir := Vector3.ZERO
+	if mv.length() > 0.08:
+		var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+		var right := Vector3(cos(yaw), 0, -sin(yaw))
+		dir = (fwd * mv.y + right * mv.x)
+		var mag := minf(dir.length(), 1.0)
+		dir = dir.normalized()
+		spd *= mag if not sprint else 1.0
+		human.rotation.y = lerp_angle(human.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-12.0 * delta))
+	else:
+		spd = 0.0
+	var on_floor := global_position.y <= 0.001
+	if on_floor:
+		_vy = 0.0
+		global_position.y = 0.0
+	else:
+		_vy -= 22.0 * delta
+	velocity = dir * spd + Vector3(0, _vy, 0)
+	move_and_slide()
+	if global_position.y < 0.0:
+		global_position.y = 0.0
+	var hs := Vector2(velocity.x, velocity.z).length()
+	human.speed = hs
+	human.state = "air" if not on_floor else ("crouch" if crouching else "idle")
+	if hs > 0.5 and on_floor:
+		_step -= delta * hs
+		if _step <= 0.0:
+			_step = 1.9
+			Sfx.play("step", 0.25, randf_range(0.85, 1.15))
+		Game.s.stats.km = float(Game.s.stats.km) + hs * delta / 1000.0
+
+func jump() -> void:
+	if vehicle == null and bus == null and not locked and global_position.y <= 0.001:
+		_vy = 6.4
+		global_position.y = 0.01
+		crouching = false
+
+func toggle_crouch() -> void:
+	if vehicle == null and bus == null:
+		crouching = not crouching
+
+func punch() -> void:
+	if vehicle != null or bus != null or locked or _punch_cd > 0.0:
+		return
+	_punch_cd = 0.55
+	human.play_once("punch", 0.3)
+	Sfx.play("whoosh", 0.3, 1.8)
+	if Game.world != null:
+		var fwd := -human.global_transform.basis.z
+		Game.world.crowd.player_punch(global_position + fwd * 0.9, fwd)
+
+# ------------------------------------------------------------------ vehicles
+func enter_vehicle(veh: Vehicle) -> void:
+	vehicle = veh
+	veh.player_driven = true
+	crouching = false
+	collision_layer = 0
+	collision_mask = 0
+	veh.set_rider(human)
+	human.visible = veh.spec.open
+	Sfx.play("door")
+	yaw = veh.rotation.y
+	if Game.world != null:
+		Game.world.hud.set_mode("drive")
+
+func exit_vehicle() -> void:
+	if vehicle == null:
+		return
+	var veh := vehicle
+	var out := veh.exit_point()
+	veh.clear_rider()
+	human.get_parent().remove_child(human)
+	add_child(human)
+	human.position = Vector3.ZERO
+	human.rotation = Vector3(0, veh.rotation.y, 0)
+	human.state = "idle"
+	human.visible = true
+	veh.player_driven = false
+	veh.stop_engine()
+	vehicle = null
+	global_position = Vector3(out.x, 0, out.z)
+	collision_layer = 4
+	collision_mask = 1 | 2
+	Sfx.play("door")
+	if Game.world != null:
+		Game.world.hud.set_mode("foot")
+
+func _drive(delta: float, mv: Vector2) -> void:
+	var th := input_throttle
+	var st := input_steer
+	if absf(mv.y) > 0.1 and absf(th) < 0.05:
+		th = mv.y
+	if absf(mv.x) > 0.1 and absf(st) < 0.05:
+		st = mv.x
+	if locked:
+		th = 0.0
+		st = 0.0
+	vehicle.drive(delta, th, st, input_handbrake or Input.is_action_pressed("handbrake") or locked)
+	global_position = vehicle.global_position
+	Game.s.stats.km = float(Game.s.stats.km) + absf(vehicle.v) * delta / 1000.0
+	if _look_idle > 1.2 and absf(vehicle.v) > 1.0:
+		yaw = lerp_angle(yaw, vehicle.rotation.y, 1.0 - exp(-2.5 * delta))
+		pitch = lerpf(pitch, -0.22, 1.0 - exp(-2.0 * delta))
+
+# ------------------------------------------------------------------ conductor mode
+func board_bus(b: Node3D, local: Vector3) -> void:
+	bus = b
+	bus_local = local
+	collision_layer = 0
+	collision_mask = 0
+	human.state = "idle"
+
+func leave_bus(to: Vector3) -> void:
+	bus = null
+	collision_layer = 4
+	collision_mask = 1 | 2
+	global_position = to
+
+func _bus_move(delta: float, mv: Vector2) -> void:
+	# walk the aisle: local z in [-4.2, 4.2] (front is -z), tiny sideways freedom
+	if locked:
+		mv = Vector2.ZERO
+	var rel := yaw - bus.rotation.y
+	var f := mv.y * cos(rel) - mv.x * sin(rel)    # forward along the bus
+	var sdw := mv.x * cos(rel) + mv.y * sin(rel)
+	bus_local.z = clampf(bus_local.z - f * 2.0 * delta, -4.2, 4.2)
+	bus_local.x = clampf(bus_local.x + sdw * 1.2 * delta, -0.28, 0.28)
+	global_position = bus.global_transform * bus_local
+	human.speed = Vector2(f, sdw).length() * 2.0
+	if mv.length() > 0.1:
+		human.rotation.y = lerp_angle(human.rotation.y, bus.rotation.y + (0.0 if f >= 0.0 else PI), 1.0 - exp(-10.0 * delta))
+
+# ------------------------------------------------------------------ camera
+func _camera(delta: float) -> void:
+	if cam_override:
+		return
+	var target := global_position + Vector3(0, 1.55 if not crouching else 1.1, 0)
+	var dist := cam_dist
+	if vehicle != null:
+		dist = 5.5 + float(vehicle.spec.l) * 0.75
+		target = vehicle.global_position + Vector3(0, float(vehicle.spec.h) * 0.75 + 0.5, 0)
+	elif bus != null:
+		dist = 1.7
+		target = global_position + Vector3(0, 1.6, 0)
+	var rot := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)
+	var back := rot * Vector3(0, 0, 1)
+	if first_person and bus == null:
+		human.visible = false if vehicle == null else human.visible
+		var eye := global_position + Vector3(0, 1.62, 0) if vehicle == null else vehicle.global_position + vehicle.global_transform.basis * (vehicle.seat_pos() + Vector3(0, 1.15, -0.25))
+		cam.global_position = eye
+		cam.global_transform.basis = rot
+		return
+	if vehicle == null:
+		human.visible = true
+	var want := target + back * dist
+	if bus == null:
+		var space := get_world_3d().direct_space_state
+		var q := PhysicsRayQueryParameters3D.create(target, want, 1)
+		var hit := space.intersect_ray(q)
+		if not hit.is_empty():
+			want = hit.position - back * 0.25
+	if bus != null:
+		# keep the camera inside the bus shell
+		var inv := bus.global_transform.affine_inverse()
+		var lp := inv * want
+		lp = Vector3(clampf(lp.x, -0.95, 0.95), clampf(lp.y, 1.6, 2.75), clampf(lp.z, -4.6, 4.8))
+		want = bus.global_transform * lp
+		cam.global_position = want
+		cam.look_at(target, Vector3.UP)
+		return
+	if want.y < 0.25:
+		want.y = 0.25
+	cam.global_position = cam.global_position.lerp(want, 1.0 - exp(-18.0 * delta)) if cam.global_position.distance_to(want) < 12.0 else want
+	cam.look_at(target, Vector3.UP)
