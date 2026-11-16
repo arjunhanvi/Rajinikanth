@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,3 +39,12 @@ jobs:
         with:
           name: rajinikanth-apk
           path: build/rajinikanth.apk
+      - name: Publish to the fixed download link
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build
+          body: "Newest APK, rebuilt automatically on every push. Download rajinikanth.apk below and open it on your phone."
+          files: build/rajinikanth.apk
+          make_latest: true

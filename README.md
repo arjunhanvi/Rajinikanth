@@ -11,6 +11,11 @@ Every character, gang, party, film and business in it is fictional; real place n
 
 ## Get the APK
 
+**One permanent link, always the newest build:**
+https://github.com/arjunhanvi/Rajinikanth/releases/latest/download/rajinikanth.apk
+
+Open it in your phone's browser, tap the downloaded file, allow "install unknown apps" once.
+
 - **CI:** every push runs `.github/workflows/android.yml`; download `rajinikanth-apk` from the run's artifacts.
 - **Local:** install Godot 4.3 with export templates, a JDK and the Android SDK build-tools, then
 
