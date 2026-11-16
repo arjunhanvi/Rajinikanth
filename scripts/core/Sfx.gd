@@ -9,7 +9,12 @@ var _music_b: AudioStreamPlayer
 var _music_name := ""
 var _amb := {}            # name -> player
 var _amb_target := {}
-var duck := 1.0           # slow-motion ducks everything but the cue
+var duck := 1.0
+## The intro soundtrack supplied by the production. Never substituted: if the file
+## is missing the intro and menu simply run silent and the menu says so.
+const INTRO_TRACK := "res://assets/audio/user/intro_theme.ogg"
+var _intro: AudioStreamPlayer
+var _intro_tw: Tween           # slow-motion ducks everything but the cue
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -29,7 +34,40 @@ func _ready() -> void:
 		p.volume_db = -60.0
 		_amb[n] = p
 		_amb_target[n] = 0.0
+	_intro = _mk("Music")
 	apply_volumes()
+
+func intro_available() -> bool:
+	return ResourceLoader.exists(INTRO_TRACK)
+
+func intro_play() -> void:
+	if not intro_available():
+		push_warning("Intro soundtrack missing: " + INTRO_TRACK)
+		return
+	if _intro_tw != null:
+		_intro_tw.kill()
+	var st: AudioStream = load(INTRO_TRACK)
+	if st is AudioStreamOggVorbis:
+		st.loop = false
+	_intro.stream = st
+	_intro.volume_db = 0.0
+	_intro.play()
+
+func intro_playing() -> bool:
+	return _intro.playing
+
+func intro_time() -> float:
+	return _intro.get_playback_position() if _intro.playing else -1.0
+
+## Controlled fade-out; used when gameplay begins.
+func intro_stop(fade := 1.2) -> void:
+	if not _intro.playing:
+		return
+	if _intro_tw != null:
+		_intro_tw.kill()
+	_intro_tw = create_tween()
+	_intro_tw.tween_property(_intro, "volume_db", -60.0, fade)
+	_intro_tw.tween_callback(_intro.stop)
 
 func _mk(bus: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
@@ -109,6 +147,11 @@ func ambience(targets: Dictionary) -> void:
 		_amb_target[k] = float(targets.get(k, 0.0))
 
 func _process(delta: float) -> void:
+	# the supplied soundtrack is let down gently over its last seconds rather than cut
+	if _intro.playing and _intro.stream != null and (_intro_tw == null or not _intro_tw.is_running()):
+		var left := _intro.stream.get_length() - _intro.get_playback_position()
+		if left < 2.5:
+			_intro.volume_db = linear_to_db(clampf(left / 2.5, 0.001, 1.0))
 	for k in _amb:
 		var p: AudioStreamPlayer = _amb[k]
 		var cur := db_to_linear(p.volume_db)

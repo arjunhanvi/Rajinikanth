@@ -145,6 +145,21 @@ const BY_JOB := {
 	"retired clerk": "I used to know this city. Now I know only this bench.",
 }
 
+# what named people are doing while at their post
+const ACT := {"nanjappa": "work", "bhatta": "work", "rafiq": "work", "mani": "work", "meena": "work", "balaji": "read", "lokesh": "read", "shalini": "listen", "lakshmamma": "sweep"}
+
+## Clothing category for an occupation (see Human.random_look).
+static func look_cat(job: String) -> String:
+	if job in ["student", "college student"]: return "student"
+	if job in ["clerk", "salesman", "bank teller", "government clerk", "typist", "advocate", "supervisor", "LIC agent", "schoolteacher", "office boy"]: return "office"
+	if job in ["hawker", "flower seller", "milkman", "wholesale trader", "bakery man"]: return "vendor"
+	if job in ["lathe operator", "factory hand", "welder", "lorry cleaner", "mason", "tractor driver"]: return "mechanic"
+	if job == "coolie": return "coolie"
+	if job == "priest": return "priest"
+	if job in ["retired clerk", "farmer"]: return "elder"
+	if job in ["housewife"]: return "shopper"
+	return ""
+
 static func role(id: String) -> String:
 	return DB[id].role if DB.has(id) else ""
 
@@ -178,6 +193,10 @@ static func random_identity(rng: RandomNumberGenerator, kind: String) -> Diction
 	var job: String = jobs[rng.randi() % jobs.size()]
 	if sex == 1 and job in ["coolie", "lorry cleaner", "milkman", "tractor driver", "priest", "office boy", "salesman", "retired colonel's driver", "bakery man", "peon"]:
 		job = "housewife" if rng.randf() < 0.5 else "schoolteacher"
+	var hr := float(Game.s.get("time", 12.0))
+	if (hr > 7.0 and hr < 9.5) or (hr > 15.5 and hr < 17.0):
+		if rng.randf() < 0.3:
+			job = "student"
 	return {"name": "%s %s" % [first, LAST[rng.randi() % LAST.size()]], "job": job, "sex": sex, "mood": rng.randf()}
 
 static func ambient_line(ident: Dictionary, rng: RandomNumberGenerator) -> String:

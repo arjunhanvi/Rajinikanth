@@ -139,6 +139,7 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	var real := delta / maxf(Engine.time_scale, 0.05)
+	Human.cam_pos = player.cam.global_position
 	if not busy or story.clock_runs:
 		Game.s.time = float(Game.s.time) + delta / HOUR_SECONDS
 		if float(Game.s.time) >= 24.0:

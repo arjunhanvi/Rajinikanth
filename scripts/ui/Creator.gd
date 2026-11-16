@@ -156,7 +156,7 @@ func _ready() -> void:
 func _valid(key: String, i: int) -> bool:
 	var female: bool = int(look.sex) == 1
 	match key:
-		"top": return (i >= 8) == female or i in [4, 5]
+		"top": return (i in [8, 9, 4, 5]) if female else (not i in [8, 9])
 		"bottom": return (i >= 4) == female or (i == 1)
 		"hair": return (i >= 7) == female
 		"beard": return not female or i == 0

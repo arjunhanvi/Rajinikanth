@@ -84,6 +84,31 @@ const ROADS := [
 	["hebbal", "yeshwanthpur", "Outer Ring Road", 16], ["peenya", "vijayanagar", "Outer Ring Road", 16], ["banashankari", "mysoreroad", "Outer Ring Road", 16],
 ]
 
+# ---- map-only geography (approximate, from the real city; not walkable detail) ----
+# railway lines as [name, [[lat, lon], ...]]
+const RAIL := [
+	["Madras line", [[12.9781, 77.5695], [12.9936, 77.5980], [12.9989, 77.6170], [12.9907, 77.6525], [13.0003, 77.6750], [12.9950, 77.7610]]],
+	["Tumkur line", [[12.9781, 77.5695], [12.9990, 77.5640], [13.0236, 77.5510], [13.0800, 77.5000]]],
+	["Guntakal line", [[13.0236, 77.5510], [13.0420, 77.5780], [13.0445, 77.5960], [13.1000, 77.5990]]],
+	["Mysore line", [[12.9781, 77.5695], [12.9440, 77.5300], [12.9175, 77.4840]]],
+]
+const STATIONS := [["Bangalore City", 12.9781, 77.5695], ["Cantonment", 12.9936, 77.5980], ["Bangalore East", 12.9989, 77.6170], ["Baiyappanahalli", 12.9907, 77.6525],
+	["K.R. Puram", 13.0003, 77.6750], ["Whitefield", 12.9950, 77.7610], ["Malleshwaram", 12.9990, 77.5640], ["Yeshwanthpur", 13.0236, 77.5510], ["Hebbal", 13.0445, 77.5960],
+	["Yelahanka", 13.1000, 77.5990], ["Kengeri", 12.9175, 77.4840]]
+# tanks and lakes: [name, lat, lon, radius in world metres]
+const WATER := [["Sankey Tank", 13.0090, 77.5740, 60], ["Hebbal Lake", 13.0460, 77.5870, 90], ["Lalbagh Lake", 12.9460, 77.5860, 45], ["Madiwala Lake", 12.9070, 77.6150, 90],
+	["Bellandur Lake", 12.9350, 77.6700, 220], ["Yediyur Lake", 12.9320, 77.5740, 35], ["Kempambudhi Tank", 12.9480, 77.5650, 45], ["Agara Lake", 12.9210, 77.6410, 70], ["Vengaiah Lake", 13.0140, 77.7000, 80]]
+const GREENS := [["Palace Grounds", 13.0040, 77.5900, 110], ["Race Course", 12.9840, 77.5830, 55], ["Golf Course", 12.9930, 77.5800, 60], ["I.I.Sc. Campus", 13.0210, 77.5670, 120], ["Cantonment Parade Grounds", 12.9790, 77.6090, 50]]
+# well-known places shown as map labels only: [name, lat, lon, symbol]
+const SIGHTS := [["Bangalore Palace", 12.9987, 77.5920, "landmark"], ["Tipu Sultan's Palace", 12.9594, 77.5737, "landmark"], ["Town Hall", 12.9634, 77.5855, "landmark"],
+	["High Court", 12.9778, 77.5925, "landmark"], ["G.P.O.", 12.9812, 77.5940, "landmark"], ["Kanteerava Stadium", 12.9690, 77.5930, "landmark"], ["Chinnaswamy Stadium", 12.9788, 77.5996, "landmark"],
+	["Bull Temple", 12.9420, 77.5680, "landmark"], ["Russell Market", 12.9870, 77.6050, "market"], ["Commercial Street", 12.9822, 77.6083, "market"], ["Victoria Hospital", 12.9640, 77.5740, "hospital"],
+	["N.I.M.H.A.N.S.", 12.9430, 77.5960, "hospital"], ["Bowring Hospital", 12.9830, 77.6040, "hospital"], ["I.T.P.L. Tech Park", 12.9860, 77.7370, "factory"], ["H.M.T. Factory", 13.0450, 77.5350, "factory"],
+	["B.E.L. Factory", 13.0400, 77.5600, "factory"], ["I.T.I. Factory", 13.0100, 77.7050, "factory"], ["Central College", 12.9760, 77.5860, "school"], ["U.V.C.E.", 12.9750, 77.5870, "school"],
+	["Gandhi Bazaar", 12.9450, 77.5710, "market"], ["Jayanagar Shopping Complex", 12.9290, 77.5830, "market"], ["Malleshwaram 8th Cross", 13.0000, 77.5700, "market"], ["Shivajinagar Bus Stand", 12.9850, 77.6040, "bus"],
+	["Shanthinagar Bus Depot", 12.9560, 77.5990, "bus"], ["Satellite Bus Stand", 12.9530, 77.5430, "bus"], ["Ravindra Kalakshetra", 12.9630, 77.5840, "film"], ["Ulsoor Gurudwara", 12.9840, 77.6250, "landmark"]]
+const BUS_ROUTES := [["27E", ["majestic", "gandhinagar", "vidhana", "shivajinagar", "mgroad", "ulsoor"]]]
+
 var nodes := {}          # id -> {name, p: Vector2, kind, r}
 var edges: Array = []    # {a, b, name, w, pa, pb, dir, len}
 var adj := {}            # id -> [edge index]
@@ -178,6 +203,31 @@ func district(p: Vector2) -> Dictionary:
 		return {"id": "", "kind": "out", "density": 0.45, "name": edges[nr[1]].name}
 	return {"id": "", "kind": "rural", "density": 0.0, "name": "Outskirts"}
 
+## Side streets carry Bangalore-style numbers: "3rd Cross", "2nd Main Road".
+func ordinal(n: int) -> String:
+	var suf := "th"
+	if n % 100 < 11 or n % 100 > 13:
+		suf = ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"][n % 10]
+	return "%d%s" % [n, suf]
+
+## Name of the numbered side street running through grid line (axis 0 = east-west "Cross", 1 = north-south "Main").
+func grid_street_name(axis: int, line: float, near: Vector2) -> String:
+	var id := nearest_node(near)
+	var n = nodes[id]
+	var k := int(absf(roundf((line - (n.p.y if axis == 0 else n.p.x)) / GRID)))
+	if k == 0:
+		return ""
+	return "%s %s" % [ordinal(k), "Cross" if axis == 0 else "Main Road"]
+
+func street_at(p: Vector2) -> String:
+	var gx := roundf(p.x / GRID) * GRID
+	var gz := roundf(p.y / GRID) * GRID
+	if absf(p.y - gz) < 5.5:
+		return grid_street_name(0, gz, p)
+	if absf(p.x - gx) < 5.5:
+		return grid_street_name(1, gx, p)
+	return ""
+
 func area_name(p: Vector2) -> String:
 	for z in zones:
 		if z.rect.has_point(p) and PLACES.has(z.id):
@@ -186,6 +236,9 @@ func area_name(p: Vector2) -> String:
 	var d := district(p)
 	if nr[1] >= 0 and nr[0] < 14.0:
 		return "%s, %s" % [edges[nr[1]].name, d.name] if d.id != "" else str(edges[nr[1]].name)
+	var sn := street_at(p)
+	if sn != "" and d.id != "":
+		return "%s, %s" % [sn, d.name]
 	return d.name
 
 func in_zone(p: Vector2, margin := 0.0):

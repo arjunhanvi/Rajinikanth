@@ -17,6 +17,8 @@ var locked := false            # dialogue / cutscene
 var crouching := false
 var bus: Node3D = null         # conductor mode: we ride inside this bus
 var bus_local := Vector3.ZERO
+var talk_focus: Node3D = null   # whoever we are speaking with: the camera frames both
+var cam_zoom := 1.0             # 0.6 close .. 1.6 wide
 var cam_override := false      # cinematics drive the camera
 var _vy := 0.0
 var _step := 0.0
@@ -217,9 +219,18 @@ func _camera(delta: float) -> void:
 	if cam_override:
 		return
 	var target := global_position + Vector3(0, 1.55 if not crouching else 1.1, 0)
-	var dist := cam_dist
+	var dist := cam_dist * cam_zoom
+	if talk_focus != null and is_instance_valid(talk_focus) and vehicle == null and bus == null:
+		# conversation framing: over the shoulder, both faces in shot
+		var mid := (global_position + talk_focus.global_position) * 0.5 + Vector3(0, 1.5, 0)
+		var to := talk_focus.global_position - global_position
+		var want_yaw := atan2(-to.x, -to.z) + 0.6
+		yaw = lerp_angle(yaw, want_yaw, 1.0 - exp(-3.0 * delta))
+		pitch = lerpf(pitch, -0.12, 1.0 - exp(-3.0 * delta))
+		target = target.lerp(mid, 0.6)
+		dist = 2.6
 	if vehicle != null:
-		dist = 5.5 + float(vehicle.spec.l) * 0.75
+		dist = (5.5 + float(vehicle.spec.l) * 0.75) * cam_zoom
 		target = vehicle.global_position + Vector3(0, float(vehicle.spec.h) * 0.75 + 0.5, 0)
 	elif bus != null:
 		dist = 1.7

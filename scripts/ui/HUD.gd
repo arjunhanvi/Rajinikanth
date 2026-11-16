@@ -44,7 +44,7 @@ func _ready() -> void:
 	UI.full(root)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
-	_grain = UI.grain(0.03 if Game.settings.grain else 0.0, 0.3)
+	_grain = UI.grain(0.018 if Game.settings.grain else 0.0, 0.3)
 	root.add_child(_grain)
 	pad = TouchPad.new()
 	root.add_child(pad)
@@ -114,7 +114,7 @@ func _ready() -> void:
 	Game.toast.connect(toast)
 	Game.changed.connect(refresh)
 	Game.settings_changed.connect(func():
-		_grain.material.set_shader_parameter("strength", 0.03 if Game.settings.grain else 0.0)
+		_grain.material.set_shader_parameter("strength", 0.018 if Game.settings.grain else 0.0)
 		pad.queue_redraw())
 	refresh()
 
@@ -216,7 +216,14 @@ func _process(delta: float) -> void:
 		if an != _area_name:
 			_area_name = an
 			_area.text = an
-		_obj.text = world.story.objective_text()
+		var ot: String = world.story.objective_text()
+		var tgt = op
+		if tgt == null and wp != null:
+			tgt = Vector3(wp[0], 0, wp[1])
+		if tgt != null and world.interior == "":
+			var dm: float = pl.global_position.distance_to(tgt)
+			ot += "   [%d m]" % int(dm)
+		_obj.text = ot
 		for c in [_money, _clock, _heat, _area, _obj, pad]:
 			c.visible = not cinematic
 
@@ -257,7 +264,17 @@ func _on_pad(id: String) -> void:
 		"punch": pl.punch()
 		"exit": world.exit_vehicle()
 		"horn": world.player_horn()
-		"cam": pl.first_person = not pl.first_person
+		"cam":
+			# cycle: normal -> close -> wide -> first person
+			if pl.first_person:
+				pl.first_person = false
+				pl.cam_zoom = 1.0
+			elif pl.cam_zoom == 1.0:
+				pl.cam_zoom = 0.62
+			elif pl.cam_zoom < 1.0:
+				pl.cam_zoom = 1.6
+			else:
+				pl.first_person = true
 		"phone":
 			if Game.s.phone:
 				open_phone()
@@ -459,21 +476,21 @@ func open_map() -> void:
 	if _map_panel != null:
 		return
 	modal_set("map", true)
-	_map_panel = UI.rect(Color(0.05, 0.04, 0.03, 0.96))
+	_map_panel = UI.rect(Color(0.08, 0.06, 0.04, 0.98))
 	_map_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_map_panel)
 	_full_map = MapView.new()
 	_full_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_full_map.offset_left = 20
-	_full_map.offset_top = 64
-	_full_map.offset_right = -250
-	_full_map.offset_bottom = -20
+	_full_map.offset_left = 14
+	_full_map.offset_top = 52
+	_full_map.offset_right = -262
+	_full_map.offset_bottom = -14
 	var pl: Player = world.player
 	var p2: Vector2 = Vector2(pl.global_position.x, pl.global_position.z) if world.interior == "" else world.exterior_pos
 	_full_map.centre = p2
 	_full_map.player_pos = p2
-	_full_map.player_yaw = pl.human.global_rotation.y
-	_full_map.ppm = 0.5
+	_full_map.player_yaw = pl.human.global_rotation.y if not pl.in_vehicle() else pl.vehicle.rotation.y
+	_full_map.ppm = 0.55
 	var op = world.story.objective_pos()
 	_full_map.objective = Vector2(op.x, op.z) if op != null else null
 	var wp = Game.s.get("waypoint")
@@ -481,53 +498,100 @@ func open_map() -> void:
 		_full_map.waypoint = Vector2(wp[0], wp[1])
 		_full_map.route = City.route(p2, _full_map.waypoint)
 	_map_panel.add_child(_full_map)
-	var title := UI.label("BANGALORE CITY  -  TOURIST & TRANSPORT MAP  (2002 EDITION)", 24, UI.PAPER)
-	title.position = Vector2(22, 18)
+	var title := UI.label("BANGALORE  -  CITY GUIDE MAP  -  2002", 22, UI.PAPER)
+	title.position = Vector2(18, 12)
 	_map_panel.add_child(title)
+	var note := UI.label("Main roads, railways, tanks and landmarks from survey positions; side streets schematic.", 12, Color(0.7, 0.66, 0.58))
+	note.position = Vector2(470, 20)
+	_map_panel.add_child(note)
 	var side := VBoxContainer.new()
 	side.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
-	side.offset_left = -236
-	side.offset_right = -16
-	side.offset_top = 64
-	side.offset_bottom = -20
-	side.add_theme_constant_override("separation", 8)
+	side.offset_left = -252
+	side.offset_right = -12
+	side.offset_top = 12
+	side.offset_bottom = -12
+	side.add_theme_constant_override("separation", 6)
 	_map_panel.add_child(side)
-	var info := UI.label("Drag to pan, pinch or +/- to zoom.\nTap a place or any spot to mark it.", 16, Color(0.85, 0.85, 0.8))
+	var info := UI.label("", 15, Color(0.92, 0.9, 0.84))
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.custom_minimum_size.y = 120
+	info.custom_minimum_size.y = 96
 	side.add_child(info)
-	var zi := UI.button("Zoom +", 20)
-	zi.pressed.connect(func(): _full_map.zoom(1.4))
-	side.add_child(zi)
-	var zo := UI.button("Zoom -", 20)
-	zo.pressed.connect(func(): _full_map.zoom(1.0 / 1.4))
-	side.add_child(zo)
-	var ce := UI.button("Centre on me", 20)
+	var dest := UI.button("Set as destination", 18)
+	dest.disabled = true
+	side.add_child(dest)
+	var clr := UI.button("Clear destination", 18)
+	side.add_child(clr)
+	var zr := HBoxContainer.new()
+	zr.add_theme_constant_override("separation", 6)
+	side.add_child(zr)
+	for z in [["  +  ", func(): _full_map.zoom(1.6)], ["  -  ", func(): _full_map.zoom(1.0 / 1.6)]]:
+		var zb := UI.button(z[0], 22)
+		zb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		zb.pressed.connect(z[1])
+		zr.add_child(zb)
+	var vr := HBoxContainer.new()
+	vr.add_theme_constant_override("separation", 6)
+	side.add_child(vr)
+	for v in [["City", 0.1], ["Area", 0.3], ["Street", 1.0]]:
+		var vb2 := UI.button(v[0], 16)
+		vb2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vb2.pressed.connect(func(): _full_map.zoom_to(v[1]))
+		vr.add_child(vb2)
+	var ce := UI.button("Where am I?", 18)
 	ce.pressed.connect(func():
 		_full_map.centre = _full_map.player_pos
 		_full_map.queue_redraw())
 	side.add_child(ce)
-	var wpb := UI.button("Set waypoint", 20)
-	side.add_child(wpb)
-	var clr := UI.button("Clear waypoint", 20)
-	side.add_child(clr)
-	var sp := Control.new()
-	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	side.add_child(sp)
-	var cl := UI.button("Close map", 22)
+	# legend
+	var lg := Control.new()
+	lg.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	lg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lg.draw.connect(func():
+		var f := ThemeDB.fallback_font
+		for i in MapView.LEGEND.size():
+			var row: Array = MapView.LEGEND[i]
+			var y := 10.0 + i * 16.0
+			var sy: Array = MapView.SYM[row[0]]
+			lg.draw_rect(Rect2(4, y - 8, 15, 15), sy[1])
+			lg.draw_string(f, Vector2(7, y + 4), sy[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
+			lg.draw_string(f, Vector2(26, y + 4), row[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.82, 0.74))
+		var y2 := 10.0 + MapView.LEGEND.size() * 16.0
+		lg.draw_circle(Vector2(11, y2), 7, Color(0.75, 0.72, 0.65))
+		lg.draw_string(f, Vector2(8, y2 + 4), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.3, 0.3, 0.3))
+		lg.draw_string(f, Vector2(26, y2 + 4), "Not yet visited", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.82, 0.74))
+		lg.draw_dashed_line(Vector2(2, y2 + 16), Vector2(20, y2 + 16), Color(0.9, 0.2, 0.15), 2.0, 5.0)
+		lg.draw_string(f, Vector2(26, y2 + 20), "Bus route 27E", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.82, 0.74))
+		lg.draw_line(Vector2(2, y2 + 32), Vector2(20, y2 + 32), Color(0.2, 0.45, 0.95), 4.0)
+		lg.draw_string(f, Vector2(26, y2 + 36), "Your route", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.82, 0.74)))
+	side.add_child(lg)
+	var cl := UI.button("Close map", 20)
 	cl.pressed.connect(close_map)
 	side.add_child(cl)
+	var state := {"pick": Vector2.INF}
+	var describe := func(p: Vector2, name: String, kind: String):
+		var d := p.distance_to(_full_map.player_pos)
+		info.text = "%s\n%s\n%s  -  about %s away" % [name, kind, City.area_name(p), ("%d m" % int(d * 4.0)) if d * 4.0 < 1000.0 else ("%.1f km" % (d * 4.0 / 1000.0))]
+		state.pick = p
+		dest.disabled = false
+	if wp != null:
+		describe.call(_full_map.waypoint, "Current destination", "Marked on your map")
+	else:
+		info.text = "Drag to move the map. Pinch, scroll or use + / - to zoom.\nTap a symbol or any street to see what is there."
 	_full_map.place_tapped.connect(func(id):
-		if id != "":
-			var plc = City.PLACES[id]
-			info.text = "%s\n%s" % [plc.name, City.area_name(Vector2(plc.pos.x, plc.pos.z))]
+		var plc = City.PLACES[id]
+		if Game.s.discovered.has(id):
+			describe.call(Vector2(plc.pos.x, plc.pos.z), plc.name, str(plc.kind).capitalize())
 		else:
-			info.text = "Marked spot:\n" + City.area_name(_full_map.waypoint)
-			_set_wp(_full_map.waypoint))
-	wpb.pressed.connect(func():
-		if _full_map.selected != "":
-			var plc = City.PLACES[_full_map.selected]
-			_set_wp(Vector2(plc.pos.x, plc.pos.z)))
+			describe.call(Vector2(plc.pos.x, plc.pos.z), "Unvisited place", "You have not been here yet"))
+	_full_map.spot_tapped.connect(func(p):
+		describe.call(p, "Marked spot", "Street location"))
+	dest.pressed.connect(func():
+		if state.pick != Vector2.INF:
+			_set_wp(state.pick)
+			var total := 0.0
+			for i in _full_map.route.size() - 1:
+				total += _full_map.route[i].distance_to(_full_map.route[i + 1])
+			info.text += "\nRoute by main roads: %.1f km" % (total * 4.0 / 1000.0))
 	clr.pressed.connect(func():
 		Game.s.waypoint = null
 		_full_map.waypoint = null

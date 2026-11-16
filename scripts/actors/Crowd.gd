@@ -154,6 +154,14 @@ func _settle(n: NPC, rec: Dictionary) -> void:
 	n.sit = a.get("sit", false)
 	n.human.state = "sit" if n.sit else "idle"
 	n.mode = "idle"
+	n.base_act = ""
+	if rec.mode == "in":
+		n.base_act = People.ACT.get(n.id, "")
+	elif rec.mode == "sit":
+		n.base_act = "tea"
+	elif rec.mode == "at" and rec.place in ["darshini"]:
+		n.base_act = "eat"
+	n.human.activity = n.base_act
 
 ## After a time jump (sleeping, travelling) put everyone where their schedule says.
 func resync() -> void:
@@ -231,6 +239,8 @@ func clear_actors(tag: String) -> void:
 
 func remove(n: NPC) -> void:
 	npcs.erase(n)
+	if n.spot_key != "":
+		_used_spots.erase(n.spot_key)
 	if n.id != "" and named.has(n.id) and named[n.id].node == n:
 		named[n.id].node = null
 	n.queue_free()
@@ -272,8 +282,75 @@ func _ambient_tick() -> void:
 		if _spawn_ambient(pp, d.kind):
 			count += 1
 
+func _make(ident: Dictionary, pos: Vector3, cat := "") -> NPC:
+	var n := NPC.new()
+	var c := cat if cat != "" else People.look_cat(ident.job)
+	n.setup(Human.random_look(rng, ident.sex, c), ident)
+	add_child(n)
+	n.global_position = pos
+	npcs.append(n)
+	var age := float(n.human.look.get("age", 0.4))
+	n.speed = randf_range(1.15, 1.55) * (0.72 if age > 0.75 else (1.12 if age < 0.25 else 1.0))
+	return n
+
+var _used_spots := {}
+
+## People doing things at places: vendors at carts, mechanics, diners, bus queues.
+func _spawn_at_spot(pp: Vector2, kind: String) -> bool:
+	var c := City.chunk_of(pp)
+	var cands: Array = []
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var ch = world.chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			for i in ch.spots.size():
+				var key := "%s:%d" % [ch.name, i]
+				if not _used_spots.has(key) and Vector2(ch.spots[i].pos.x, ch.spots[i].pos.z).distance_to(pp) > 14.0:
+					cands.append([key, ch.spots[i]])
+	if cands.is_empty():
+		return false
+	var pick: Array = cands[rng.randi() % cands.size()]
+	var sp: Dictionary = pick[1]
+	var ident := People.random_identity(rng, kind)
+	var cat := ""
+	var act := ""
+	var sit := false
+	match sp.kind:
+		"vendor":
+			ident.job = "hawker"; cat = "vendor"; act = "work"
+		"customer":
+			cat = "shopper"; act = "argue" if rng.randf() < 0.25 else "listen"
+		"shop":
+			act = ["", "listen", "wait", "read"][rng.randi() % 4]
+		"garage":
+			ident.job = "mechanic"; ident.sex = 0; cat = "mechanic"; act = "fix"
+		"eat":
+			act = "eat" if rng.randf() < 0.7 else "tea"
+		"wait":
+			act = "wait"
+		"idle":
+			cat = "elder" if rng.randf() < 0.6 else ""
+			act = ["read", "tea", ""][rng.randi() % 3]; sit = true
+		"school":
+			ident.job = "student"; cat = "student"; act = "laugh" if rng.randf() < 0.4 else ""
+	var n := _make(ident, sp.pos, cat)
+	n.face_yaw = sp.yaw
+	n.human.rotation.y = sp.yaw
+	n.mode = "idle"
+	n.base_act = act
+	n.human.activity = act
+	n.sit = sit
+	n.human.state = "sit" if sit else "idle"
+	n.spot_key = pick[0]
+	_used_spots[pick[0]] = true
+	return true
+
 func _spawn_ambient(pp: Vector2, kind: String) -> bool:
-	var stander := rng.randf() < 0.3
+	var r := rng.randf()
+	if r < 0.4 and _spawn_at_spot(pp, kind):
+		return true
+	var stander := r < 0.5
 	var ax := rng.randi() % 2
 	var cell := Vector2(roundf(pp.x / City.GRID), roundf(pp.y / City.GRID))
 	var ln := ((cell.y if ax == 0 else cell.x) + float(rng.randi_range(-1, 1))) * City.GRID
@@ -287,34 +364,57 @@ func _spawn_ambient(pp: Vector2, kind: String) -> bool:
 	if z != null and z.kind in ["lake", "airport", "railstation", "vidhana", "temple", "site"]:
 		return false
 	var ident := People.random_identity(rng, kind)
-	var n := NPC.new()
-	n.setup(Human.random_look(rng, ident.sex), ident)
-	add_child(n)
-	n.global_position = Vector3(pos.x, 0, pos.y)
-	npcs.append(n)
+	var n := _make(ident, Vector3(pos.x, 0, pos.y))
 	if stander:
-		# linger at a shop front; sometimes with company
+		# two or three people who have stopped to talk
 		var away := Vector2(0, sd) if ax == 0 else Vector2(sd, 0)
-		n.global_position += Vector3(away.x, 0, away.y) * 0.7
-		n.face_yaw = atan2(away.x, away.y) + PI if rng.randf() < 0.5 else atan2(-away.x, -away.y) + PI
-		n.human.rotation.y = n.face_yaw
+		n.global_position += Vector3(away.x, 0, away.y) * 0.4
 		n.mode = "idle"
-		if rng.randf() < 0.5:
-			var id2 := People.random_identity(rng, kind)
-			var m := NPC.new()
-			m.setup(Human.random_look(rng, id2.sex), id2)
-			add_child(m)
-			var fw := Vector2(1, 0) if ax == 0 else Vector2(0, 1)
-			m.global_position = n.global_position + Vector3(fw.x, 0, fw.y) * 1.1
-			npcs.append(m)
-			m.partner = n
-			n.partner = m
-			m.mode = "idle"
+		var id2 := People.random_identity(rng, kind)
+		var m := _make(id2, n.global_position + (Vector3(1, 0, 0) if ax == 0 else Vector3(0, 0, 1)) * 1.05)
+		m.partner = n
+		n.partner = m
+		m.mode = "idle"
+		if rng.randf() < 0.18:
+			n.base_act = "argue"
+			m.base_act = "argue"
 	else:
 		n.start_grid(ax, ln, sd, 1.0 if along < base else -1.0)
+		if ident.job in ["coolie"] or (ident.job in ["hawker", "flower seller"] and rng.randf() < 0.5):
+			n.human.activity = "load"
+		elif rng.randf() < 0.25:
+			n.human.activity = "carry"
+		if rng.randf() < 0.28:     # walking together: friends, a couple, classmates
+			var id3 := People.random_identity(rng, kind)
+			if ident.job == "student":
+				id3.job = "student"
+			var mate := _make(id3, n.global_position + Vector3(0.7, 0, 0.2))
+			mate.mode = "mate"
+			mate.leader = n
+			if rng.randf() < 0.6:
+				n.human.talk_t = 0.0
 	return true
 
+## A city bus has pulled in: the queue boards, a few passengers get down.
+func bus_halt(veh: Vehicle) -> void:
+	var door: Vector3 = veh.global_position - veh.global_transform.basis.x * (float(veh.spec.w) * 0.5 + 0.4)
+	if door.distance_to(world.player.global_position) > 90.0:
+		return
+	for n in npcs:
+		if is_instance_valid(n) and n.base_act == "wait" and n.mode == "idle" and n.global_position.distance_to(door) < 14.0 and rng.randf() < 0.7:
+			n.mode = "board"
+			n.path = PackedVector2Array([Vector2(door.x, door.z)])
+			n.speed = 1.9
+			n.human.activity = ""
+			n.human.state = "idle"
+			_used_spots.erase(n.spot_key)
+	for i in rng.randi_range(1, 3):
+		var ident := People.random_identity(rng, "com")
+		var n2 := _make(ident, door + Vector3(rng.randf_range(-0.5, 0.5), 0, rng.randf_range(-0.5, 0.5)))
+		n2._regrid()
+
 func _street_chatter() -> void:
+	_greetings()
 	var pp: Vector3 = world.player.global_position
 	var cands: Array = []
 	for n in npcs:
@@ -351,6 +451,9 @@ func talk(n: NPC) -> void:
 	if n.mode in ["grid", "walk"]:
 		n.mode = "idle" if was == "grid" else "paused"
 	n.human.speed = 0.0
+	n.human.look_target = pl.global_position + Vector3(0, 1.6, 0)
+	pl.human.look_target = n.global_position + Vector3(0, 1.6, 0)
+	pl.talk_focus = n
 	Game.s.stats.talks = int(Game.s.stats.talks) + 1
 	var handled: bool = await world.story.on_talk(n)
 	if not handled:
@@ -361,7 +464,10 @@ func talk(n: NPC) -> void:
 			await world.hud.say("%s  (%s)" % [n.display_name(), n.ident.job], People.ambient_line(n.ident, rng))
 	world.hud.end_talk()
 	pl.locked = false
+	pl.human.look_target = null
+	pl.talk_focus = null
 	if is_instance_valid(n):
+		n.human.look_target = null
 		if was == "grid" and n.mode == "idle":
 			n.mode = "grid"
 		elif n.mode == "paused":
@@ -498,3 +604,20 @@ func arrest(_cop: NPC) -> void:
 	if world.busy:
 		return
 	world.arrested()
+
+func _greetings() -> void:
+	var pp: Vector3 = world.player.global_position
+	var walkers: Array = []
+	for n in npcs:
+		if is_instance_valid(n) and n.mode == "grid" and n.global_position.distance_to(pp) < 22.0:
+			walkers.append(n)
+	for i in walkers.size():
+		for j in range(i + 1, walkers.size()):
+			var a: NPC = walkers[i]
+			var b: NPC = walkers[j]
+			if a.global_position.distance_to(b.global_position) < 3.2 and rng.randf() < 0.35:
+				a.human.play_once("namaste" if rng.randf() < 0.4 else "wave", 0.9)
+				b.human.play_once("nod", 0.8)
+				a.human.look_target = b.global_position + Vector3(0, 1.5, 0)
+				a.say_bubble(["Namaskara!", "Oota aaytha?", "Enu samachara?", "Hello saar!", "Ey, Manja!"][rng.randi() % 5], 1.8)
+				return

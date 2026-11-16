@@ -28,6 +28,11 @@ var line := 0.0
 var side := 1.0
 var dirn := 1.0
 var _wait := 0.0
+var leader: NPC = null      # walking companion we keep pace with
+var spot_key := ""          # the activity anchor we occupy
+var base_act := ""
+var _chat := 0.0
+var _glance := 0.0
 
 func setup(look: Dictionary, identity: Dictionary, named_id := "") -> void:
 	id = named_id
@@ -143,9 +148,49 @@ func tick(delta: float, crowd) -> void:
 					attack_cd = randf_range(0.9, 1.4)
 					human.play_once("punch", 0.3)
 					crowd.hit_player(7.0)
+		"mate":
+			if leader == null or not is_instance_valid(leader) or leader.mode != "grid":
+				_regrid()
+			else:
+				var lf := Vector3(-sin(leader.face_yaw), 0, -cos(leader.face_yaw))
+				var tgt := leader.global_position + Vector3(lf.z, 0, -lf.x) * 0.75 - lf * 0.15
+				var dd := tgt - global_position
+				global_position += dd * minf(1.0, delta * 6.0)
+				face_yaw = leader.face_yaw
+				moving = leader.human.speed
+				human.look_target = leader.global_position + Vector3(0, 1.5, 0) if leader.human.talk_t > 0.0 else null
+		"board":
+			moving = _step_to(path[0], delta, 0.6) if path.size() > 0 else -1.0
+			if moving < 0.0:
+				crowd.remove(self)
+				return
 		_:
 			if partner != null and is_instance_valid(partner):
+				# a conversation: take turns, listen, sometimes laugh or argue
 				face(partner.global_position)
+				human.look_target = partner.global_position + Vector3(0, 1.55, 0)
+				_chat -= delta
+				if _chat <= 0.0:
+					_chat = randf_range(2.0, 5.0)
+					var mood := randf()
+					if base_act == "argue":
+						human.activity = "argue" if mood < 0.6 else "listen"
+					elif mood < 0.45:
+						human.activity = ""
+						human.talk_t = _chat
+					elif mood < 0.6:
+						human.activity = "laugh"
+					else:
+						human.activity = "listen"
+			elif story_tag == "" and id == "":
+				human.activity = base_act
+	# people notice the player walking right past them
+	if mode in ["grid", "idle"] and partner == null:
+		_glance -= delta
+		var dp := global_position.distance_to(ppos)
+		if dp < 4.0 and _glance < -3.0 and randf() < 0.02:
+			_glance = randf_range(1.0, 2.2)
+		human.look_target = ppos + Vector3(0, 1.55, 0) if (_glance > 0.0 and dp < 6.0) else (human.look_target if mode == "mate" else null)
 	human.speed = maxf(moving, 0.0)
 	if mode != "ko":
 		human.rotation.y = lerp_angle(human.rotation.y, face_yaw, 1.0 - exp(-9.0 * delta))
@@ -172,10 +217,14 @@ func _flee_from(p: Vector3) -> void:
 	face_yaw = atan2(-d.x, -d.z) + randf_range(-0.5, 0.5)
 
 func alarm(p: Vector3) -> void:
-	if mode in ["grid", "idle", "walk"] and id == "" and story_tag == "":
+	if mode in ["grid", "idle", "walk", "mate"] and id == "" and story_tag == "":
 		_flee_from(p)
 		partner = null
+		leader = null
 		human.state = "idle"
+		human.activity = ""
+		base_act = ""
+		human.emotion = -0.8
 
 # ------------------------------------------------------------------ street-grid walking
 func start_grid(ax: int, ln: float, sd: float, dr: float) -> void:

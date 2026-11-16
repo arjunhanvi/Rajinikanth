@@ -23,7 +23,7 @@ Open it in your phone's browser, tap the downloaded file, allow "install unknown
 tools/build_apk.sh
 ```
 
-The result is `build/rajinikanth.apk` (debug-signed, arm64-v8a + armeabi-v7a, about 53 MB).
+The result is `build/rajinikanth.apk` (debug-signed, arm64-v8a + armeabi-v7a, about 57 MB).
 Install with `adb install build/rajinikanth.apk` or copy it to a phone and open it. No network,
 account or developer machine is needed to play.
 
@@ -36,6 +36,8 @@ godot --path .
 Mouse acts as touch. Keys: WASD move, Shift run, Space jump, C crouch, E interact, F hit, M map, P phone, V camera, Esc pause.
 
 ## What is playable now
+
+v0.2.0 is a realism upgrade over the first milestone (see [docs/STATUS.md](docs/STATUS.md) for the list); `git checkout v0.1.0` is the rollback point.
 
 - Animated HANVI'S ORIGINAL opening, yellow-star title, main menu, 4 independent save slots.
 - Character creation with live 3D preview (face, skin, hair, facial hair, build, clothes, accessories).
@@ -58,4 +60,8 @@ See [docs/STATUS.md](docs/STATUS.md) for what is tested, what is thin, and what 
 tools/check.sh              # parse every script
 tools/playtest.sh story     # automated playthrough of Chapter One + save/load (needs xvfb)
 tools/playtest.sh tour      # screenshots: street, tea stall, bus station, traffic, night, rain
+tools/playtest.sh streets   # six neighbourhoods
+tools/playtest.sh people    # character line-up
+tools/playtest.sh panels    # phone, map at three zooms, dialogue, pause, driving
+tools/playtest.sh ui        # intro frames, soundtrack checks, menu, creator
 ```

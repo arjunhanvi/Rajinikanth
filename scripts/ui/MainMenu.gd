@@ -49,7 +49,13 @@ func _ready() -> void:
 	ver.offset_top = -40
 	add_child(ver)
 	add_child(UI.grain(0.08, 0.4))
-	Sfx.music("music_title", 1.0)
+	Sfx.music("", 1.0)
+	if not Sfx.intro_available():
+		var miss := UI.label("Intro soundtrack not found (assets/audio/user/intro_theme.ogg). Running silent.", 13, Color(0.8, 0.4, 0.3))
+		miss.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+		miss.offset_left = 90
+		miss.offset_top = -62
+		add_child(miss)
 
 func _load(i: int) -> void:
 	if Game.load_game(i):

@@ -5,6 +5,7 @@ extends RefCounted
 const IMG := "res://assets/img/"
 static var _m := {}
 static var _tex := {}
+static var night_on := false
 
 static func tex(n: String) -> Texture2D:
 	if not _tex.has(n):
@@ -37,12 +38,17 @@ static func facade() -> StandardMaterial3D:
 
 ## phase: 0 day, 1 evening (windows lit, shops open), 2 late night (shops shuttered); power=false during a power cut
 static func set_facade_phase(phase: int, power := true) -> void:
+	night_on = phase > 0
+	head().albedo_color = Color(0.42, 0.4, 0.32) if phase > 0 else Color(0, 0, 0)
 	var m := facade()
 	m.albedo_texture = tex(["atlas_day", "atlas_eve", "atlas_night"][phase])
 	m.emission_texture = tex("atlas_night_emit" if phase == 2 else "atlas_eve_emit")
 	m.emission_energy_multiplier = 0.0 if (phase == 0 or not power) else 1.6
 	lamp().emission_energy_multiplier = 0.0 if (phase == 0 or not power) else 3.0
 	signs().emission_energy_multiplier = 0.35 if (phase == 1 and power) else 0.0
+	pool(false).albedo_color = Color(0.75, 0.5, 0.2) if (phase > 0 and power) else Color(0, 0, 0)
+	pool(true).albedo_color = Color(0.4, 0.36, 0.26) if (phase == 1 and power) else Color(0, 0, 0)
+	Vehicle._light_mat().emission_energy_multiplier = 3.0 if phase > 0 else 0.5
 
 static func signs() -> StandardMaterial3D:
 	if _m.has("signs"):
@@ -106,6 +112,40 @@ static func cloth(pattern: String, c: Color) -> StandardMaterial3D:
 	m.uv1_scale = Vector3(3, 3, 1)
 	m.roughness = 0.95
 	_m[key] = m
+	return m
+
+## Additive pools of light on the ground: sodium-orange under lamps, tube-light
+## white in front of open shops. Driven by set_facade_phase.
+static func pool(shop: bool) -> StandardMaterial3D:
+	var key := "pool_shop" if shop else "pool_lamp"
+	if _m.has(key):
+		return _m[key]
+	var g := GradientTexture2D.new()
+	g.fill = GradientTexture2D.FILL_RADIAL
+	g.fill_from = Vector2(0.5, 0.5)
+	g.fill_to = Vector2(1.0, 0.5)
+	var gr := Gradient.new()
+	gr.set_color(0, Color(1, 1, 1, 1))
+	gr.set_color(1, Color(0, 0, 0, 1))
+	g.gradient = gr
+	g.width = 64
+	g.height = 64
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = g
+	m.albedo_color = Color(0, 0, 0)
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.no_depth_test = false
+	_m[key] = m
+	return m
+
+static func head() -> StandardMaterial3D:
+	if _m.has("pool_head"):
+		return _m["pool_head"]
+	var m: StandardMaterial3D = pool(false).duplicate()
+	m.albedo_color = Color(0, 0, 0)
+	_m["pool_head"] = m
 	return m
 
 static func lamp() -> StandardMaterial3D:

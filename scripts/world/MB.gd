@@ -90,7 +90,7 @@ func add_to(mesh: ArrayMesh, mat: Material) -> void:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
 
-static func atlas(i: int, n_side := 4) -> Rect2:
-	var s := 1.0 / n_side
-	var pad := 0.004
-	return Rect2((i % n_side) * s + pad, (i / n_side) * s + pad, s - pad * 2.0, s - pad * 2.0)
+## UV rect of facade tile i in the 8 x 4 atlas.
+static func atlas(i: int) -> Rect2:
+	var pad := 0.003
+	return Rect2((i % 8) / 8.0 + pad * 0.5, (i / 8) / 4.0 + pad, 1.0 / 8.0 - pad, 1.0 / 4.0 - pad * 2.0)

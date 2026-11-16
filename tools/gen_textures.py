@@ -104,20 +104,127 @@ def shed_tile():
     im = Image.new("RGB", (T, T), (206, 208, 210)); d = ImageDraw.Draw(im)
     for x in range(0, T, 16): d.rectangle([x, 0, x + 7, T], fill=(184, 186, 190))
     d.rectangle([0, 0, T, 30], fill=(160, 150, 140)); return im
+def arch_tile(lit):
+    im = wall_tile(); d = ImageDraw.Draw(im)
+    d.rectangle([70, 110, 186, 232], fill=(120, 92, 66)); d.pieslice([70, 52, 186, 168], 180, 360, fill=(120, 92, 66))
+    g = (250, 222, 150) if lit else (40, 50, 58)
+    d.rectangle([80, 112, 176, 224], fill=g); d.pieslice([80, 62, 176, 158], 180, 360, fill=g)
+    d.line([128, 62, 128, 224], fill=(120, 92, 66), width=5); d.line([80, 150, 176, 150], fill=(120, 92, 66), width=5)
+    d.rectangle([58, 232, 198, 242], fill=(190, 186, 176)); d.rectangle([0, 20, T, 30], fill=(196, 192, 182)); return im
+def glass_tile(lit):
+    im = Image.new("RGB", (T, T), (70, 96, 112)); d = ImageDraw.Draw(im)
+    for i in range(4):
+        for j in range(3):
+            c = (236, 240, 214) if (lit and (i * 3 + j) % 4 == 1) else (58 + int(rng.integers(0, 18)), 92 + int(rng.integers(0, 16)), 112 + int(rng.integers(0, 14)))
+            d.rectangle([i * 64 + 3, j * 86 + 3, i * 64 + 60, j * 86 + 82], fill=c)
+    d.rectangle([0, 244, T, T], fill=(150, 152, 150)); return im
+def redbrick_tile():
+    im = Image.new("RGB", (T, T), (150, 140, 130)); d = ImageDraw.Draw(im)
+    for r in range(16):
+        for c in range(-1, 6):
+            x = c * 52 + (26 if r % 2 else 0); v = int(rng.integers(-16, 16)); d.rectangle([x + 2, r * 16 + 2, x + 50, r * 16 + 14], fill=(168 + v, 92 + v // 2, 70 + v // 2))
+    return im
+def jaali_tile():
+    im = wall_tile(False); d = ImageDraw.Draw(im)
+    for r in range(8):
+        for c in range(5):
+            d.rectangle([66 + c * 26, 30 + r * 26, 84 + c * 26, 48 + r * 26], fill=(46, 46, 50))
+    return im
+def garage_tile():
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([8, 12, 248, 256], fill=(26, 24, 24)); d.rectangle([8, 12, 248, 36], fill=(120, 110, 100))
+    d.rectangle([8, 36, 248, 50], fill=(255, 236, 180))
+    for i in range(3): d.ellipse([20 + i * 6, 150 + i * 30, 90 + i * 6, 220 + i * 30], outline=(70, 70, 72), width=12)
+    d.rectangle([130, 90, 236, 100], fill=(110, 90, 70)); [d.rectangle([136 + k * 20, 66, 148 + k * 20, 90], fill=(170, 60, 40) if k % 2 else (60, 90, 150)) for k in range(5)]
+    d.rectangle([140, 170, 230, 256], fill=(60, 80, 110)); d.ellipse([150, 226, 180, 256], fill=(20, 20, 20)); d.ellipse([196, 226, 226, 256], fill=(20, 20, 20))
+    d.ellipse([60, 232, 200, 262], fill=(12, 12, 12)); return im
+def hotel_tile():
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([8, 12, 248, 256], fill=(60, 44, 34)); d.rectangle([8, 12, 248, 30], fill=(255, 240, 190))
+    d.rectangle([20, 40, 120, 96], fill=(20, 40, 30)); [d.line([28, y, 112, y], fill=(230, 230, 210), width=2) for y in range(50, 92, 9)]
+    d.rectangle([140, 44, 236, 112], fill=(230, 226, 214)); d.ellipse([170, 56, 206, 100], fill=(250, 210, 80))
+    for k in range(2):
+        x = 26 + k * 112; d.rectangle([x, 176, x + 92, 186], fill=(200, 196, 190)); d.rectangle([x + 40, 186, x + 52, 256], fill=(120, 120, 124))
+        d.ellipse([x + 16, 162, x + 44, 178], fill=(235, 235, 235)); d.rectangle([x + 60, 150, x + 72, 176], fill=(190, 190, 196))
+    return im
+def school_tile(lit):
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([0, 196, T, 256], fill=(86, 120, 170))
+    for i in range(2):
+        x = 22 + i * 118; d.rectangle([x - 6, 50, x + 100, 180], fill=(140, 136, 128)); d.rectangle([x, 56, x + 94, 174], fill=(240, 226, 170) if lit else (50, 62, 70))
+        for y in range(62, 174, 12): d.line([x, y, x + 94, y], fill=(110, 124, 120), width=4)
+        d.line([x + 47, 56, x + 47, 174], fill=(140, 136, 128), width=4)
+    return im
+def rust_shutter():
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([10, 14, 246, 256], fill=(128, 106, 92))
+    for y in range(18, 256, 8): d.line([10, y, 246, y], fill=(96, 78, 66), width=2)
+    for _ in range(14):
+        x, y = int(rng.integers(14, 220)), int(rng.integers(20, 230)); d.ellipse([x, y, x + int(rng.integers(10, 40)), y + int(rng.integers(8, 30))], fill=(120, 72, 44))
+    fit(d, "SRI", (90, 90, 166, 130), FB, (200, 190, 170)); return im
+def weathered_tile():
+    im = wall_tile(); d = ImageDraw.Draw(im)
+    d.polygon([(30, 256), (40, 190), (90, 170), (150, 200), (170, 256)], fill=(166, 100, 78))
+    for r in range(5):
+        for c in range(4): d.rectangle([44 + c * 30 + (15 if r % 2 else 0), 196 + r * 12, 70 + c * 30 + (15 if r % 2 else 0), 205 + r * 12], outline=(120, 70, 56))
+    for k, col in enumerate([(210, 60, 50), (240, 210, 80), (70, 110, 170)]):
+        x = 30 + k * 72; d.rectangle([x, 60, x + 58, 140], fill=col); d.rectangle([x + 6, 68, x + 52, 100], fill=tuple(int(v * 0.6) for v in col)); d.polygon([(x + 58, 60), (x + 44, 60), (x + 58, 78)], fill=(226, 224, 218))
+    return im
+def wallad_tile():
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([14, 40, 242, 216], fill=(30, 70, 150)); d.rectangle([20, 46, 236, 210], outline=(250, 240, 200), width=3)
+    fit(d, "GAJA SHAKTI", (28, 56, 228, 120), FB, (250, 220, 40)); fit(d, "CEMENT", (28, 122, 228, 170), FB, (255, 255, 255)); fit(d, "Dealer: Phone 335 7102", (28, 174, 228, 204), FI, (250, 240, 200))
+    im2 = im.filter(ImageFilter.GaussianBlur(0.8)); return Image.blend(im2, wall_tile(), 0.22)
+def gate_tile():
+    im = Image.new("RGB", (T, T), WALL); d = ImageDraw.Draw(im); d.rectangle([0, 0, T, 60], fill=WALL)
+    d.rectangle([0, 40, 46, 256], fill=(214, 208, 196)); d.rectangle([210, 40, 256, 256], fill=(214, 208, 196)); d.rectangle([-4, 28, 50, 44], fill=(190, 184, 172)); d.rectangle([206, 28, 260, 44], fill=(190, 184, 172))
+    d.rectangle([46, 70, 210, 256], fill=(52, 56, 52))
+    for x in range(52, 210, 14): d.line([x, 70, x, 256], fill=(18, 20, 20), width=4)
+    d.line([46, 76, 210, 76], fill=(18, 20, 20), width=6); d.line([46, 170, 210, 170], fill=(18, 20, 20), width=6); return im
+def verandah_tile():
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([0, 0, T, 34], fill=(150, 70, 52))
+    for x in range(0, T, 16): d.line([x, 0, x, 34], fill=(120, 52, 40), width=2)
+    d.rectangle([0, 34, T, 256], fill=(206, 196, 170)); d.rectangle([84, 80, 172, 256], fill=(70, 96, 84)); d.rectangle([92, 90, 164, 256], fill=(92, 122, 108))
+    for x in (30, 214): d.rectangle([x - 9, 34, x + 9, 256], fill=(110, 78, 56)); d.rectangle([x - 14, 34, x + 14, 50], fill=(96, 66, 48))
+    d.rectangle([0, 236, T, 256], fill=(128, 62, 50)); return im
+def flatwin_tile(lit):
+    im = wall_tile(); d = ImageDraw.Draw(im); d.rectangle([40, 70, 150, 190], fill=(100, 100, 104)); d.rectangle([46, 76, 144, 184], fill=(246, 214, 130) if lit else (44, 54, 64))
+    for x in range(46, 146, 12): d.line([x, 76, x, 184], fill=(26, 26, 28), width=2)
+    d.rectangle([30, 52, 160, 62], fill=(184, 180, 172)); d.rectangle([170, 96, 232, 150], fill=(206, 204, 198)); [d.line([174, y, 228, y], fill=(130, 130, 128), width=2) for y in range(102, 148, 7)]
+    d.rectangle([236, 0, 246, 256], fill=(150, 112, 88)); return im
+def tiled_tile():
+    im = Image.new("RGB", (T, T), (226, 196, 190)); d = ImageDraw.Draw(im)
+    for i in range(0, T, 32): d.line([i, 0, i, T], fill=(196, 168, 162), width=2); d.line([0, i, T, i], fill=(196, 168, 162), width=2)
+    d.rectangle([64, 64, 192, 192], fill=(72, 96, 110)); d.rectangle([70, 70, 186, 186], fill=(48, 70, 84)); d.line([128, 64, 128, 192], fill=(72, 96, 110), width=5); return im
+def kiosk_tile():
+    im = wall_tile(False); d = ImageDraw.Draw(im); d.rectangle([8, 12, 248, 256], fill=(40, 34, 30)); d.rectangle([8, 12, 248, 30], fill=(255, 240, 190))
+    for r in range(3):
+        for c in range(9):
+            col = [(220, 40, 40), (250, 210, 40), (40, 150, 70), (60, 110, 200), (240, 130, 30)][int(rng.integers(0, 5))]
+            d.rectangle([16 + c * 26, 40 + r * 40, 34 + c * 26, 72 + r * 40], fill=col); d.line([25 + c * 26, 30, 25 + c * 26, 40 + r * 40], fill=(200, 200, 200), width=1)
+    d.rectangle([8, 176, 248, 256], fill=(40, 90, 150)); d.rectangle([8, 170, 248, 180], fill=(230, 230, 220))
+    for i in range(5): d.ellipse([22 + i * 44, 146, 52 + i * 44, 176], fill=(200, 210, 214), outline=(120, 120, 120))
+    return im
+def bigdoor_tile():
+    im = wall_tile(); d = ImageDraw.Draw(im); d.rectangle([36, 30, 220, 256], fill=(70, 52, 40)); d.rectangle([44, 38, 126, 256], fill=(96, 72, 54)); d.rectangle([130, 38, 212, 256], fill=(96, 72, 54))
+    for y in range(60, 250, 38): d.line([44, y, 212, y], fill=(70, 52, 40), width=4)
+    d.ellipse([116, 140, 126, 150], fill=(200, 170, 80)); d.ellipse([130, 140, 140, 150], fill=(200, 170, 80)); return im
+SHOP_TILES = [4, 5, 6, 7, 20, 21, 30]
 def atlas(night, emit=False):
-    A = Image.new("RGB", (T * 4, T * 4)); lit = night
+    A = Image.new("RGB", (T * 8, T * 4)); lit = night
     tiles = [win_shutter(lit), win_grill(False), win_office(lit and True), win_balcony(lit),
              *([shop_shut(i % 2) for i in range(4)] if night == 2 else [shop_open(i) for i in range(4)]),
-             shop_shut(0), shop_shut(1), door_tile(), wall_tile(), wall_tile(False), pipe_tile(), vent_tile(), brick_tile()]
-    for i, tl in enumerate(tiles): A.paste(grain(tl, 5), ((i % 4) * T, (i // 4) * T))
+             shop_shut(0), shop_shut(1), door_tile(), wall_tile(), wall_tile(False), pipe_tile(), vent_tile(), brick_tile(),
+             arch_tile(lit), glass_tile(lit), redbrick_tile(), jaali_tile(),
+             rust_shutter() if night == 2 else garage_tile(), shop_shut(1) if night == 2 else hotel_tile(), school_tile(False), rust_shutter(),
+             weathered_tile(), wallad_tile(), gate_tile(), verandah_tile(), flatwin_tile(lit), tiled_tile(),
+             shop_shut(0) if night == 2 else kiosk_tile(), bigdoor_tile()]
+    for i, tl in enumerate(tiles): A.paste(grain(tl, 5), ((i % 8) * T, (i // 8) * T))
     return A
 def emit_from(day_seeded, shops_open):
     a = np.asarray(day_seeded).astype(np.int16); r, g, b = a[..., 0], a[..., 1], a[..., 2]
-    m = (r > 225) & (g > 185) & (b < 200) & (r - b > 50)  # warm lit glass / tubelights
+    m = (r > 225) & (g > 185) & (b < 215) & (r - b > 20)  # warm lit glass / tubelights
     e = np.zeros_like(a); e[m] = a[m]
-    if not shops_open: e[T:T * 2] = 0
-    else:
-        rowa = a[T:T * 2].copy(); dark = rowa.sum(axis=2) < 110; rowa[dark] = 0; e[T:T * 2] = (rowa * 0.55).astype(np.int16)
+    for i in SHOP_TILES:
+        y0, x0 = (i // 8) * T, (i % 8) * T
+        if not shops_open: e[y0:y0 + T, x0:x0 + T] = 0
+        else:
+            t = a[y0:y0 + T, x0:x0 + T].copy(); dark = t.sum(axis=2) < 110; t[dark] = 0; e[y0:y0 + T, x0:x0 + T] = (t * 0.55).astype(np.int16)
     return Image.fromarray(e.clip(0, 255).astype(np.uint8))
 
 # ---------------------------------------------------------------- signs

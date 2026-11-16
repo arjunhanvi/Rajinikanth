@@ -215,15 +215,22 @@ func s_story() -> void:
 	ok(Game.s.active == "end" and Game.s.missions.has("m4"), "chapter one ends (money=%d)" % int(Game.s.money))
 
 func s_ui() -> void:
-	await wait(1.6)
-	await shot("u1_intro_logo")
-	await wait(4.2)
-	await shot("u2_intro_title")
-	await wait(3.5)
+	var intro = Game.boot.current
+	for t in [[1.6, "u1a_hanvis_setting"], [3.4, "u1b_logo_mid"], [8.5, "u1c_logo_full"], [17.0, "u2a_star"], [24.2, "u2b_title_landing"], [31.0, "u2c_title_full"]]:
+		while intro._t < t[0]:
+			await get_tree().process_frame
+		await shot(t[1])
+	print("intro track available=", Sfx.intro_available(), " playing=", Sfx.intro_playing(), " length=", Sfx._intro.stream.get_length() if Sfx._intro.stream != null else -1.0)
+	await wait(1.2)
 	await shot("u3_menu")
+	print("still playing in menu=", Sfx.intro_playing())
 	Game.goto("creator", {"slot": 0, "mode": "free"})
 	await wait(1.0)
 	await shot("u4_creator")
+	Game.start_new(Game.SLOTS - 1, "story", "Rajinikanth", Human.default_look())
+	Game.goto("world")
+	await wait(4.0)
+	print("after entering world, intro playing=", Sfx.intro_playing())
 
 func s_panels() -> void:
 	var w = world()
@@ -237,10 +244,19 @@ func s_panels() -> void:
 	w.hud._phone.closed.emit()
 	await wait(0.2)
 	w.hud.open_map()
-	w.hud._full_map.ppm = 0.16
-	w.hud._full_map.queue_redraw()
 	await wait(0.4)
-	await shot("p2_map")
+	await shot("p2_map_area")
+	w.hud._full_map.zoom_to(0.1)
+	w.hud._full_map.centre = Vector2(800, 0)
+	await wait(1.2)
+	await shot("p2_map_city")
+	w.hud._full_map.centre = Vector2(-20, 60)
+	w.hud._full_map.zoom_to(1.3)
+	await wait(1.2)
+	w.hud._full_map._tap(w.hud._full_map.w2s(Vector2(City.PLACES["police"].pos.x, City.PLACES["police"].pos.z)))
+	w.hud._set_wp(Vector2(City.np("mgroad")))
+	await wait(0.3)
+	await shot("p2_map_street")
 	w.hud.close_map()
 	w.hud.say("Nanjappa", "Tea is two rupees. Advice is free. Guess which one people take.")
 	await wait(0.6)
@@ -258,3 +274,42 @@ func s_panels() -> void:
 	await wait(2.0)
 	await shot("p5_driving")
 	Input.action_release("mv_u")
+
+func s_streets() -> void:
+	var w = world()
+	Game.s.time = 10.5
+	w.crowd.resync()
+	var views = [["majestic_lane", Vector3(30, 0, 150), 1.2], ["chickpet", Vector3(City.np("chickpet").x + 30, 0, City.np("chickpet").y + 50), -1.5], ["malleshwaram", Vector3(City.np("malleshwaram").x + 80, 0, City.np("malleshwaram").y + 100), 1.5],
+		["mgroad", Vector3(City.np("mgroad").x - 40, 0, City.np("mgroad").y + 3), -1.57], ["jayanagar", Vector3(City.np("jayanagar").x + 20, 0, City.np("jayanagar").y + 150), -1.6], ["peenya", Vector3(City.np("peenya").x + 30, 0, City.np("peenya").y + 100), 1.5]]
+	for v in views:
+		await tp(v[1], v[2])
+		w.player.pitch = -0.12
+		await wait(3.0)
+		await shot("st_" + v[0])
+	print("fps ", Engine.get_frames_per_second(), " npcs ", w.crowd.npcs.size())
+
+func s_people() -> void:
+	var w = world()
+	Game.s.time = 10.0
+	await tp(Vector3(-60, 0, 150), 0.0)
+	w.player.visible = false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var cats = ["office", "vendor", "student", "", "shopper", "mechanic", "elder", "police", "coolie", "priest"]
+	var acts = ["read", "work", "laugh", "tea", "listen", "fix", "wait", "", "", "pray"]
+	for i in cats.size():
+		var ident = People.random_identity(rng, "com")
+		if i in [3, 4]: ident.sex = 1
+		var n = w.crowd._make(ident, Vector3(-66 + i * 1.3, 0, 146.0), cats[i])
+		n.story_tag = "demo"; n.no_despawn = true
+		n.face_yaw = PI; n.human.rotation.y = PI
+		n.base_act = acts[i]; n.human.activity = acts[i]
+	w.player.cam_override = true
+	w.player.cam.global_position = Vector3(-60.2, 1.5, 151.5)
+	w.player.cam.look_at(Vector3(-60.2, 1.0, 146), Vector3.UP)
+	await wait(2.5)
+	await shot("pe_lineup")
+	w.player.cam.global_position = Vector3(-63.4, 1.55, 147.6)
+	w.player.cam.look_at(Vector3(-63.4, 1.5, 146), Vector3.UP)
+	await wait(1.0)
+	await shot("pe_close")

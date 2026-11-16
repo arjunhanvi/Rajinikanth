@@ -18,15 +18,16 @@ var _thunder := 8.0
 
 # hour -> [sky top, horizon, sun colour, sun energy, ambient energy]
 const KEYS := [
-	[0.0, Color(0.01, 0.02, 0.06), Color(0.05, 0.06, 0.12), Color(0.5, 0.6, 0.9), 0.06, 0.34],
-	[5.0, Color(0.02, 0.03, 0.09), Color(0.1, 0.1, 0.18), Color(0.5, 0.6, 0.9), 0.06, 0.34],
-	[6.2, Color(0.25, 0.35, 0.6), Color(0.95, 0.6, 0.4), Color(1.0, 0.7, 0.5), 0.55, 0.55],
-	[8.0, Color(0.25, 0.48, 0.85), Color(0.75, 0.82, 0.9), Color(1.0, 0.95, 0.85), 1.15, 0.75],
-	[12.5, Color(0.2, 0.45, 0.88), Color(0.7, 0.8, 0.92), Color(1.0, 0.98, 0.92), 1.35, 0.85],
-	[16.5, Color(0.25, 0.45, 0.8), Color(0.85, 0.78, 0.7), Color(1.0, 0.88, 0.7), 1.1, 0.75],
-	[18.3, Color(0.25, 0.25, 0.5), Color(0.98, 0.5, 0.25), Color(1.0, 0.55, 0.3), 0.5, 0.55],
-	[19.3, Color(0.04, 0.05, 0.14), Color(0.25, 0.15, 0.2), Color(0.5, 0.6, 0.9), 0.08, 0.38],
-	[24.0, Color(0.01, 0.02, 0.06), Color(0.05, 0.06, 0.12), Color(0.5, 0.6, 0.9), 0.06, 0.34],
+	[0.0, Color(0.01, 0.015, 0.05), Color(0.04, 0.05, 0.11), Color(0.45, 0.55, 0.9), 0.05, 0.31],
+	[4.8, Color(0.02, 0.03, 0.09), Color(0.09, 0.09, 0.17), Color(0.45, 0.55, 0.9), 0.05, 0.31],
+	[6.0, Color(0.3, 0.38, 0.58), Color(0.98, 0.66, 0.45), Color(1.0, 0.72, 0.5), 0.4, 0.4],     # dawn: pink sky, long shadows
+	[7.5, Color(0.3, 0.5, 0.82), Color(0.86, 0.84, 0.8), Color(1.0, 0.92, 0.78), 0.8, 0.46],    # morning: soft, slightly misty
+	[12.5, Color(0.22, 0.44, 0.84), Color(0.74, 0.8, 0.86), Color(1.0, 0.98, 0.93), 1.0, 0.5],  # noon: hard white light
+	[16.0, Color(0.26, 0.45, 0.78), Color(0.88, 0.8, 0.66), Color(1.0, 0.88, 0.68), 0.9, 0.48],
+	[17.8, Color(0.3, 0.32, 0.56), Color(1.0, 0.56, 0.24), Color(1.0, 0.6, 0.3), 0.6, 0.42],     # golden hour
+	[18.7, Color(0.12, 0.1, 0.3), Color(0.62, 0.26, 0.24), Color(0.9, 0.45, 0.35), 0.16, 0.34],  # dusk: purple
+	[19.6, Color(0.02, 0.03, 0.1), Color(0.12, 0.08, 0.14), Color(0.45, 0.55, 0.9), 0.05, 0.31],
+	[24.0, Color(0.01, 0.015, 0.05), Color(0.04, 0.05, 0.11), Color(0.45, 0.55, 0.9), 0.05, 0.31],
 ]
 
 func _ready() -> void:
@@ -48,6 +49,7 @@ func _ready() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = maxf(Game.gfx("shadow_dist"), 10.0)
 	sun.shadow_bias = 0.06
+	sun.shadow_blur = 1.6
 	add_child(sun)
 	rain = CPUParticles3D.new()
 	rain.amount = Game.gfx("rain")
@@ -140,7 +142,8 @@ func update(delta: float, t: float, weather: String, cam_pos: Vector3, lamp_posi
 	env.ambient_light_color = top.lerp(hor, 0.6).lerp(Color.WHITE, 0.35) if not indoors else Color(1.0, 0.92, 0.8)
 	env.ambient_light_energy = ae if not indoors else 0.75
 	env.fog_light_color = hor
-	env.fog_density = lerpf(0.0012, 0.009, maxf(raining, cloud * 0.3))
+	var mist := clampf(1.0 - absf(t - 6.6) / 1.6, 0.0, 1.0) * 0.004 + clampf(1.0 - absf(t - 13.0) / 3.0, 0.0, 1.0) * 0.0008
+	env.fog_density = lerpf(0.0011 + mist, 0.009, maxf(raining, cloud * 0.3))
 	Mats.set_wetness(wet)
 	var ph := 0
 	if t >= 21.5 or t < 6.0:

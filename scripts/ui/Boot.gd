@@ -34,6 +34,7 @@ func show_screen(screen: String, args: Dictionary) -> void:
 			current = Creator.new()
 			current.args = args
 		"world":
+			Sfx.intro_stop(1.5)
 			var load_ui := UI.rect(Color.BLACK)
 			var cl := CanvasLayer.new()
 			cl.layer = 50

@@ -29,6 +29,12 @@ var ai := {}               # Traffic's per-vehicle state
 var uid := ""              # persistent id for owned vehicles
 var _eng: AudioStreamPlayer = null
 var _lean: Node3D
+var _brake: MeshInstance3D
+var _ind := {}              # -1 / 1 -> MeshInstance3D
+var _ind_dir := 0
+var _blink := 0.0
+var _spot: SpotLight3D = null
+var _prev_v := 0.0
 
 static func create(t: String, colour_i := -1, with_rider := false) -> Vehicle:
 	var veh := Vehicle.new()
@@ -180,8 +186,81 @@ func _build(with_rider: bool) -> void:
 	blob.position.y = 0.12
 	blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(blob)
+	_signals(L, W)
 	if with_rider and spec.open:
 		set_rider(Human.make(Human.random_look(RandomNumberGenerator.new(), 0, "driver" if type == "auto" else "")))
+
+func _signals(L: float, W: float) -> void:
+	var y := 0.68
+	match type:
+		"bus", "pbus": y = 1.25
+		"truck": y = 1.15
+		"bike", "scooter": y = 0.72
+		"auto": y = 0.75
+	var two := type in ["bike", "scooter"]
+	var half := 0.0 if two else W * 0.38
+	_brake = MeshInstance3D.new()
+	var bb := MB.new()
+	for sd: float in ([0.0] if two else [-1.0, 1.0]):
+		bb.box(Vector3(sd * half, y, L * 0.5 + 0.03), Vector3(0.18, 0.12, 0.05), Color.WHITE)
+	var bmsh := ArrayMesh.new()
+	bb.add_to(bmsh, null)
+	_brake.mesh = bmsh
+	_brake.material_override = Mats.glow(Color(0.5, 0.03, 0.02), 0.3)
+	_brake.visibility_range_end = 120.0
+	_lean.add_child(_brake)
+	for sd: float in [-1.0, 1.0]:
+		var ib := MB.new()
+		var ix := sd * (W * 0.5 - 0.06) if not two else sd * 0.2
+		ib.box(Vector3(ix, y - 0.02, L * 0.5 + 0.02), Vector3(0.1, 0.1, 0.05), Color.WHITE)
+		ib.box(Vector3(ix, y - 0.02, -L * 0.5 - 0.02), Vector3(0.1, 0.1, 0.05), Color.WHITE)
+		var im := ArrayMesh.new()
+		ib.add_to(im, null)
+		var mi := MeshInstance3D.new()
+		mi.mesh = im
+		mi.material_override = Mats.glow(Color(1.0, 0.6, 0.05), 3.0)
+		mi.visible = false
+		mi.visibility_range_end = 90.0
+		_lean.add_child(mi)
+		_ind[int(sd)] = mi
+	# headlight throw on the road (additive, lit only after dark)
+	var hl := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(W * 2.6, 11.0)
+	q.orientation = PlaneMesh.FACE_Y
+	hl.mesh = q
+	hl.material_override = Mats.head()
+	hl.position = Vector3(0, 0.27, -L * 0.5 - 5.0)
+	hl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hl.visibility_range_end = 70.0
+	add_child(hl)
+
+func set_brake(on: bool) -> void:
+	if _brake != null:
+		_brake.material_override = Mats.glow(Color(1.0, 0.08, 0.05), 3.5) if on else Mats.glow(Color(0.5, 0.03, 0.02), 0.3)
+
+## -1 left, 1 right, 0 off
+func set_indicator(dir: int) -> void:
+	_ind_dir = dir
+	if dir == 0:
+		for k in _ind:
+			_ind[k].visible = false
+
+func _process(delta: float) -> void:
+	if _ind_dir != 0:
+		_blink += delta
+		var on := fmod(_blink, 0.7) < 0.38
+		# model +X is the right-hand side
+		_ind[_ind_dir].visible = on
+		_ind[-_ind_dir].visible = false
+	# body movement on the springs: dive under braking, squat on throttle, roll in corners
+	var acc := (v - _prev_v) / maxf(delta, 0.001)
+	_prev_v = v
+	if not type in ["bike", "scooter"]:
+		var soft := 0.012 if type in ["bus", "pbus", "truck"] else 0.02
+		_lean.rotation.x = lerpf(_lean.rotation.x, clampf(acc * soft, -0.06, 0.06), 1.0 - exp(-5.0 * delta))
+		_lean.rotation.z = lerpf(_lean.rotation.z, clampf(steer * absf(v) * 0.006, -0.05, 0.05), 1.0 - exp(-4.0 * delta))
+		_lean.position.y = sin(Time.get_ticks_msec() * 0.02 + global_position.x) * 0.006 * minf(absf(v), 4.0)
 
 static func _paint_mat() -> StandardMaterial3D:
 	var m := Mats._std("vpaint", "", 0.35, false, true)
@@ -259,6 +338,16 @@ func drive(delta: float, throttle: float, steer_in: float, handbrake: bool) -> v
 	if type in ["bike", "scooter"]:
 		_lean.rotation.z = lerpf(_lean.rotation.z, -steer * 0.35 * grip, delta * 6.0)
 	_engine_sound(true)
+	set_brake(throttle < -0.05 or handbrake)
+	if _spot == null:
+		_spot = SpotLight3D.new()
+		_spot.position = Vector3(0, 0.9, -float(spec.l) * 0.5)
+		_spot.spot_range = 26.0
+		_spot.spot_angle = 34.0
+		_spot.light_energy = 2.5
+		_spot.light_color = Color(1.0, 0.93, 0.75)
+		add_child(_spot)
+	_spot.visible = Mats.night_on
 
 func _engine_sound(on: bool) -> void:
 	if on and _eng == null:
@@ -278,6 +367,9 @@ func _engine_sound(on: bool) -> void:
 func stop_engine() -> void:
 	_engine_sound(false)
 	v = 0.0
+	set_brake(false)
+	if _spot != null:
+		_spot.visible = false
 
 func honk() -> void:
 	var d := 0.0
