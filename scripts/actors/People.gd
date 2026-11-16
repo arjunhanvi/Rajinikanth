@@ -191,6 +191,8 @@ static func look_of(id: String) -> Dictionary:
 		L.shoes = 4
 	for k in d.look:
 		L[k] = d.look[k]
+	if id in Human.HEROES:
+		L["model"] = id
 	return L
 
 ## Where a named character should be at a given hour: [place id, mode]

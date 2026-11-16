@@ -370,3 +370,51 @@ func s_people() -> void:
 	w.player.cam.look_at(Vector3(-63.4, 1.5, 146), Vector3.UP)
 	await wait(1.0)
 	await shot("pe_close")
+
+func s_humans() -> void:
+	var w = world()
+	Game.s.time = 10.0
+	w.crowd.resync()
+	await tp(Vector3(-60, 0, 150), 0.0)
+	w.player.visible = false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var cats = ["office", "vendor", "student", "", "shopper", "mechanic", "elder", "police", "coolie", "priest"]
+	var acts = ["read", "work", "laugh", "tea", "listen", "", "wait", "", "", "pray"]
+	for i in cats.size():
+		var ident = People.random_identity(rng, "com")
+		if i in [3, 4]: ident.sex = 1
+		var n = w.crowd._make(ident, Vector3(-66 + i * 1.3, 0, 146.0), cats[i])
+		n.story_tag = "demo"; n.no_despawn = true
+		n.face_yaw = PI; n.human.rotation.y = PI
+		n.base_act = acts[i]; n.human.activity = acts[i]
+	w.player.cam_override = true
+	w.player.cam.global_position = Vector3(-60.2, 1.5, 151.5)
+	w.player.cam.look_at(Vector3(-60.2, 1.0, 146), Vector3.UP)
+	await wait(3.0)
+	await shot("hu_lineup")
+	w.player.cam.fov = 40
+	w.player.cam.global_position = Vector3(-63.4, 1.5, 148.2)
+	w.player.cam.look_at(Vector3(-63.4, 1.35, 146), Vector3.UP)
+	await wait(1.5)
+	await shot("hu_close")
+	w.player.cam.fov = 62
+	w.player.cam_override = false
+	w.player.visible = true
+	w.crowd.clear_actors("demo")
+	# a normal street: count what is on screen and how long a frame takes
+	Game.s.time = 9.0
+	await tp(Vector3(30, 0, 150), 1.2)
+	await wait(6.0)
+	await shot("hu_street")
+	var t0 := Time.get_ticks_usec()
+	var f0 := Engine.get_frames_drawn()
+	await wait(5.0)
+	var ms := float(Time.get_ticks_usec() - t0) / 1000.0 / float(Engine.get_frames_drawn() - f0)
+	var tris := 0
+	var skinned := 0
+	for n in w.crowd.npcs:
+		if is_instance_valid(n):
+			skinned += 1
+	print("[perf] software renderer: %.1f ms/frame, people on scene %d, draw calls %d, primitives %d" % [ms, skinned, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+	print("[perf] texture memory %.0f MB, static memory %.0f MB" % [RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED) / 1048576.0, OS.get_static_memory_usage() / 1048576.0])

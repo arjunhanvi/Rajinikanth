@@ -42,7 +42,7 @@ func _ready() -> void:
 	cs.shape = cap
 	cs.position.y = 0.85
 	add_child(cs)
-	human = Human.make(Game.s.look, 2)
+	human = Human.make(_hero_look(Game.s.look), 2)
 	add_child(human)
 	cam = Camera3D.new()
 	cam.fov = 62.0
@@ -52,8 +52,15 @@ func _ready() -> void:
 	add_child(cam)
 	cam.current = true
 
+## In the story the player is Rajinikanth himself and wears his body; free play uses the created character.
+func _hero_look(l: Dictionary) -> Dictionary:
+	var d := l.duplicate()
+	if Game.s.get("mode", "story") == "story":
+		d["model"] = "raji"
+	return d
+
 func set_look(l: Dictionary) -> void:
-	human.set_look(l)
+	human.set_look(_hero_look(l))
 
 func look_input(d: Vector2) -> void:
 	var sens: float = float(Game.settings.sens) * 0.005

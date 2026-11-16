@@ -48,7 +48,8 @@ func _ready() -> void:
 	sun.shadow_enabled = Game.gfx("shadows")
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = maxf(Game.gfx("shadow_dist"), 10.0)
-	sun.shadow_bias = 0.06
+	sun.shadow_bias = 0.1
+	sun.shadow_normal_bias = 2.5
 	sun.shadow_blur = 1.6
 	add_child(sun)
 	rain = CPUParticles3D.new()
