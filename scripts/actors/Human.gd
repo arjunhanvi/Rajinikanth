@@ -754,6 +754,8 @@ func _process(delta: float) -> void:
 	if ground_follow:
 		var root_y := global_position.y
 		var gh := Ground.height(global_position) - root_y
+		if gait != null and _gait_was and gait.foot_ground_ok and not gait.seating():
+			gh = gait.foot_ground_y - root_y      # the body is carried by the feet, not the ground under its middle
 		_gy = lerpf(_gy, maxf(0.0, gh), 1.0 - exp(-14.0 * delta)) if absf(gh - _gy) < 0.35 else maxf(0.0, gh)
 	else:
 		_gy = 0.0

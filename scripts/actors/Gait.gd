@@ -85,6 +85,7 @@ func _home(s: String, lead := 0.0) -> Vector3:
 
 ## Put both feet under the body (spawn, teleport, leaving a seat or a vehicle).
 func reset() -> void:
+	foot_ground_ok = false
 	for s in feet:
 		var f: Dictionary = feet[s]
 		var p := _home(s)
@@ -350,6 +351,13 @@ func apply(delta: float) -> void:
 			pitch = lerpf(0.55, -0.22, clampf(t * 1.4, 0.0, 1.0)) if spd > 0.25 else lerpf(0.15, 0.0, t)
 		f.pitch = pitch
 		targets[s] = {"sole": sole, "yaw": yaw, "pitch": pitch, "n": n}
+	# the height the body is carried at: between the two footholds (a swinging foot counts where it will land)
+	var hy := []
+	for s in feet:
+		var f: Dictionary = feet[s]
+		hy.append(float((f.lock as Vector3).y) if f.planted else float((f.to as Vector3).y))
+	foot_ground_y = (float(hy[0]) + float(hy[1])) * 0.5
+	foot_ground_ok = true
 	# --- pelvis: weight over the stance leg, bob, and low enough for both legs to reach
 	var off := Vector3.ZERO
 	var t_sw := 0.0
@@ -487,6 +495,8 @@ func _solve_leg(s: String, tg: Dictionary, inv: Transform3D, prot: Quaternion) -
 ## Two-bone IK for an arm: the palm goes to `target` (world), the elbow hangs down, out and back.
 ## `w` blends from the animated pose (0) to the reach (1). Returns how far the palm ends up from the target.
 var arm_dbg := {}
+var foot_ground_y := 0.0
+var foot_ground_ok := false
 
 ## Rest-space offset from the wrist to the centre of the palm (between the knuckles and the wrist).
 func _palm_rest(s: String) -> Vector3:
@@ -657,6 +667,6 @@ func measure() -> void:
 		var sink: float = maxf(0.0, -minf(float(gaps[0]), float(gaps[1])))
 		var err := maxf(flo, sink)
 		if err > float(stats.ground_err_max):
-			stats.worst = {"pos": a, "side": s, "gaps": gaps}
+			stats.worst = {"pos": a, "side": s, "gaps": gaps, "lock_y": (f.lock as Vector3).y, "pitch": f.pitch, "land": f.land, "bone": bone}
 		stats.ground_err_max = maxf(float(stats.ground_err_max), err)
 		stats.samples = int(stats.samples) + 1

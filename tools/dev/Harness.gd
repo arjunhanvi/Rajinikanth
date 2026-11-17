@@ -458,10 +458,10 @@ func _build_course() -> Dictionary:
 	for sx: float in [-0.19, 0.19]:
 		for sz: float in [-0.18, 0.18]:
 			_sbox(Vector3(-25.0 + sx, g + 0.21, 67.0 + sz), Vector3(0.035, 0.42, 0.035), Color(0.38, 0.25, 0.15))
-	_sbox(Vector3(-24.25, g + 0.7, 66.95), Vector3(0.6, 0.04, 0.5), Color(0.5, 0.36, 0.22))
+	_sbox(Vector3(-24.45, g + 0.7, 66.85), Vector3(0.6, 0.04, 0.5), Color(0.5, 0.36, 0.22))
 	for sx: float in [-0.26, 0.26]:
 		for sz: float in [-0.21, 0.21]:
-			_sbox(Vector3(-24.25 + sx, g + 0.34, 66.95 + sz), Vector3(0.035, 0.68, 0.035), Color(0.42, 0.3, 0.18))
+			_sbox(Vector3(-24.45 + sx, g + 0.34, 66.85 + sz), Vector3(0.035, 0.68, 0.035), Color(0.42, 0.3, 0.18))
 	var glass := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.032
@@ -472,7 +472,7 @@ func _build_course() -> Dictionary:
 	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.material_override = gm
 	_stage.add_child(glass)
-	glass.global_position = _L(-24.12, g + 0.72 + 0.045, 66.85)
+	glass.global_position = _L(-24.5, g + 0.72 + 0.045, 66.72)
 	# 4. a railing along the path
 	for k in 5:
 		_sbox(Vector3(-26.4, g + 0.5, 70.0 + k * 1.5), Vector3(0.05, 1.0, 0.05), Color(0.3, 0.32, 0.35))
@@ -543,6 +543,8 @@ func s_proto() -> void:
 		await shot("p04_walk_%02d" % k)
 		k += 1
 	_metrics["walk_kerb_ramp_stairs"] = gs.stats.duplicate()
+	if gs.stats.has("worst"):
+		_metrics["walk_worst_local"] = str(Campus.frame().affine_inverse() * (gs.stats.worst.pos as Vector3))
 	# --- C. stop at the chair, turn round, sit down, reach the glass, drink, put it back, stand up
 	_drive_to(_L(-25, 0, 66.55))
 	while _driving: await get_tree().process_frame
@@ -590,12 +592,12 @@ func s_proto() -> void:
 	await shot("p09_drink")
 	raja.activity = ""
 	var _table_spot: Vector3 = (C.glass as Node3D).global_position
-	raja.reach_to("r", _L(-24.12, C.g + 0.72 + 0.045, 66.85))
+	raja.reach_to("r", _L(-24.48, C.g + 0.72 + 0.045, 66.7))
 	await wait(0.7)
 	var gx2 := glass.global_transform
 	glass.reparent(_stage)
 	glass.global_transform = gx2
-	glass.global_position = _L(-24.12, C.g + 0.72 + 0.045, 66.85)
+	glass.global_position = _L(-24.5, C.g + 0.72 + 0.045, 66.72)
 	raja.reach_release("r")
 	await wait(0.5)
 	raja.stand_up()
@@ -613,6 +615,8 @@ func s_proto() -> void:
 		if raja.reach.has("l") and float(raja.reach.l.w) >= 0.999:
 			_rail_err_max = maxf(_rail_err_max, raja.gait.palm("l").distance_to(rt))
 		_tcam(p + side * 2.2 + fwd * 0.6 + Vector3(0, 1.3, 0), p + Vector3(0, 0.95, 0), 42.0))
+	_drive_to(_L(-25.95, 0, 70.2))
+	while _driving: await get_tree().process_frame
 	_drive_to(_L(-25.95, 0, 75.5))
 	k = 0
 	while _driving:
@@ -627,7 +631,9 @@ func s_proto() -> void:
 	_drive_to(_L(-25.0, 0, 79.4))
 	while _driving: await get_tree().process_frame
 	raja.rotation.y = _yaw_local(0, 1)
-	await wait(0.4)
+	# he steps up to arm's length (the other man takes the step)
+	other.global_position = pl.global_position + fwd * 0.6
+	await wait(0.8)
 	var chest := func(dx: float) -> Vector3:
 		var sp: Vector3 = other.skel.global_transform * other.skel.get_bone_global_pose(other.skel.find_bone("spine_03")).origin
 		var to: Vector3 = (pl.global_position - other.global_position)
