@@ -241,11 +241,12 @@ static func _film_unit(ctx: Dictionary) -> void:
 	vc.box(Vector3(0, 0.62, rz), Vector3(60, 0.03, 0.03), Color(0.9, 0.85, 0.2))
 	# the superstar's chair under a big unit umbrella, a small table beside it
 	var rc: Vector3 = SPOT.rajini_chair
-	_chair(ctx, rc, PI * 0.5, Color(0.12, 0.12, 0.13))
-	vc.box(rc + Vector3(0.1, 0.55, 0.85), Vector3(0.5, 0.04, 0.5), Color(0.4, 0.28, 0.18))
-	vc.box(rc + Vector3(0.1, 0.27, 0.85), Vector3(0.06, 0.55, 0.06), Color(0.3, 0.2, 0.12))
-	vc.box(rc + Vector3(0.05, 0.68, 0.8), Vector3(0.09, 0.22, 0.09), steel)
-	vc.box(rc + Vector3(0.2, 0.61, 0.95), Vector3(0.07, 0.09, 0.07), steel)
+	# he sits facing into the campus (+Z), his back to the gate and the crowd
+	_chair(ctx, rc, PI, Color(0.12, 0.12, 0.13))
+	vc.box(rc + Vector3(0.85, 0.55, 0.1), Vector3(0.5, 0.04, 0.5), Color(0.4, 0.28, 0.18))
+	vc.box(rc + Vector3(0.85, 0.27, 0.1), Vector3(0.06, 0.55, 0.06), Color(0.3, 0.2, 0.12))
+	vc.box(rc + Vector3(0.8, 0.68, 0.05), Vector3(0.09, 0.22, 0.09), steel)
+	vc.box(rc + Vector3(0.95, 0.61, 0.2), Vector3(0.07, 0.09, 0.07), steel)
 	var um := MeshInstance3D.new()
 	var cone := CylinderMesh.new()
 	cone.top_radius = 0.05
@@ -260,11 +261,11 @@ static func _film_unit(ctx: Dictionary) -> void:
 	cm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	cone.material = cm
 	um.mesh = cone
-	um.position = rc + Vector3(0.25, 2.55, 0.15)
+	um.position = rc + Vector3(0.05, 2.55, 0.35)
 	um.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	ctx.root.add_child(um)
-	vc.box(rc + Vector3(0.25, 1.3, 0.15), Vector3(0.05, 2.6, 0.05), steel)
-	vc.box(rc + Vector3(0.25, 0.05, 0.15), Vector3(0.6, 0.1, 0.6), dark)
+	vc.box(rc + Vector3(0.55, 1.3, 0.3), Vector3(0.05, 2.6, 0.05), steel)
+	vc.box(rc + Vector3(0.55, 0.05, 0.3), Vector3(0.6, 0.1, 0.6), dark)
 	# video assist: a monitor on a trolley, two director's chairs
 	var mo: Vector3 = SPOT.monitor
 	vc.box(mo + Vector3(0, 0.45, 0), Vector3(1.0, 0.9, 0.6), steel.darkened(0.3))
@@ -325,6 +326,52 @@ static func _film_unit(ctx: Dictionary) -> void:
 	vc.box(tb + Vector3(-0.3, 0.8, 0), Vector3(0.32, 0.03, 0.26), Color(0.06, 0.06, 0.06))
 	vc.box(tb + Vector3(0.35, 0.8, 0.05), Vector3(0.36, 0.06, 0.36), Color(0.5, 0.5, 0.52))
 	vc.box(tb + Vector3(0.35, 0.86, 0.05), Vector3(0.36, 0.06, 0.36), Color(0.5, 0.5, 0.52))
+	_notes(ctx, tb)
+
+## The money-rain shot: ₹1,000 notes (Mahatma Gandhi series, as in circulation in 2007) and
+## US $100 notes (1996 series) lie where they came down around the camera and the set,
+## thinning out towards the edges; a few have blown towards the rope. Two banded bundles
+## sit on the props table, ready for the next take. Textures are stylised props, not facsimiles.
+static func _notes(ctx: Dictionary, table: Vector3) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1000
+	for kind in [["inr", "res://assets/img/note_inr1000.png", Vector2(0.177, 0.073), 70], ["usd", "res://assets/img/note_usd100.png", Vector2(0.156, 0.066), 50]]:
+		var q := QuadMesh.new()
+		q.size = kind[2]
+		q.orientation = PlaneMesh.FACE_Y
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(kind[1])
+		m.roughness = 0.9
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		q.material = m
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = q
+		var n: int = kind[3]
+		mm.instance_count = n + 12
+		for i in n:
+			# most land in the set's centre, where the take was shot; a tail drifts towards the crowd
+			var p: Vector3
+			var r := rng.randf()
+			if r < 0.7:
+				p = Vector3(rng.randfn(-3.0, 4.0), 0.0, rng.randfn(61.0, 3.2))
+			elif r < 0.9:
+				p = Vector3(rng.randfn(4.0, 6.0), 0.0, rng.randfn(52.0, 4.0))
+			else:
+				p = Vector3(rng.randf_range(-20.0, 24.0), 0.0, rng.randf_range(39.5, 45.0))
+			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3(1, 0, 0), rng.randf_range(-0.12, 0.12)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.1, 0.1))
+			mm.set_instance_transform(i, Transform3D(b, p + Vector3(0, 0.135 + rng.randf() * 0.01, 0)))
+		for i in 12:     # a bundle on the table: notes stacked, slightly fanned
+			var b2 := Basis(Vector3.UP, 0.1 + rng.randf_range(-0.04, 0.04))
+			var off := Vector3(-0.55 if kind[0] == "inr" else -0.05, 0.785 + i * 0.002, 0.18)
+			mm.set_instance_transform(n + i, Transform3D(b2, table + off))
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = mm
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = 60.0
+		ctx.root.add_child(mi)
+	for k in 2:   # paper bands round the bundles
+		ctx.vc.box(table + Vector3(-0.55 if k == 0 else -0.05, 0.8, 0.18), Vector3(0.03, 0.03, 0.08), Color(0.9, 0.88, 0.8))
 
 static func _chair(ctx: Dictionary, p: Vector3, yaw: float, canvas: Color) -> void:
 	var b := Basis(Vector3.UP, yaw)

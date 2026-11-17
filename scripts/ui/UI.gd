@@ -24,6 +24,45 @@ static func comic() -> Font:
 		_comic = load("res://assets/fonts/Bangers.ttf")
 	return _comic
 
+static var _title: Font = null
+
+## The BIG BANG LORE title face. The reference is Portia (Ochaya Designs), a commercial
+## font: if a licensed copy is placed at res://assets/fonts/Portia.otf (or .ttf) it is used;
+## otherwise Six Caps (SIL OFL), the closest open font in proportion, stands in.
+static func title_font() -> Font:
+	if _title == null:
+		for p in ["res://assets/fonts/Portia.otf", "res://assets/fonts/Portia.ttf", "res://assets/fonts/SixCaps.ttf"]:
+			if ResourceLoader.exists(p):
+				_title = load(p)
+				break
+	return _title
+
+## A title in the Portia manner: tall light letters with a deep dark extrusion down and to the left.
+## Returns a Control; set its "text", font size and colour through the arguments.
+static func deco_title(text: String, size: int, face := Color(1.0, 0.82, 0.08), depth := 0.075, align := HORIZONTAL_ALIGNMENT_CENTER) -> Control:
+	var root := Control.new()
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var steps := int(maxf(4.0, size * depth))
+	var weight := int(maxf(1.0, size * 0.018))      # thickens the open face's stems
+	for k in range(steps, -1, -1):
+		var l := Label.new()
+		l.text = text
+		l.horizontal_alignment = align
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.add_theme_font_override("font", title_font())
+		l.add_theme_font_size_override("font_size", size)
+		# the depth is a dark amber that falls away to black, so it reads even on a black ground
+		var c := face if k == 0 else Color(0.42, 0.28, 0.02).lerp(Color(0.1, 0.07, 0.02), float(k) / steps)
+		l.add_theme_color_override("font_color", c)
+		l.add_theme_color_override("font_outline_color", c)
+		l.add_theme_constant_override("outline_size", weight)
+		l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		l.position = Vector2(-k * 0.6, k * 0.85)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.set_meta("layer", k)
+		root.add_child(l)
+	return root
+
 static func label(text: String, size := 22, c := Color.WHITE, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := Label.new()
 	l.text = text

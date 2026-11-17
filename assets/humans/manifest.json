@@ -147,8 +147,8 @@
  },
  "m_lean": {
   "tris": {
-   "1": 20172,
-   "2": 4347
+   "1": 22744,
+   "2": 4992
   },
   "height": 1.7243700616111992,
   "female": false,
@@ -173,6 +173,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -199,8 +200,8 @@
  },
  "m_avg": {
   "tris": {
-   "1": 20179,
-   "2": 4369
+   "1": 22766,
+   "2": 5010
   },
   "height": 1.7075512000000004,
   "female": false,
@@ -225,6 +226,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -251,8 +253,8 @@
  },
  "m_heavy": {
   "tris": {
-   "1": 20139,
-   "2": 4339
+   "1": 22733,
+   "2": 4984
   },
   "height": 1.681277824131103,
   "female": false,
@@ -277,6 +279,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -303,8 +306,8 @@
  },
  "m_old": {
   "tris": {
-   "1": 20194,
-   "2": 4354
+   "1": 22819,
+   "2": 5011
   },
   "height": 1.633066307243508,
   "female": false,
@@ -329,6 +332,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -355,8 +359,8 @@
  },
  "m_tall": {
   "tris": {
-   "1": 20188,
-   "2": 4349
+   "1": 22755,
+   "2": 4990
   },
   "height": 1.828912010355193,
   "female": false,
@@ -381,6 +385,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -407,8 +412,8 @@
  },
  "m_youth": {
   "tris": {
-   "1": 20209,
-   "2": 4357
+   "1": 22782,
+   "2": 5001
   },
   "height": 1.5730867325881215,
   "female": false,
@@ -433,6 +438,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -459,8 +465,8 @@
  },
  "f_slim": {
   "tris": {
-   "1": 22979,
-   "2": 5125
+   "1": 24702,
+   "2": 5556
   },
   "height": 1.5510940880000004,
   "female": true,
@@ -483,6 +489,7 @@
    "hair_plait_tail",
    "kameez",
    "kameez_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "pallu",
@@ -510,8 +517,8 @@
  },
  "f_avg": {
   "tris": {
-   "1": 22946,
-   "2": 5122
+   "1": 24687,
+   "2": 5556
   },
   "height": 1.5462919975648304,
   "female": true,
@@ -534,6 +541,7 @@
    "hair_plait_tail",
    "kameez",
    "kameez_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "pallu",
@@ -561,8 +569,8 @@
  },
  "f_heavy": {
   "tris": {
-   "1": 22874,
-   "2": 5107
+   "1": 24681,
+   "2": 5550
   },
   "height": 1.499866180366668,
   "female": true,
@@ -585,6 +593,7 @@
    "hair_plait_tail",
    "kameez",
    "kameez_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "pallu",
@@ -612,8 +621,8 @@
  },
  "f_old": {
   "tris": {
-   "1": 23056,
-   "2": 5141
+   "1": 24786,
+   "2": 5573
   },
   "height": 1.4708930199999999,
   "female": true,
@@ -636,6 +645,7 @@
    "hair_plait_tail",
    "kameez",
    "kameez_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "pallu",
@@ -663,8 +673,8 @@
  },
  "child_m": {
   "tris": {
-   "1": 20127,
-   "2": 4360
+   "1": 22629,
+   "2": 4955
   },
   "height": 1.4477655846130553,
   "female": false,
@@ -689,6 +699,7 @@
    "hair_side_cap",
    "kurta",
    "kurta_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "moustache",
@@ -715,8 +726,8 @@
  },
  "child_f": {
   "tris": {
-   "1": 23596,
-   "2": 5283
+   "1": 25258,
+   "2": 5697
   },
   "height": 1.3199322159999998,
   "female": true,
@@ -739,6 +750,7 @@
    "hair_plait_tail",
    "kameez",
    "kameez_skirt",
+   "labcoat",
    "lashes",
    "lungi",
    "pallu",
@@ -766,21 +778,21 @@
  },
  "raja": {
   "tris": {
-   "0": 43145,
-   "1": 15086,
-   "2": 2932
+   "0": 45917,
+   "1": 15920,
+   "2": 3167
   },
-  "height": 1.815963550442941,
+  "height": 1.7848951199999996,
   "female": false,
   "hero": true,
   "parts": [
    "belt",
    "eyes",
-   "hair_side",
-   "hair_side_cap",
+   "hair_thick_side",
+   "hair_thick_side_cap",
    "lashes",
    "moustache",
-   "shirt_out",
+   "shirt",
    "shoes",
    "skin_a",
    "skin_feet",
@@ -791,65 +803,28 @@
    "trousers",
    "watch"
   ],
-  "eye_y": 1.7035970960000002,
+  "eye_y": 1.6545355270000002,
   "arm_dir": [
-   1.7783497312000005,
-   -2.033240717600001,
-   0.008584144000000044
-  ],
-  "tone": 3
- },
- "rama": {
-  "tris": {
-   "0": 44029,
-   "1": 15352,
-   "2": 2993
-  },
-  "height": 1.7068047200000003,
-  "female": false,
-  "hero": true,
-  "parts": [
-   "beard",
-   "belt",
-   "chappal_sole",
-   "chappal_straps",
-   "eyes",
-   "hair_curly",
-   "hair_curly_cap",
-   "lashes",
-   "moustache",
-   "shirt_full",
-   "skin_a",
-   "skin_feet",
-   "skin_legs",
-   "skin_torso",
-   "teeth",
-   "tongue",
-   "trousers",
-   "watch"
-  ],
-  "eye_y": 1.6004303200000003,
-  "arm_dir": [
-   1.6360817619999997,
-   -1.866387944,
-   -0.011526789999999981
+   1.7025925736,
+   -1.9469669527999995,
+   -0.0038630679999999973
   ],
   "tone": 4
  },
  "rajini": {
   "tris": {
-   "0": 43309,
-   "1": 15119,
-   "2": 2947
+   "0": 43770,
+   "1": 15252,
+   "2": 2981
   },
-  "height": 1.7731750106230173,
+  "height": 1.7993479706230169,
   "female": false,
   "hero": true,
   "parts": [
    "belt",
+   "coat",
    "eyes",
-   "hair_bouffant",
-   "hair_bouffant_cap",
+   "goatee",
    "lashes",
    "moustache",
    "shirt_full",
@@ -862,19 +837,19 @@
    "tongue",
    "trousers"
   ],
-  "eye_y": 1.64888078,
+  "eye_y": 1.6734710400000006,
   "arm_dir": [
-   1.697782600000001,
-   -1.915131500000001,
-   0.03028840000000002
+   1.7292568000000004,
+   -1.9414045000000009,
+   0.04947120000000005
   ],
   "tone": 3
  },
  "shankar": {
   "tris": {
-   "0": 43072,
-   "1": 15068,
-   "2": 2930
+   "0": 45912,
+   "1": 15920,
+   "2": 3129
   },
   "height": 1.7039014402891604,
   "female": false,
@@ -906,9 +881,9 @@
  },
  "kvanand": {
   "tris": {
-   "0": 46036,
-   "1": 15950,
-   "2": 3139
+   "0": 50536,
+   "1": 17298,
+   "2": 3454
   },
   "height": 1.7304303600000006,
   "female": false,
@@ -942,9 +917,9 @@
  },
  "ad": {
   "tris": {
-   "0": 43087,
-   "1": 15067,
-   "2": 2927
+   "0": 46107,
+   "1": 15974,
+   "2": 3138
   },
   "height": 1.6670207165179312,
   "female": false,
@@ -977,9 +952,9 @@
  },
  "umashankar": {
   "tris": {
-   "0": 40474,
-   "1": 14268,
-   "2": 2757
+   "0": 43506,
+   "1": 15176,
+   "2": 2972
   },
   "height": 1.6363604812089954,
   "female": false,
@@ -1009,5 +984,40 @@
    -0.018569399999999958
   ],
   "tone": 3
+ },
+ "lal": {
+  "tris": {
+   "0": 46700,
+   "1": 16154,
+   "2": 3180
+  },
+  "height": 1.8124257999999998,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "eyes",
+   "hair_puff",
+   "hair_puff_cap",
+   "lashes",
+   "moustache",
+   "shoes",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "sweat",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.703161255,
+  "arm_dir": [
+   1.7576919839999996,
+   -2.0093159079999996,
+   -0.0014162800000000197
+  ],
+  "tone": 2
  }
 }

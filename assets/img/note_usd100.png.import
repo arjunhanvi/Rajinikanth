@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://kgj71cbmvdao"
-path="res://.godot/imported/rama_skin_n.jpg-1df40966240f9937593d4e570430acc0.ctex"
+uid="uid://d2igpintij6qj"
+path="res://.godot/imported/note_usd100.png-dea0b93340240f1eecd682ebc1bf51c8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/humans/tex/rama_skin_n.jpg"
-dest_files=["res://.godot/imported/rama_skin_n.jpg-1df40966240f9937593d4e570430acc0.ctex"]
+source_file="res://assets/img/note_usd100.png"
+dest_files=["res://.godot/imported/note_usd100.png-dea0b93340240f1eecd682ebc1bf51c8.ctex"]
 
 [params]
 

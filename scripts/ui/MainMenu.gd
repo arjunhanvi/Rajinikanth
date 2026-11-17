@@ -7,18 +7,24 @@ var _panel: Control = null
 func _ready() -> void:
 	UI.full(self)
 	add_child(UI.rect(Color.BLACK))
-	var t := UI.label("BIG BANG\nLORE", 118, UI.YELLOW)
-	t.add_theme_font_override("font", UI.comic())
-	t.add_theme_constant_override("outline_size", 10)
-	t.add_theme_color_override("font_outline_color", Color.BLACK)
-	t.add_theme_color_override("font_shadow_color", Color(0.62, 0.06, 0.06))
-	t.add_theme_constant_override("shadow_offset_x", 7)
-	t.add_theme_constant_override("shadow_offset_y", 7)
-	t.add_theme_constant_override("line_spacing", -26)
-	t.position = Vector2(84, 70)
+	# the game's mark: the yellow star, and the title in the Portia manner
+	var star := TextureRect.new()
+	star.texture = load("res://assets/img/star.png")
+	star.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	star.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	star.position = Vector2(300, 46)
+	star.size = Vector2(130, 130)
+	star.pivot_offset = Vector2(65, 65)
+	add_child(star)
+	var tw := star.create_tween().set_loops()
+	tw.tween_property(star, "scale", Vector2(1.04, 1.04), 2.2).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(star, "scale", Vector2(1.0, 1.0), 2.2).set_trans(Tween.TRANS_SINE)
+	var t := UI.deco_title("BIG BANG LORE", 150, UI.YELLOW, 0.07, HORIZONTAL_ALIGNMENT_LEFT)
+	t.position = Vector2(90, 180)
+	t.size = Vector2(700, 170)
 	add_child(t)
 	var st := UI.label("A HANVI'S ORIGINAL PRODUCTION  -  BENGALURU, 1 JANUARY - 15 JUNE 2007", 18, UI.YELLOW)
-	st.position = Vector2(90, 330)
+	st.position = Vector2(90, 372)
 	add_child(st)
 	var vb := VBoxContainer.new()
 	vb.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
@@ -49,9 +55,11 @@ func _ready() -> void:
 	ver.offset_top = -40
 	add_child(ver)
 	add_child(UI.grain(0.08, 0.4))
-	Sfx.music("", 1.0)
-	if not Sfx.intro_available():
-		var miss := UI.label("Intro soundtrack not found (assets/audio/user/intro_theme.ogg). Running silent.", 13, Color(0.8, 0.4, 0.3))
+	# the BIG BANG LORE theme plays, looping, for as long as the menu is up
+	Sfx.intro_stop(0.8)
+	Sfx.theme_loop()
+	if not ResourceLoader.exists(Sfx.THEME_TRACK):
+		var miss := UI.label("Theme not found (assets/audio/user/menu_theme.ogg). Running silent.", 13, Color(0.8, 0.4, 0.3))
 		miss.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 		miss.offset_left = 90
 		miss.offset_top = -62
@@ -125,13 +133,14 @@ func _slots(mode: String) -> void:
 					Game.start_new(i, "story", "Raja", Human.default_look())
 					Game.goto("world")
 				else:
+					Sfx.theme_stop(1.0)
 					Game.goto("creator", {"slot": i, "mode": mode}))
 		vb.add_child(row)
 	_close_row(vb)
 
 func _about() -> void:
 	var vb := _open("BIG BANG LORE")
-	var l := UI.label("A Hanvi's Original production.\n\nBengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth fans, Raja and Ramanna - everyone calls him Rama - and what they turn out to mean to each other. The opening sequence is playable; the story continues in later updates.\n\nThis is a work of fiction. Real public figures, institutions and places appear in a fictionalised, alternate-history context; none of their words or actions in this game are real records. The January 2007 shoot at M.S. Ramaiah Institute of Technology is invented for the game.\n\nBuilt with the open-source Godot Engine. Title lettering: Bangers (SIL Open Font License).", 19, Color(0.9, 0.9, 0.88))
+	var l := UI.label("A Hanvi's Original production.\n\nBengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth fans, Raja and Lal and what they turn out to mean to each other. The opening sequence is playable; the story continues in later updates.\n\nThis is a work of fiction. Real public figures, institutions and places appear in a fictionalised, alternate-history context; none of their words or actions in this game are real records. The January 2007 shoot at M.S. Ramaiah Institute of Technology is invented for the game.\n\nBuilt with the open-source Godot Engine. Title lettering: Bangers (SIL Open Font License).", 19, Color(0.9, 0.9, 0.88))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vb.add_child(l)
 	_close_row(vb)

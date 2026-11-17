@@ -3,14 +3,15 @@ extends Control
 ## The production identity, cut to the supplied soundtrack.
 ##   0.0  white.  HANVI'S sets letter by letter, ORIGINAL is drawn in beneath it.
 ##  10.0  the frame falls to black.
-##  12.5  hand over to the BIG BANG LORE menu; the music carries on underneath.
-## (The old star and RAJINIKANTH title card were retired with the old story;
-##  the game's own title now lands at the end of the opening sequence.)
+##  12.5  the yellow star (the game's mark) rises.
+##  23.0  (the swell in the score) BIG BANG LORE lands, letter by letter.
+##  33.5  hand over to the menu, where the BIG BANG LORE theme takes over.
 
 const T_BLACK := 10.0
 const T_STAR := 12.5
 const T_TITLE := 23.0
-const T_END := 12.5
+const TITLE := "BIG BANG LORE"
+const T_END := 33.5
 
 var _done := false
 var _t := 0.0
@@ -104,14 +105,15 @@ func _ready() -> void:
 	_star.modulate.a = 0.0
 	_star.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_star)
-	_star.visible = false
-	_glow.visible = false
 	_row = Control.new()
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_row)
-	for ch in "":
+	for ch in TITLE:
 		for shadow in [true, false]:
-			var l := UI.label(ch, 86, Color(0.35, 0.28, 0.0) if shadow else Color(0.98, 0.97, 0.94), HORIZONTAL_ALIGNMENT_CENTER)
+			var l := UI.label(ch, 120, Color(0.07, 0.06, 0.05) if shadow else UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
+			l.add_theme_font_override("font", UI.title_font())
+			l.add_theme_constant_override("outline_size", 3)
+			l.add_theme_color_override("font_outline_color", Color(0.07, 0.06, 0.05) if shadow else UI.YELLOW)
 			l.size = Vector2(80, 110)
 			l.pivot_offset = Vector2(40, 60)
 			l.modulate.a = 0.0
@@ -125,7 +127,7 @@ func _ready() -> void:
 	_pres.size = Vector2(800, 30)
 	_pres.modulate.a = 0.0
 	add_child(_pres)
-	_tag = UI.label("ONE CITY.   COUNTLESS STORIES.   ONE MAN'S UNEXPECTED TRANSFORMATION.", 18, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
+	_tag = UI.label("BENGALURU   -   1 JANUARY  TO  15 JUNE  2007", 18, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
 	_tag.size = Vector2(1000, 30)
 	_tag.modulate.a = 0.0
 	add_child(_tag)
@@ -140,6 +142,26 @@ func _ready() -> void:
 	Sfx.music("", 0.1)
 	Sfx.intro_play()
 	_use_clock = Sfx.intro_playing()
+
+var _adv_cache: Array = []
+var _w_cache: Array = []
+
+## Cumulative advance of each title letter in the title face (last entry: total width).
+func _adv() -> Array:
+	if _adv_cache.is_empty():
+		var f: Font = UI.title_font()
+		var x := 0.0
+		for ch in TITLE:
+			var w := f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 120).x + 10.0
+			_adv_cache.append(x)
+			_w_cache.append(w)
+			x += w
+		_adv_cache.append(x)
+	return _adv_cache
+
+func _widths() -> Array:
+	_adv()
+	return _w_cache
 
 static func ease_out(x: float) -> float:
 	x = clampf(x, 0.0, 1.0)
@@ -195,17 +217,20 @@ func _process(delta: float) -> void:
 		var n2: Label = L.n
 		var a2 := ease_io(lt)
 		var s2 := lerpf(1.22, 1.0, ease_out(lt))
-		n2.position = c + Vector2((float(L.i) - 5.0) * spread - 40.0, 44.0 + (1.0 - ease_out(lt)) * 10.0)
+		# letters sit at their natural advance (a condensed face), the tracking opening slightly as they land
+		var adv := _adv()
+		var trk := spread / 82.0
+		n2.position = c + Vector2((float(adv[L.i]) - float(adv[-1]) * 0.5) * trk - 40.0 + float(_widths()[L.i]) * 0.5 * trk, 30.0 + (1.0 - ease_out(lt)) * 10.0)
 		n2.scale = Vector2(s2, s2)
 		if L.shadow:
-			n2.position += Vector2(2.5, 3.5)
+			n2.position += Vector2(-5.0, 7.0)      # the deep extrusion down and to the left
 			n2.modulate.a = a2 * 0.7
 		else:
 			n2.modulate.a = a2
 	var rw := 520.0 * ease_io((t - T_TITLE - 2.6) / 2.2)
 	_rule.size = Vector2(rw, 2)
-	_rule.position = c + Vector2(-rw * 0.5, 160)
-	_tag.position = c + Vector2(-500, 174)
+	_rule.position = c + Vector2(-rw * 0.5, 212)
+	_tag.position = c + Vector2(-500, 226)
 	_tag.modulate.a = ease_io((t - T_TITLE - 3.6) / 2.4)
 	if t >= T_END:
 		_finish()

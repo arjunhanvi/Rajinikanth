@@ -37,7 +37,7 @@ Bengaluru, **1 January to 15 June 2007**. This is the reference for dialogue, pr
 ## 2. Rajinikanth and fan culture
 
 - Rajinikanth was born Shivaji Rao Gaekwad in Bangalore and worked as a BTS bus conductor before cinema. **[K]** Older Bangaloreans say "our boy" about him. Kannada and Tamil identities around him are complicated, and characters can argue about this.
-- **Fan associations (rasigar mandrams):** registered clubs with presidents, membership cards, portrait banners, and first-day first-show rituals: milk abhishekam on cut-outs, garlands, firecrackers, distributing sweets. **[K]** Club rivalries over who puts up the biggest banner or gets the most tickets are a believable source of friction between men like Raja and Rama. Any specific club in the game is **[F]**.
+- **Fan associations (rasigar mandrams):** registered clubs with presidents, membership cards, portrait banners, and first-day first-show rituals: milk abhishekam on cut-outs, garlands, firecrackers, distributing sweets. **[K]** Club rivalries over who puts up the biggest banner or gets the most tickets are a believable source of friction between men like Raja and Lal. Any specific club in the game is **[F]**.
 - **Address:** "Thalaiva" (leader), "Thalaivar" (third person), "Superstar". Fans quote *Padayappa* (1999), *Baasha* (1995), *Muthu* (1995) and *Chandramukhi* (2005; a huge comeback hit). **[K]**
 - In 2007 the props are fan-club ID cards, laminated photos in wallets, calendars with his picture, and cassette and VCD covers.
 
@@ -98,13 +98,15 @@ Bengaluru, **1 January to 15 June 2007**. This is the reference for dialogue, pr
 - Men: half-sleeve shirts worn out (checks and prints) or tucked into pleated trousers; jeans with a wide belt; sandals, Bata or canvas shoes, chappals; a gold chain for the confident; thick moustaches; side-parted or "Rajini style" swept hair; a watch on the left wrist. Students carry backpacks.
 - Women: salwar kameez with dupatta for students; saree for working women and elders; plaited hair with jasmine; a few in jeans and kurti on campus.
 - Film unit: crew in T-shirts and jeans or checked shirts; light boys in vests or banians; the assistant director with a walkie-talkie or call sheet, shouting; private security in safari suits or black T-shirts.
-- **Raja and Rama (proposed, [F]):** Raja wears a maroon checked shirt, untucked, with jeans and canvas shoes, side-parted thick hair and a full moustache: lean, quick, restless. Rama wears a dark full-sleeve shirt with beige trousers and chappals, curly hair, a short beard and a gold watch: broad, slow, chest-out.
+- **Raja and Lal (proposed, [F]):** Raja wears a maroon checked shirt, untucked, with jeans and canvas shoes, side-parted thick hair and a full moustache: lean, quick, restless. Lal wears a dark full-sleeve shirt with beige trousers and chappals, curly hair, a short beard and a gold watch: broad, slow, chest-out.
 
 ## 11. Language and how people talk
 
 - Bangalore is multilingual: Kannada, Tamil, Telugu, Urdu/Dakhni and English mixed mid-sentence. A Tamil-speaking Bangalorean switches to Kannada with Kannadiga friends and back without noticing.
 - Kannada of the street: "maga" (literally "son", meaning buddy, or an insult depending on tone), "guru", "swalpa adjust maadi", "sakkath", "bombat", "en guru", "saaku" (enough), "hogi" (go). "Sule maga" is a crude insult (son of a whore). The game uses it the way the brief asks, as Raja's angry half-sentence, not as a punchline.
-- Tamil: "Thalaiva", "da/di", "machaan", "enna", "poda", "dharisanam". Umashankar's teasing ("Enna bhakthare, saami dharisanam aachaa?") is colloquial Bangalore Tamil, not textbook Tamil.
+- **Game rule: every local character (Raja, Lal, Umashankar, students, crowd, security, police, friends) speaks Kannada.** Only the film unit (a Chennai crew) speaks Tamil or English. Fans still chant "Thalaiva!": the word is universal fan usage, not a switch of language.
+- 2007 Bangalore Kannada used in the opening: "Enlaa" (so, what, teasing), "biddu eddu" (fell and got up), "darshana aaytaa?" (did you get darshan?), "kano" (to a male friend), "maga" (buddy), "Hogo!" (get lost), "cooling glass" (the Bangalore English for sunglasses), "Line hinde nillu" (stay behind the line), "Hindhe hogo" (get back), "Saaku" (enough), "Ayyo, biddbitta paapa" (oh, he fell, poor thing), "hodedaadtidaare" (they're fighting). No internet-era slang ("scene", "bro", "literally").
+- The film unit's Tamil: "Reel kaali aayiduchu" (the reel's finished), "Naalaikki thaan varum" (it'll only come tomorrow).
 - The game shows dialogue as it is said (romanised) with an English line under it. This avoids needing Tamil and Kannada fonts on every phone and lets non-speakers follow. **Native-speaker review of every line is still needed.**
 
 ## 12. Places used in the opening

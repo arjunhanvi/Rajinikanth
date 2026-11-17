@@ -127,11 +127,29 @@ def eye(src, dst):
 def shared(out):
     os.makedirs(out, exist_ok=True)
     R = 512; rng = np.random.default_rng(5)
-    # hair: long streaks with gaps, alpha carries the strand density
-    st = np.asarray(Image.fromarray((rng.random((8, R)) * 255).astype(np.uint8)).resize((R, R), Image.BICUBIC)) / 255.0
-    st2 = np.asarray(Image.fromarray((rng.random((3, R // 3)) * 255).astype(np.uint8)).resize((R, R), Image.BICUBIC)) / 255.0
-    a = np.clip(0.5 + st * 0.75 + st2 * 0.1, 0, 1)
-    lum = 0.55 + st * 0.6
+    # hair: thousands of fine strands. Alpha is spread evenly over 0..1 so each shell's
+    # vertex alpha picks a density: dense near the scalp, sparse and wispy at the outside.
+    HR = 1024
+    a = np.zeros((HR, HR)); lum = np.zeros((HR, HR))
+    yy = np.arange(HR)
+    for k in range(5200):
+        x0 = rng.uniform(0, HR); w = rng.uniform(0.6, 1.8); y0 = rng.uniform(-HR * 0.2, HR); ln = rng.uniform(HR * 0.25, HR * 0.9)
+        wave = rng.uniform(1.0, 4.0) * np.sin(yy / HR * 2 * np.pi * rng.uniform(0.5, 2.0) + rng.uniform(0, 6.3))
+        xs = (x0 + wave + (yy - y0) * rng.uniform(-0.04, 0.04)) % HR
+        on = (yy >= y0) & (yy <= y0 + ln)
+        level = rng.uniform(0.0, 1.0)
+        bright = rng.uniform(0.5, 1.15)
+        for dx in range(-2, 3):
+            xi = (np.floor(xs).astype(int) + dx) % HR
+            fall = np.clip(1.0 - np.abs(xs - np.floor(xs) - dx - 0.5) / w, 0, 1) * on
+            tip = np.clip((y0 + ln - yy) / (ln * 0.25), 0, 1)
+            val = fall * (0.35 + 0.65 * level) * (0.4 + 0.6 * tip)
+            np.maximum.at(a, (yy, xi), val)
+            np.maximum.at(lum, (yy, xi), fall * bright)
+    a = np.clip(a * 1.15, 0, 1)
+    lum = np.clip(0.35 + lum * 0.65, 0, 1.2)
+    st = a
+    R = HR
     Image.fromarray(np.dstack([(np.clip(lum, 0, 1) * 255).astype(np.uint8)] * 3 + [(a * 255).astype(np.uint8)]), 'RGBA').save(os.path.join(out, 'hair.png'))
     Image.fromarray(normal_from_height(st, 6.0)).save(os.path.join(out, 'hair_n.png'))
     # fabric: a woven surface with soft creases, tileable

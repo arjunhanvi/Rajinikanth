@@ -1,7 +1,7 @@
 # BIG BANG LORE
 
 **A HANVI'S ORIGINAL production.** Bengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth
-fans, Raja and Ramanna (everyone calls him Rama), and what they turn out to mean to each other.
+fans, Raja and Lal, and what they turn out to mean to each other.
 The story opens on the day a film shoot at M.S. Ramaiah Institute of Technology runs out of reel,
 and ends on the day *Sivaji* releases.
 

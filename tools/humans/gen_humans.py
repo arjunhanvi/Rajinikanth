@@ -7,6 +7,7 @@ import mh, build, gltf, tex
 
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'humans')
 SOUTH = {'asian': 0.42, 'caucasian': 0.38, 'african': 0.2}
+INDIAN = {'asian': 0.18, 'caucasian': 0.55, 'african': 0.27}
 KHAKI = [0.5, 0.43, 0.26, 1]; WHITE = [0.93, 0.93, 0.9, 1]
 
 def face(seed, n=9, amp=0.55):
@@ -34,18 +35,27 @@ HEROES = {
     'devaraj': dict(p=P(1, 0.82, 0.68, 0.45, 0.52, {**face(51, 6, 0.4), 'head/head-rectangular': 0.6, 'chin/chin-bones-incr': 0.5, 'eyes/l-eye-bag-incr': 0.7, 'eyes/r-eye-bag-incr': 0.7, 'nose/nose-hump-incr': 0.4}),
                     hair=[('side', (0.5, 0.5, 0.52))], face_hair=[('moustache', 0.09)], tone=2, age_lines=0.85, outfit='safari'),
     # ---- BIG BANG LORE (2007) ----
-    # Raja: lean, tall, restless; side-parted thick hair, full moustache; maroon checked shirt out over jeans
-    'raja': dict(p=P(1, 0.47, 0.36, 0.62, 0.6, {**face(71, 7, 0.45), 'chin/chin-prominent-incr': 0.45, 'cheek/l-cheek-bones-incr': 0.55, 'cheek/r-cheek-bones-incr': 0.55, 'nose/nose-scale-vert-incr': 0.3, 'eyes/l-eye-bag-incr': 0.0}),
-                 hair=[('side', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.11)], tone=3, age_lines=0.12,
-                 outfit=dict(top=('shirt_out', 'half', False, [0.5, 0.09, 0.11, 1], 0.3, 6), bottom=[0.19, 0.26, 0.42, 1], feet='shoe', watch=(0.7, 0.7, 0.72))),
-    # Rama: broad, heavier, deliberate; curly hair, short beard; dark full-sleeve shirt, sleeves to the wrist, over beige trousers
-    'rama': dict(p=P(1, 0.53, 0.66, 0.66, 0.5, {**face(83, 7, 0.45), 'head/head-rectangular': 0.5, 'chin/chin-bones-incr': 0.5, 'neck/neck-scale-horiz-incr': 0.4, 'nose/nose-flaring-incr': 0.4, 'eyes/l-eye-bag-incr': 0.3, 'eyes/r-eye-bag-incr': 0.3}),
-                 hair=[('curly', (0.035, 0.03, 0.03))], face_hair=[('moustache', 0.1), ('beard', 0.06)], tone=4, age_lines=0.2,
-                 outfit=dict(top=('shirt_full', 'full', False, [0.11, 0.13, 0.12, 1], 0.35, 6), bottom=[0.55, 0.5, 0.41, 1], feet='chappal', watch=(0.85, 0.68, 0.2))),
-    # the superstar on set, in costume: white shirt, black trousers (seen from behind, in shades)
-    'rajini': dict(p=P(1, 0.62, 0.38, 0.5, 0.54, {**face(91, 6, 0.4), 'cheek/l-cheek-bones-incr': 0.5, 'cheek/r-cheek-bones-incr': 0.5}),
-                   hair=[('bouffant', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.1)], tone=3, age_lines=0.45,
-                   outfit=dict(top=('shirt_full', 'full', True, [0.94, 0.94, 0.92, 1], 0.2, 6), bottom=[0.06, 0.06, 0.07, 1], feet='shoe', watch=None)),
+    # Raja (visual reference: Shankar Nag): a long, lean oval face, high cheekbones, a strong straight nose,
+    # intense deep-set eyes under heavy brows, a thick moustache, dense black hair swept to the side;
+    # a khaki-beige half-sleeve shirt open at the collar, tucked into dark trousers
+    'raja': dict(p=P(1, 0.46, 0.34, 0.58, 0.55, race=INDIAN, extra={'head/head-oval': 0.7, 'chin/chin-height-incr': 0.35, 'chin/chin-prominent-incr': 0.35,
+                 'cheek/l-cheek-bones-incr': 0.65, 'cheek/r-cheek-bones-incr': 0.65, 'cheek/l-cheek-volume-decr': 0.45, 'cheek/r-cheek-volume-decr': 0.45,
+                 'nose/nose-scale-vert-incr': 0.45, 'nose/nose-hump-incr': 0.25, 'nose/nose-scale-horiz-decr': 0.15,
+                 'forehead/forehead-nubian-incr': 0.35, 'eyebrows/eyebrows-angle-down': 0.3, 'mouth/mouth-scale-horiz-decr': 0.1}),
+                 hair=[('thick_side', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.13)], tone=4, age_lines=0.12, brow=0.9,
+                 outfit=dict(top=('shirt', 'half', True, [0.6, 0.5, 0.36, 1], 0.25, 5), bottom=[0.09, 0.09, 0.11, 1], feet='shoe', watch=(0.12, 0.1, 0.08), belt=True)),
+    # Lal (visual reference: Ambareesh): big and broad, a round full face with a wide jaw and full cheeks,
+    # a broad nose, a big crown of wavy hair, a thick moustache; a dark full-sleeve sweatshirt over jeans
+    'lal': dict(p=P(1, 0.52, 0.74, 0.62, 0.55, race=INDIAN, extra={'head/head-round': 0.6, 'head/head-fat-incr': 0.55, 'chin/chin-width-incr': 0.45,
+                'cheek/l-cheek-volume-incr': 0.7, 'cheek/r-cheek-volume-incr': 0.7, 'nose/nose-scale-horiz-incr': 0.55, 'nose/nose-flaring-incr': 0.35,
+                'neck/neck-scale-horiz-incr': 0.5, 'neck/neck-double-incr': 0.2, 'mouth/mouth-scale-horiz-incr': 0.2, 'eyes/l-eye-height2-incr': 0.25, 'eyes/r-eye-height2-incr': 0.25}),
+                hair=[('puff', (0.035, 0.03, 0.028))], face_hair=[('moustache', 0.12)], tone=2, age_lines=0.15, brow=0.75,
+                outfit=dict(top=('sweat', 'full', False, [0.2, 0.2, 0.22, 1], 0.45, 0), bottom=[0.2, 0.25, 0.38, 1], feet='shoe', watch=(0.85, 0.68, 0.2), collar=False)),
+    # the superstar on set, as in the Sivaji reference: bald, grey goatee and moustache, shades,
+    # a black turtleneck, a long black coat, black trousers (only ever seen from behind)
+    'rajini': dict(p=P(1, 0.66, 0.38, 0.5, 0.56, {**face(91, 6, 0.4), 'cheek/l-cheek-bones-incr': 0.5, 'cheek/r-cheek-bones-incr': 0.5}),
+                   hair=[], face_hair=[('moustache', 0.08), ('goatee', 0.06)], hair_col=(0.3, 0.29, 0.28), tone=3, age_lines=0.5,
+                   outfit=dict(top=('shirt_full', 'full', True, [0.05, 0.05, 0.06, 1], 0.15, 0), bottom=[0.05, 0.05, 0.06, 1], feet='shoe', watch=None, coat=[0.04, 0.04, 0.045, 1], collar=False, belt=True)),
     'shankar': dict(p=P(1, 0.66, 0.5, 0.42, 0.5, {**face(97, 6, 0.4), 'head/head-oval': 0.4}),
                     hair=[('side', (0.06, 0.055, 0.055))], face_hair=[], tone=2, age_lines=0.4,
                     outfit=dict(top=('shirt_full', 'full', True, [0.62, 0.72, 0.86, 1], 0.2, 6), bottom=[0.22, 0.22, 0.25, 1], feet='shoe', watch=(0.7, 0.7, 0.72))),
@@ -70,7 +80,10 @@ def dress(c, outfit, female, hero):
     """every garment this body can wear; the game shows the ones the look asks for"""
     if hero and isinstance(outfit, dict):
         name, sl, tucked, col, loose, btn = outfit['top']
-        s = c.top(name, sl, tucked=tucked, loose=loose, colour=col); c.details(s, btn, True, colour=(0.85, 0.85, 0.82))
+        s = c.top(name, sl, tucked=tucked, loose=loose, colour=col, collar=outfit.get('collar', True))
+        if btn: c.details(s, btn, True, colour=(0.85, 0.85, 0.82))
+        if outfit.get('coat'):
+            c.top('coat', 'full', tucked=False, open_front=True, offset=0.26, loose=0.6, hem=c.h['calf_l'][1] + 0.6, colour=outfit['coat'])
         c.trousers(loose=0.25, colour=outfit['bottom']); c.footwear(outfit['feet'])
         if outfit.get('watch'): c.watch(outfit['watch'])
     elif hero and outfit == 'conductor':
@@ -96,6 +109,8 @@ def dress(c, outfit, female, hero):
         c.top('banian', 'none', tucked=False, collar=False, offset=0.06)
         c.trousers(); c.footwear('chappal'); c.footwear('shoe'); c.watch((0.7, 0.7, 0.72))
         c.skirt('lungi', amp=0.06, folds=10)
+        # the white coat medical students wear, open over their clothes
+        c.top('labcoat', 'full', tucked=False, open_front=True, offset=0.24, loose=0.55, hem=c.h['thigh_l'][1] - 1.6, colour=[0.95, 0.95, 0.93, 1])
         if female:
             c.top('blouse', 'cap', tucked=True, hem=c.h['spine_02'][1] + 0.15, collar=False, offset=0.07)
             c.skirt('saree', pleat=0.09, amp=0.07); c.drape('pallu', [1, 1, 1, 1])
@@ -112,13 +127,14 @@ def make(base, core, name, spec, hero):
     c.eyes(core, True)
     dress(c, spec.get('outfit') if hero else None, female, hero)
     if hero:
-        for st, col in spec['hair']: c.hair('hair_' + st, st, 7, col)
-        for reg, ln in spec['face_hair']: c.face_hair(reg, reg, ln, 4, spec['hair'][0][1])
+        for st, col in spec['hair']: c.hair('hair_' + st, st, 12, col)
+        fh_col = spec.get('hair_col') or (spec['hair'][0][1] if spec['hair'] else (0.05, 0.04, 0.04))
+        for reg, ln in spec['face_hair']: c.face_hair(reg, reg, ln, 6, fh_col)
     else:
         styles = ['bun', 'plait', 'long'] if female else ['short', 'side', 'curly', 'balding', 'bouffant']
-        for st in styles: c.hair('hair_' + st, st, 4)
+        for st in styles: c.hair('hair_' + st, st, 7)
         if not female:
-            c.face_hair('moustache', 'moustache', 0.09, 3); c.face_hair('beard', 'beard', 0.1, 3)
+            c.face_hair('moustache', 'moustache', 0.09, 4); c.face_hair('beard', 'beard', 0.1, 4)
             c.glasses()
     c.add_morphs(build.EXPRESSIONS)
     if not hero:
@@ -128,7 +144,7 @@ def make(base, core, name, spec, hero):
     stats = c.export(g, lods)
     g.save(os.path.join(OUT, name + '.glb'))
     if hero:
-        tex.skin(c, os.path.join(OUT, 'tex'), name, spec['tone'], spec['age_lines'], female, stubble=0.0 if female else 0.5, seed=hash(name) % 1000, grey=0.8 if name == 'devaraj' else 0.0)
+        tex.skin(c, os.path.join(OUT, 'tex'), name, spec['tone'], spec['age_lines'], female, stubble=0.0 if female else 0.5, seed=hash(name) % 1000, grey=0.8 if name in ('devaraj', 'rajini') else 0.0)
     if not hero:
         tex.skin(c, os.path.join(OUT, 'tex'), name, 0, float(np.clip((p['age'] - 0.45) * 1.6, 0.05, 0.9)), female, stubble=0.0 if (female or p['age'] < 0.3) else 0.35, seed=hash(name) % 1000, R=512)
     lm = c.landmarks()

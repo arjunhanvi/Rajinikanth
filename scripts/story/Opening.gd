@@ -1,7 +1,7 @@
 class_name Opening
 extends Node
 ## BIG BANG LORE - the opening sequence. Monday, 1 January 2007.
-## M.S. Ramaiah Institute of Technology: a film unit, an empty reel, a superstar
+## M.S. Laliah Institute of Technology: a film unit, an empty reel, a superstar
 ## under an umbrella, a crowd, and two men who see each other.
 ##
 ## One director coroutine (run) walks the shot list in the order the brief fixes.
@@ -53,6 +53,9 @@ var _split_cams: Array = []
 var _prompt: Button = null
 var _choices: VBoxContainer = null
 var _skip_btn: Button = null
+var whistle_frame := -1
+var rajini_front_frames := 0      # test hook: frames in which the camera saw his face from the front
+var black_frame := -1
 
 # ================================================================== helpers
 static func L(x: float, y: float, z: float) -> Vector3:
@@ -94,8 +97,8 @@ func put(h: Human, p: Vector3, face_to = null) -> void:
 func face(h: Human, p: Vector3) -> void:
 	h.rotation.y = yaw_to(pos_of(h), p)
 
-func go(h: Human, to: Vector3, spd := 1.45) -> void:
-	movers[h] = {"to": to, "spd": spd}
+func go(h: Human, to: Vector3, spd := 1.45, turn := true) -> void:
+	movers[h] = {"to": to, "spd": spd, "turn": turn}
 
 func arrived(h: Human) -> bool:
 	return not movers.has(h)
@@ -223,7 +226,7 @@ func spectacles(h: Human, dark: bool) -> void:
 	br.position = (pl_ + pr_) * 0.5 - hp + Vector3(0, 0.01, zf)
 	g.add_child(br)
 
-## A bead of sweat at Rama's temple, to run down his face in the split screen.
+## A bead of sweat at Lal's temple, to run down his face in the split screen.
 func sweat(h: Human) -> void:
 	var ib := h.skel.find_bone("head")
 	var er := h.skel.find_bone("eye_r")
@@ -263,8 +266,10 @@ func _build_cast() -> void:
 	cast["raja"] = raja
 	raja.walk = [1.12, 0.7, 1.25, 0.04]           # long, quick stride; arms swing; leans into it
 	var rc := L(16.0, 0, 57.0)
-	var rajini := spawn("rajini", {"model": "rajini", "acc": 0, "top": 1}, rc + Campus.frame().basis * Vector3(0.12, 0, 0), L(-6, 0, 57))
+	# seated facing into the campus: from the crowd, the gate and the unit he is a back and a pair of shades
+	var rajini := spawn("rajini", {"model": "rajini", "acc": 0, "top": 11}, rc + Campus.frame().basis * Vector3(0, 0, -0.08), L(16, 0, 80))
 	rajini.state = "sit"
+	rajini.seat_lift = 0.07
 	spectacles(rajini, true)
 	var sh := spawn("shankar", {"model": "shankar", "acc": 0, "top": 1}, L(-13.9, 0, 53.4), L(-12.2, 0, 53.9))
 	spawn("kvanand", {"model": "kvanand", "acc": 0}, L(-12.2, 0, 53.9), L(-13.9, 0, 53.4))
@@ -278,13 +283,16 @@ func _build_cast() -> void:
 	crew.walk = [0.95, 1.1, 0.9, 0.06]
 	var uma := spawn("uma", {"model": "umashankar", "acc": 0, "pat": {"shirt_out": "check"}}, L(-4.0, 0, 26.0), L(2, 0, 36))
 	uma.walk = [0.9, 1.25, 0.8, -0.02]                # rolling, unhurried
-	var rama := spawn("rama", {"model": "rama", "acc": 0}, L(5.6, 0, 36.6), L(10, 0, 50))
-	rama.walk = [0.92, 0.55, 0.6, -0.05]              # deliberate, chest out, arms quiet
-	sweat(rama)
+	# Lal is not in the crowd: he arrives later, on his own (scene 6)
+	var lal := spawn("lal", {"model": "lal", "acc": 0}, L(40.0, 0, -14.0), L(0, 0, -14))
+	lal.walk = [0.92, 0.55, 0.6, -0.05]              # deliberate, chest out, arms quiet
+	lal.visible = false
+	sweat(lal)
 	var fl := _look(0, "")
 	fl.age = 0.26
 	fl.top = 3
-	spawn("rama_friend", fl, L(9.0, 0, 30.0), L(5, 0, 36), 1)
+	var lf := spawn("lal_friend", fl, L(42.0, 0, -14.0), L(0, 0, -14), 1)
+	lf.visible = false
 	var f2 := _look(0, "")
 	f2.age = 0.24
 	f2.top = 4
@@ -313,12 +321,22 @@ func _build_cast() -> void:
 		var h := spawn("", lk, home, L(x * 0.4, 0, 60.0), 1)
 		h.activity = ["cheer", "", "wave_star", "", "crossed", "cheer"][rng.randi() % 6]
 		crowd.append({"h": h, "home": home, "side": -1 if x < 3.0 else 1, "mode": "watch", "t": rng.randf() * 3.0, "goal": home, "act_t": rng.randf_range(1.0, 5.0)})
-	# students on the steps and along the wings
-	for i in 10:
-		var lk2 := _look(1 if i % 3 == 0 else 0, "student")
-		var p := L(-44.0 + (i % 2) * 88.0 + rng.randf_range(-2, 2), 0, 46.0 + i * 3.6)
-		var h2 := spawn("", lk2, p, L(0, 0, 58), 1)
-		h2.activity = ["listen", "phone", "crossed", "laugh"][i % 4]
+	# medical students from the college next door, in their white coats, stethoscopes round their
+	# necks: one knot at the rope near the star, one on the porch steps, two at the canteen
+	var groups := [[L(19.0, 0, 35.2), 7], [L(1.0, 0, 85.0), 5], [L(60.0, 0, 15.0), 3]]
+	for g in groups:
+		var gc: Vector3 = g[0]
+		for i in int(g[1]):
+			var sex := 1 if rng.randf() < 0.45 else 0
+			var lk2 := _look(sex, "student")
+			lk2["labcoat"] = true
+			lk2["steth"] = rng.randf() < 0.7
+			lk2.acc = 0
+			var ang := TAU * i / float(g[1]) + rng.randf_range(-0.3, 0.3)
+			var p := gc + Campus.frame().basis * Vector3(cos(ang), 0, sin(ang)) * rng.randf_range(0.7, 1.3)
+			var h2 := spawn("", lk2, p, gc, 1)
+			h2.activity = ["listen", "", "laugh", "crossed", "phone"][i % 5]
+			crowd.append({"h": h2, "home": p, "side": 1, "mode": "med", "t": rng.randf() * 4.0, "goal": gc, "act_t": rng.randf_range(1.0, 4.0), "med": true})
 
 # ================================================================== setup / UI
 func _setup() -> void:
@@ -431,7 +449,7 @@ func date_card() -> void:
 	_card.offset_top = -250
 	ui.add_child(_card)
 	var a := UI.label("BENGALURU", 54, UI.YELLOW)
-	a.add_theme_font_override("font", UI.comic())
+	a.add_theme_font_override("font", UI.title_font())
 	a.add_theme_constant_override("outline_size", 6)
 	a.add_theme_color_override("font_outline_color", Color.BLACK)
 	_card.add_child(a)
@@ -476,8 +494,9 @@ func _process(delta: float) -> void:
 			continue
 		var dir := d / dist
 		nd.global_position += dir * minf(spd * delta, dist)
-		h.rotation.y = lerp_angle(h.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-10.0 * delta))
-		h.speed = spd
+		if bool(m.get("turn", true)):
+			h.rotation.y = lerp_angle(h.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-10.0 * delta))
+			h.speed = spd
 	for v: Vehicle in vmovers.keys():
 		if not is_instance_valid(v):
 			vmovers.erase(v)
@@ -500,6 +519,7 @@ func _process(delta: float) -> void:
 			v.global_position += dn * v.v * delta
 			v.rotation.y = lerp_angle(v.rotation.y, atan2(-dn.x, -dn.z), 1.0 - exp(-4.0 * delta))
 	_crowd_tick(delta)
+	_separate(delta)
 	if _beacon_m != null:
 		_beacon_m.visible = fmod(Time.get_ticks_msec() / 1000.0, 0.6) < 0.3
 	if _sweat != null and _sweat_t >= 0.0:
@@ -512,6 +532,7 @@ func _process(delta: float) -> void:
 	if player_free:
 		_bound_player()
 	_apply_cam(delta)
+	_watch_rajini()
 	if _shake > 0.0:
 		var real := delta / maxf(Engine.time_scale, 0.05)
 		var tt := Time.get_ticks_msec() / 1000.0
@@ -520,13 +541,67 @@ func _process(delta: float) -> void:
 		cam.global_position += Vector3(sin(tt * 23.0), sin(tt * 31.0), 0) * _shake * 0.02
 		_shake = maxf(0.0, _shake - real * 0.0)
 
+## People do not pass through each other: every standing body keeps a personal radius,
+## and the one that is moving gives way. Pairs in deliberate contact (a push, a grip) use
+## a smaller radius so hands can land.
+func _separate(_delta: float) -> void:
+	var bodies: Array = []
+	for c in crowd:
+		bodies.append(c.h)
+	for id in ["raja", "uma", "raja_friend", "lal", "lal_friend", "ad", "crew", "security0", "security1", "security2", "cop0", "cop1", "cop2"]:
+		if cast.has(id) and is_instance_valid(cast[id]) and (cast[id] as Human).visible:
+			bodies.append(cast[id])
+	var n := bodies.size()
+	for i in n:
+		var a: Human = bodies[i]
+		if a.state in ["sit", "drive"] or a.get_parent() != root and a != raja:
+			continue
+		var pa := pos_of(a)
+		for j in range(i + 1, n):
+			var b: Human = bodies[j]
+			if b.state in ["sit", "drive"] or b.get_parent() != root and b != raja:
+				continue
+			var pb := pos_of(b)
+			var d := Vector2(pb.x - pa.x, pb.z - pa.z)
+			var dist := d.length()
+			var want := 0.34 if (a.activity in ["hold", "push"] or b.activity in ["hold", "push"] or a.state == "fall" or b.state == "fall") else 0.52
+			if dist < want and dist > 0.001:
+				var push := (want - dist) * 0.5
+				var dn := d / dist
+				var wa := 0.5 if a != raja else 0.0
+				var wb := 0.5 if b != raja else 0.0
+				if wa + wb == 0.0:
+					continue
+				var tot := wa + wb
+				_node(a).global_position -= Vector3(dn.x, 0, dn.y) * push * 2.0 * wa / tot
+				_node(b).global_position += Vector3(dn.x, 0, dn.y) * push * 2.0 * wb / tot
+				pa = pos_of(a)
+
+## The opening must never show Rajinikanth's face from the front. Every frame, check whether the
+## active camera is in front of him, near enough to read a face, with his head in view.
+func _watch_rajini() -> void:
+	if not cast.has("rajini"):
+		return
+	var rj: Human = cast["rajini"]
+	if not rj.visible:
+		return
+	var c := get_viewport().get_camera_3d()
+	if c == null:
+		return
+	var hp := head_of(rj)
+	var to_cam := c.global_position - hp
+	var fwd := -rj.global_transform.basis.z
+	to_cam.y = 0
+	if to_cam.length() < 30.0 and to_cam.normalized().dot(fwd) > 0.25 and c.is_position_in_frustum(hp):
+		rajini_front_frames += 1
+
 func _bound_player() -> void:
 	var lp: Vector3 = Campus.frame().affine_inverse() * pl.global_position
 	var c := Vector3(clampf(lp.x, BOUNDS.position.x, BOUNDS.end.x), 0, clampf(lp.z, BOUNDS.position.y, BOUNDS.end.y))
 	if not c.is_equal_approx(Vector3(lp.x, 0, lp.z)):
 		pl.global_position = Campus.frame() * c
 		if lp.z > BOUNDS.end.y + 0.05 and not _sub.modulate.a > 0.5:
-			line(cast["security1"], "Security", "Ey! Line-ku pinnadi nillu!", "Hey! Stay behind the line!", 2.0)
+			line(cast["security1"], "Security", "Ey! Line hinde nillu!", "Hey! Stay behind the line!", 2.0)
 
 func _crowd_tick(delta: float) -> void:
 	var rc: Vector3 = head_of(cast["rajini"]) if cast.has("rajini") else L(16, 1.5, 57)
@@ -540,6 +615,24 @@ func _crowd_tick(delta: float) -> void:
 				if float(c.act_t) <= 0.0:
 					c.act_t = rng.randf_range(2.0, 6.0)
 					h.activity = ["cheer", "", "wave_star", "cheer", "crossed", ""][rng.randi() % 6]
+			"med":
+				# a knot of friends: they talk among themselves, turn to watch the star, laugh
+				c.act_t = float(c.act_t) - delta
+				if float(c.act_t) <= 0.0:
+					c.act_t = rng.randf_range(2.0, 5.0)
+					var r := rng.randf()
+					if r < 0.4:
+						h.look_target = (c.goal as Vector3) + Vector3(0, 1.5, 0)
+						h.talk_t = rng.randf_range(1.2, 2.6)
+						h.activity = ""
+					elif r < 0.75:
+						h.look_target = rc
+						h.activity = ["listen", "crossed", ""][rng.randi() % 3]
+					else:
+						h.activity = "laugh"
+			"react":
+				h.look_target = _centre + Vector3(0, 1.5, 0)
+				h.mood = "surprise"
 			"surge":
 				h.activity = ""
 				h.mood = "scream" if rng.randf() < 0.02 else h.mood
@@ -707,32 +800,32 @@ func _s3_rajini() -> void:
 	var ad: Human = cast["ad"]
 	var rj: Human = cast["rajini"]
 	var rpos := pos_of(rj)
-	# he crosses the set while the camera travels; we pick him up for the last few steps
-	put(ad, L(-3.0, 0, 55.6), L(16, 0, 57))
-	var from := L(10.2, 0, 56.4)
-	go(ad, from, 1.45)
+	var B := Campus.frame().basis
+	# the AD comes round to face him (in front of the chair); the camera never goes in front:
+	# a wide from behind, then one move in to over his left shoulder
+	put(ad, L(9.0, 0, 62.5), rpos)
+	go(ad, rpos + B * Vector3(-1.6, 0, 1.6), 1.45)
 	ad.look_target = null
 	ad.mood = ""
 	world.story.amb_override = {"amb_city": 0.2, "amb_crowd": 0.35}
-	# the camera drifts across the set to come round behind him
-	var c0 := L(-1.0, 2.0, 46.5)            # cut wide; then one move across the set to come round behind him
-	var l0 := L(8.0, 1.3, 57.0)
-	var ots := rpos + Campus.frame().basis * Vector3(1.5, 1.22, -0.6)
-	var ots_look := rpos + Campus.frame().basis * Vector3(-1.2, 1.42, 0.12)
+	var c0 := L(25.0, 2.3, 43.0)
+	var l0 := L(14.0, 1.2, 63.0)
+	var ots := rpos + B * Vector3(0.16, 1.3, -1.05)          # just behind his left shoulder
+	var ots_look := rpos + B * Vector3(-0.6, 1.22, 1.0)
 	shot("rajini_approach", func(t: float, _dt: float):
 		var k := ease_io(t / 6.5)
-		var mid := L(4.0, 2.4, 52.0)
+		var mid := rpos + B * Vector3(3.5, 2.2, -6.0)
 		var p := c0.lerp(mid, k).lerp(mid.lerp(ots, k), k)
-		aim(p, l0.lerp(ots_look, k), lerpf(36.0, 40.0, k)))
+		aim(p, l0.lerp(ots_look, k), lerpf(40.0, 46.0, k)))
 	await _arrive(ad, 7.0)
-	go(ad, rpos + Campus.frame().basis * Vector3(-0.95, 0, 0.12), 1.2)
-	await _arrive(ad, 7.0)
+	go(ad, rpos + B * Vector3(-0.78, 0, 0.88), 1.1)
+	await _arrive(ad, 5.0)
 	face(ad, rpos)
 	ad.activity = "bend"
 	ad.look_target = head_of(rj) + Vector3(0, -0.45, 0)
 	rj.look_target = head_of(ad) + Vector3(0, -0.4, 0)
 	shot("rajini_ots", func(t: float, _dt: float):
-		aim(ots + Campus.frame().basis * Vector3(-t * 0.02, -t * 0.006, 0), ots_look, 50.0))
+		aim(ots + B * Vector3(-t * 0.015, -t * 0.006, 0), ots_look, 46.0))
 	await _w(1.4)
 	line(ad, "Assistant director", "", "Sir, pack up. We didn't get reel.", 2.8)
 	await _w(3.0)
@@ -744,27 +837,25 @@ func _s3_rajini() -> void:
 	rj.mood = ""
 	rj.look_target = null
 
-# ---------------------------------------------------------------- 4. the crowd
+# ---------------------------------------------------------------- 4. the crowd, and Raja goes down
 func _s4_crowd() -> void:
 	var ad: Human = cast["ad"]
-	var rama: Human = cast["rama"]
+	var B := Campus.frame().basis
 	ad.activity = ""
 	ad.look_target = null
 	ad.mood = "angry"
-	# Raja is already at the rope, in the crush
-	put(raja, L(3.2, 0, 36.6), L(10, 1.6, 57))
+	# Raja is pressed up against the rope, as close as anyone can get
+	put(raja, L(3.2, 0, 37.9), L(16, 1.6, 57))
 	raja.state = "idle"
 	raja.activity = "cheer"
 	raja.mood = "smile"
-	rama.activity = ""
-	rama.look_target = head_of(cast["rajini"])
 	go(ad, L(1.5, 0, 41.6), 1.7)
 	world.story.amb_override = {"amb_city": 0.15, "amb_crowd": 0.9}
 	shot("ad_away", func(t: float, _dt: float):
 		var ap := pos_of(ad)
 		var to_crowd := (L(1.5, 0, 38) - ap)
 		to_crowd.y = 0
-		var dirn := to_crowd.normalized() if to_crowd.length() > 0.3 else Campus.frame().basis * Vector3(0, 0, -1)
+		var dirn := to_crowd.normalized() if to_crowd.length() > 0.3 else B * Vector3(0, 0, -1)
 		aim(ap + dirn * 2.6 + dirn.cross(Vector3.UP) * 0.9 + Vector3(0, 1.6, 0), ap + Vector3(0, 1.45, 0) - dirn * 0.5, 44.0))
 	await _w(1.6)
 	ad.activity = "shout"
@@ -776,50 +867,73 @@ func _s4_crowd() -> void:
 	face(ad, L(1.5, 0, 30))
 	line(ad, "Assistant director", "", "Ask these guys to stand behind the line!", 2.4)
 	await _w(2.5)
-	# Raja, in the press of bodies
+	# Raja, in the press of bodies, straining to get closer
 	shot("raja_crowd", func(t: float, _dt: float):
 		var rp := head_of(raja)
-		aim(L(1.0, 1.95, 41.4) + Campus.frame().basis * Vector3(t * 0.15, 0, 0), rp + Vector3(0, -0.15, 0), 34.0))
+		aim(L(1.0, 1.95, 41.4) + B * Vector3(t * 0.15, 0, 0), rp + Vector3(0, -0.15, 0), 34.0))
 	line(raja, "Raja", "Thalaiva! Thalaiva!", "Thalaiva! Thalaiva!", 2.6)
 	Sfx.play("whistle", 0.35)
-	await _w(1.6)
+	await _w(1.4)
+	go(raja, L(3.25, 0, 38.15), 0.5)          # he leans into the rope
+	# a crowd-control man steps up on the other side of the rope, square in front of him
 	var s1: Human = cast["security1"]
-	put(s1, L(5.5, 0, 39.3), L(5.6, 0, 36.6))
 	s1.activity = ""
-	await _w(1.2)
-	# the shove: the man next to him goes down
-	shot("shove", func(t: float, _dt: float):
-		aim(L(-1.5, 1.7, 41.0) + Campus.frame().basis * Vector3(t * 0.1, 0, 0), L(5.2, 0.9, 36.4), 44.0))
-	s1.play_once("push", 0.6)
-	await _w(0.25)
-	Sfx.play("punch", 0.25, 0.55)
-	rama.state = "ko"
-	go(rama, L(5.8, 0, 35.7), 3.0)
-	await _w(1.7)
-	rama.state = "idle"
-	rama.mood = ""
-	await _w(0.5)
-	# he gets up, steps out of the crowd and dusts himself off
-	go(rama, L(10.6, 0, 33.4), 1.2)
-	shot("rama_rises", func(t: float, _dt: float):
-		var rp := pos_of(rama)
-		aim(L(14.5, 1.55, 36.8) - Campus.frame().basis * Vector3(t * 0.12, 0, 0), rp + Vector3(0, 1.15, 0), lerpf(40.0, 34.0, ease_io(t / 5.0))))
-	await _arrive(rama, 6.0)
-	face(rama, L(4, 0, 38))
-	rama.activity = "dust"
-	await _w(2.6)
-	rama.activity = ""
-	rama.look_target = head_of(raja)
+	put(s1, L(3.25, 0, 38.75), pos_of(raja))
 	await _w(0.8)
+	# the shove: hands on his chest, and his feet go
+	shot("shove", func(t: float, _dt: float):
+		var mid := (pos_of(raja) + pos_of(s1)) * 0.5
+		aim(mid + B * Vector3(-3.4, 1.45, -0.6), mid + Vector3(0, 1.1, 0), 40.0))
+	line(s1, "Security", "Ey! Hindhe hogo!", "Hey! Get back!", 1.6)
+	await _w(0.5)
+	s1.play_once("push", 0.7)
+	await _w(0.18)
+	Sfx.play("punch", 0.3, 0.55)
+	raja.activity = ""
+	raja.mood = "surprise"
+	raja.state = "fall"
+	raja.fall_t = 0.0
+	go(raja, L(3.3, 0, 36.6), 2.4, false)      # staggering back, still facing the man who pushed him
+	# the people behind him get out of the way, and stare
+	for c in crowd:
+		var h: Human = c.h
+		if pos_of(h).distance_to(pos_of(raja)) < 2.6:
+			go(h, pos_of(h) + (pos_of(h) - pos_of(raja)).normalized() * 0.9, 2.2)
+			h.look_target = pos_of(raja) + Vector3(0, 0.4, 0)
+			h.mood = "surprise"
+			h.activity = ""
+	await _w(0.55)
+	Sfx.play("punch", 0.35, 0.4)               # he lands
+	shot("raja_falls", func(t: float, _dt: float):
+		var rp := pos_of(raja)
+		aim(rp + B * Vector3(-2.3, 0.65, -1.4) + B * Vector3(t * 0.06, 0, 0), rp + Vector3(0, 0.35, 0), 42.0))
+	var med: Human = null
+	for c in crowd:
+		if c.get("med", false) and med == null and pos_of(c.h).distance_to(pos_of(raja)) < 20.0:
+			med = c.h
+	if med != null:
+		med.look_target = pos_of(raja)
+		line(med, "Medical student", "Ayyo, biddbitta paapa!", "Oh no, he fell, poor guy!", 2.0)
+	await _w(1.4)
+	# he gets back up, and dusts himself off
+	shot("raja_rises", func(t: float, _dt: float):
+		var rp := pos_of(raja)
+		aim(rp + B * Vector3(-2.2, 1.35, -2.4) - B * Vector3(t * 0.08, 0, 0), rp + Vector3(0, lerpf(0.6, 1.1, ease_io(t / 2.0)), 0), lerpf(40.0, 36.0, ease_io(t / 4.0))))
+	while raja.fall_t < 3.15 and not _skip:
+		await get_tree().process_frame
+	raja.state = "idle"
+	raja.fall_t = -1.0
+	raja.mood = "angry"
+	raja.activity = "dust"
+	for c in crowd:
+		(c.h as Human).mood = ""
+	await _w(2.6)
+	raja.activity = ""
+	s1.look_target = null
 
 # ---------------------------------------------------------------- 5. the player takes control
 func _s5_control() -> void:
 	var uma: Human = cast["uma"]
-	var rama: Human = cast["rama"]
-	# Rama drifts away towards the gate while we are with Raja
-	rama.look_target = null
-	go(rama, L(12.0, 0, 9.0), 1.3)
-	raja.activity = "cheer"
 	# the camera that was the film's becomes the player's: no cut, no load
 	var from_t := cam.global_transform
 	var from_fov := cam.fov
@@ -856,25 +970,26 @@ func _s5_control() -> void:
 	uma.look_target = head_of(raja)
 	pl.talk_focus = uma
 	uma.mood = "smile"
-	line(uma, "Umashankar", "Enna bhakthare... saami dharisanam aachaa?", "So, Mr. Devotee... got your god's darshan?", 3.6)
-	await _w(3.8)
-	var c := await _choose([["Kannaala paathen da. Adhu podhum.", "I saw him with my own eyes. That's enough."],
-		["Poda! Unakku enna theriyum Thalaivar pathi?", "Get lost! What do you know about Thalaivar?"]])
+	# Umashankar: slow, amused, never in a hurry. Raja: quick, loud, all "maga" and "kano".
+	line(uma, "Umashankar", "Enlaa bhakta... biddu eddu, devra darshana aaytaa?", "So, devotee... you fell and got up. Did you get your god's darshan?", 3.8)
+	await _w(4.0)
+	var c := await _choose([["Kannu tumba nodde kano. Saaku.", "I saw him till my eyes were full. That's enough."],
+		["Hogo! Ninge en gottu Thalaivar bagge?", "Get lost! What do you know about Thalaivar?"]])
 	if c == 0:
-		line(raja, "Raja", "Kannaala paathen da. Adhu podhum.", "I saw him with my own eyes. That's enough.", 2.8)
+		line(raja, "Raja", "Kannu tumba nodde kano. Saaku.", "I saw him till my eyes were full. That's enough.", 2.8)
 		await _w(2.9)
 		uma.activity = "laugh"
-		line(uma, "Umashankar", "Avaru kannaadi pottu ukkandhirukaaru. Avaru unna paathaaraa?", "He's sitting there in dark glasses. Did he see you?", 3.6)
+		line(uma, "Umashankar", "Avru ninna nodidra? Cooling glass haakondu kootidaare.", "Did he see you? He's sitting there in cooling glasses.", 3.6)
 		await _w(3.7)
 		uma.activity = ""
-		line(raja, "Raja", "Thalaivar ellaaraiyum paappaaru da.", "Thalaivar sees everyone.", 2.8)
+		line(raja, "Raja", "Thalaivar ellarnu nodtaare, maga.", "Thalaivar sees everyone, maga.", 2.8)
 	else:
-		line(raja, "Raja", "Poda! Unakku enna theriyum Thalaivar pathi?", "Get lost! What do you know about Thalaivar?", 2.8)
+		line(raja, "Raja", "Hogo! Ninge en gottu Thalaivar bagge?", "Get lost! What do you know about Thalaivar?", 2.8)
 		await _w(2.9)
-		line(uma, "Umashankar", "Ellaam theriyum. Kaalaila aaru maniku vandhu nikkara un thalai-ezhuththu kooda theriyum.", "I know enough. I know you've been standing here since six in the morning.", 3.8)
+		line(uma, "Umashankar", "Ella gottu. Beligge aaru ganteinda illi nintidiya, adu gottu.", "I know enough. I know you've been standing here since six in the morning.", 3.8)
 		await _w(3.9)
 		uma.activity = "laugh"
-		line(raja, "Raja", "Aaru illa. Anju.", "Not six. Five.", 2.4)
+		line(raja, "Raja", "Aaru alla. Aidu.", "Not six. Five.", 2.4)
 	await _w(2.6)
 	uma.activity = ""
 	pl.talk_focus = null
@@ -911,9 +1026,9 @@ func _choose(opts: Array) -> int:
 	_choices = null
 	return maxi(_choice, 0)
 
-# ---------------------------------------------------------------- 6. Rama's entrance
+# ---------------------------------------------------------------- 6. Lal's entrance
 func _s6_entrance() -> void:
-	var rama: Human = cast["rama"]
+	var lal: Human = cast["lal"]
 	player_free = false
 	pl.locked = true
 	pl.puppet = true
@@ -925,32 +1040,33 @@ func _s6_entrance() -> void:
 	raja.speed = 0.0
 	raja.state = "idle"
 	var rpos := pos_of(raja)
-	var gate_side := L(12.0, 0, 9.0)
-	put(rama, gate_side, rpos)
-	rama.mood = "smirk"
-	rama.look_target = null
+	var gate_side := L(10.0, 0, 3.5)            # he comes in through the gate, alone
+	put(lal, gate_side, rpos)
+	lal.visible = true
+	lal.mood = "smirk"
+	lal.look_target = null
 	var stop := rpos + (gate_side - rpos).normalized() * 4.6
-	go(rama, stop, 1.25)
+	go(lal, stop, 1.25)
 	world.story.amb_override = {"amb_city": 0.05, "amb_crowd": 0.35}
 	slow(0.42)
 	Sfx.play("whoosh", 0.4, 0.5)
 	# 1. the smile
 	shot("lips", func(t: float, _dt: float):
-		var hp := head_of(rama)
-		var fw := face_dir(rama)
+		var hp := head_of(lal)
+		var fw := face_dir(lal)
 		var mouth := hp + Vector3(0, -0.085, 0) + fw * 0.06
 		aim(mouth + fw * (0.42 - t * 0.04) + fw.cross(Vector3.UP) * 0.05 + Vector3(0, 0.01, 0), mouth, 24.0))
 	await _w(1.1)
 	# 2. his back
 	shot("back", func(t: float, _dt: float):
-		var p := pos_of(rama)
-		var fw := -rama.global_transform.basis.z
+		var p := pos_of(lal)
+		var fw := -lal.global_transform.basis.z
 		aim(p - fw * 1.9 + Vector3(0, 1.45, 0) + fw.cross(Vector3.UP) * 0.35, p + fw * 6.0 + Vector3(0, 1.2, 0), 46.0))
 	await _w(1.1)
 	# 3. the feet
 	shot("feet", func(t: float, _dt: float):
-		var p := pos_of(rama)
-		var fw := -rama.global_transform.basis.z
+		var p := pos_of(lal)
+		var fw := -lal.global_transform.basis.z
 		var rt := fw.cross(Vector3.UP)
 		aim(p + fw * 1.25 + rt * 0.75 + Vector3(0, 0.22, 0), p + Vector3(0, 0.18, 0) + fw * 0.2, 42.0))
 	Sfx.play("step", 0.5, 0.6)
@@ -959,18 +1075,18 @@ func _s6_entrance() -> void:
 	await _w(0.5)
 	# 4. the approach: Raja notices, and stops
 	raja.activity = ""
-	raja.look_target = head_of(rama)
+	raja.look_target = head_of(lal)
 	shot("approach", func(t: float, _dt: float):
 		var rp := pos_of(raja)
-		var to := (pos_of(rama) - rp).normalized()
-		aim(rp - to * 1.6 + Vector3(0, 1.75, 0) - to.cross(Vector3.UP) * 0.55, pos_of(rama) + Vector3(0, 1.35, 0), 40.0))
+		var to := (pos_of(lal) - rp).normalized()
+		aim(rp - to * 1.6 + Vector3(0, 1.75, 0) - to.cross(Vector3.UP) * 0.55, pos_of(lal) + Vector3(0, 1.35, 0), 40.0))
 	await _w(0.6)
-	raja.rotation.y = yaw_to(rpos, pos_of(rama))
+	raja.rotation.y = yaw_to(rpos, pos_of(lal))
 	raja.mood = "glare"
-	await _arrive(rama, 4.0)
-	face(rama, rpos)
-	rama.look_target = head_of(raja)
-	rama.mood = "glare"
+	await _arrive(lal, 4.0)
+	face(lal, rpos)
+	lal.look_target = head_of(raja)
+	lal.mood = "glare"
 	slow(1.0)
 	await _w(0.5)
 	# the split: equal halves, nobody above anybody
@@ -1017,7 +1133,7 @@ func _open_split() -> void:
 	bar.position = Vector2(0, vs.y * 0.5 - 3)
 	bar.size = Vector2(vs.x, 6)
 	_split.add_child(bar)
-	var who := [raja, cast["rama"]]
+	var who := [raja, cast["lal"]]
 	_cam_fn = func(t: float, _dt: float):
 		for i in 2:
 			var h: Human = who[i]
@@ -1041,19 +1157,19 @@ func _close_split() -> void:
 
 # ---------------------------------------------------------------- 7. the confrontation
 func _s7_confrontation() -> void:
-	var rama: Human = cast["rama"]
+	var lal: Human = cast["lal"]
 	var rp := pos_of(raja)
-	var mp := pos_of(rama)
+	var mp := pos_of(lal)
 	_centre = (rp + mp) * 0.5
 	raja.mood = "scream"
-	rama.mood = "scream"
+	lal.mood = "scream"
 	world.story.amb_override = {"amb_city": 0.0, "amb_crowd": 1.0}
 	Sfx.play("whoosh", 0.6, 0.8)
 	line(null, "", "", "", 0.1)
 	clear_line()
 	var to := (mp - rp).normalized()
 	var side := to.cross(Vector3.UP)
-	go(rama, _centre - to * 0.55, 4.8)
+	go(lal, _centre - to * 0.55, 4.8)
 	shot("charge", func(t: float, _dt: float):
 		aim(_centre + side * 6.2 + Vector3(0, 1.4, 0) - to * 0.4, _centre + Vector3(0, 1.1, 0), 46.0))
 	# Raja runs, and leaves the ground
@@ -1099,9 +1215,9 @@ func _s7_confrontation() -> void:
 	Sfx.play("boom", 0.5, 1.4)
 	flash()
 	_shake = 1.0
-	rama.play_once("hit", 0.6)
-	movers.erase(rama)
-	go(rama, pos_of(rama) + to * 0.7, 3.0)
+	lal.play_once("hit", 0.6)
+	movers.erase(lal)
+	go(lal, pos_of(lal) + to * 0.7, 3.0)
 	shot("impact", func(t2: float, _dt: float):
 		aim(_centre - side * 2.4 + Vector3(0, 1.3, 0) + to * 0.3, _centre + Vector3(0, 1.35, 0), 34.0))
 	await _real(0.7)
@@ -1111,25 +1227,33 @@ func _s7_confrontation() -> void:
 	raja.state = "idle"
 	# from high above the gate: two waves of people meeting
 	_dust_at(_centre)
+	# the star's people take him away from the trouble, out of sight
+	cast["rajini"].visible = false
 	for c in crowd:
 		var h: Human = c.h
+		if c.get("med", false) or pos_of(h).distance_to(_centre) > 32.0:
+			c.mode = "react"         # the medical students and the far crowd stop and stare
+			h.activity = ""
+			continue
 		var off := Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized() * rng.randf_range(1.4, 6.5)
 		c.mode = "surge"
 		h.look_target = null
 		go(h, _centre + off + side * float(c.side) * rng.randf_range(0.0, 2.0), rng.randf_range(3.6, 5.2))
+	cast["lal_friend"].visible = true
+	put(cast["lal_friend"], _centre + to * 9.0, _centre)
 	for id in ["uma", "raja_friend"]:
 		go(cast[id], _centre - to * 1.2 + side * rng.randf_range(-1, 1), 4.6)
-	go(cast["rama_friend"], _centre + to * 1.4, 4.6)
+	go(cast["lal_friend"], _centre + to * 1.4, 4.6)
 	shot("high_angle", func(t2: float, _dt: float):
 		aim(_centre + Campus.frame().basis * Vector3(-4.0, 33.0 - t2 * 0.6, -11.0), _centre + Campus.frame().basis * Vector3(0, 0, 6.0), 56.0))
 	await _w(4.2)
 	# ground level, in it
 	raja.activity = "hold"
-	rama.activity = "hold"
+	lal.activity = "hold"
 	cast["uma"].activity = "hold"
-	cast["rama_friend"].activity = "hold"
+	cast["lal_friend"].activity = "hold"
 	put(raja, _centre - to * 0.5, _centre)
-	put(rama, _centre + to * 0.5, _centre)
+	put(lal, _centre + to * 0.5, _centre)
 	_shake = 0.45
 	shot("chaos1", func(t2: float, _dt: float):
 		aim(_centre + side * 2.6 - to * 1.2 + Vector3(0, 1.5, 0), _centre + Vector3(0, 1.3, 0), 40.0))
@@ -1147,6 +1271,10 @@ func _s7_confrontation() -> void:
 		var ap := pos_of(ad)
 		aim(ap + (ap - _centre).normalized() * 2.4 + side * 0.8 + Vector3(0, 1.7, 0), ap.lerp(_centre, 0.5) + Vector3(0, 1.3, 0), 44.0))
 	await _w(2.4)
+	for c in crowd:
+		if c.get("med", false):
+			line(c.h, "Medical student", "Ayyo, hodedaadtidaare! Yaaradru police ge phone maadi!", "They're fighting! Someone call the police!", 2.2)
+			break
 	shot("chaos3", func(t2: float, _dt: float):
 		aim(_centre - side * 3.4 + to * 1.0 + Vector3(0, 0.9, 0), _centre + Vector3(0, 1.4, 0), 50.0))
 	await _w(1.2)
@@ -1188,7 +1316,7 @@ func _dust_at(p: Vector3) -> void:
 func _show_prompt() -> void:
 	_prompt = Button.new()
 	_prompt.text = "PUNCH"
-	_prompt.add_theme_font_override("font", UI.comic())
+	_prompt.add_theme_font_override("font", UI.title_font())
 	_prompt.add_theme_font_size_override("font_size", 44)
 	_prompt.add_theme_color_override("font_color", Color.BLACK)
 	_prompt.add_theme_stylebox_override("normal", UI.box(UI.YELLOW, 90, 4, Color.BLACK, 10))
@@ -1276,13 +1404,13 @@ func _s8_police() -> void:
 	if _dust != null:
 		_dust.emitting = false
 	await _w(1.8)
-	var to := (pos_of(cast["rama"]) - pos_of(raja)).normalized()
-	for id in ["uma", "rama_friend"]:
+	var to := (pos_of(cast["lal"]) - pos_of(raja)).normalized()
+	for id in ["uma", "lal_friend"]:
 		cast[id].activity = ""
 	raja.activity = ""
-	cast["rama"].activity = ""
+	cast["lal"].activity = ""
 	put(cops[0], pos_of(raja) - to * 0.7, pos_of(raja))
-	put(cops[1], pos_of(cast["rama"]) + to * 0.7, pos_of(cast["rama"]))
+	put(cops[1], pos_of(cast["lal"]) + to * 0.7, pos_of(cast["lal"]))
 	cops[0].activity = "hold"
 	cops[1].activity = "hold"
 	line(cops[0], "Constable", "Ey! Saaku! Hogi, ellaru hogi!", "Hey! Enough! Go, all of you, go!", 2.6)
@@ -1290,16 +1418,16 @@ func _s8_police() -> void:
 
 # ---------------------------------------------------------------- 9. two separate journeys
 func _s9_separate() -> void:
-	var rama: Human = cast["rama"]
+	var lal: Human = cast["lal"]
 	var uma: Human = cast["uma"]
 	var f2: Human = cast["raja_friend"]
-	var rf: Human = cast["rama_friend"]
+	var rf: Human = cast["lal_friend"]
 	var cop0: Human = cast["cop0"]
 	var cop1: Human = cast["cop1"]
 	cop0.activity = ""
 	cop1.activity = ""
 	raja.mood = "angry"
-	rama.mood = "angry"
+	lal.mood = "angry"
 	# the auto waiting on the kerb, facing west (Bangalore drives on the left)
 	var auto := Vehicle.create("auto", -1, true)
 	root.add_child(auto)
@@ -1308,7 +1436,7 @@ func _s9_separate() -> void:
 	auto.global_position = L(5.5, 0, -6.6)
 	auto.rotation.y = yaw_to(L(5.5, 0, -6.6), L(-50, 0, -6.6))
 	cast["auto"] = auto
-	# Raja is walked out of the gate; Rama is taken further in
+	# Raja is walked out of the gate; Lal is taken further in
 	put(raja, L(1.4, 0, 4.6), L(2, 0, -5))
 	put(cop0, L(1.0, 0, 5.5), L(2, 0, -5))
 	put(uma, L(0.0, 0, 6.3), L(2, 0, -5))
@@ -1322,15 +1450,15 @@ func _s9_separate() -> void:
 	shot("out_gate", func(t: float, _dt: float):
 		aim(L(-3.6, 1.65, -5.2) + Campus.frame().basis * Vector3(t * 0.12, 0, 0), pos_of(raja) + Vector3(0, 1.35, 0), 40.0))
 	await _w(4.5)
-	# Rama, led deeper into the campus
-	put(rama, L(3.0, 0, 54.0), L(1, 0, 86))
+	# Lal, led deeper into the campus
+	put(lal, L(3.0, 0, 54.0), L(1, 0, 86))
 	put(rf, L(4.1, 0, 53.6), L(1, 0, 86))
 	put(cop1, L(1.9, 0, 54.4), L(1, 0, 86))
-	go(rama, L(1.2, 0, 76.0), 1.35)
+	go(lal, L(1.2, 0, 76.0), 1.35)
 	go(rf, L(2.4, 0, 76.0), 1.35)
 	go(cop1, L(0.0, 0, 74.0), 1.35)
 	shot("in_campus", func(t: float, _dt: float):
-		var rp := pos_of(rama)
+		var rp := pos_of(lal)
 		aim(rp + Campus.frame().basis * Vector3(-3.2, 0, 4.6) + Vector3(0, 1.6, 0), rp + Vector3(0, 1.3, 0), 40.0))
 	await _w(3.5)
 	# Raja looks back
@@ -1346,16 +1474,16 @@ func _s9_separate() -> void:
 		lk = lk.normalized()
 		aim(hp + lk * 1.35 + lk.cross(Vector3.UP) * 0.35 + Vector3(0, 0.06, 0) - lk * t * 0.04, hp + Vector3(0, -0.04, 0), 30.0))
 	await _w(3.0)
-	# Rama looks back: he stops, and half turns
-	movers.erase(rama)
-	rama.speed = 0.0
-	rama.rotation.y = lerp_angle(rama.rotation.y, yaw_to(pos_of(rama), L(1.0, 0, -6.0)), 0.62)
+	# Lal looks back: he stops, and half turns
+	movers.erase(lal)
+	lal.speed = 0.0
+	lal.rotation.y = lerp_angle(lal.rotation.y, yaw_to(pos_of(lal), L(1.0, 0, -6.0)), 0.62)
 	movers.erase(rf)
 	rf.speed = 0.0
-	rf.look_target = head_of(rama)
-	rama.look_target = L(1.0, 1.6, -6.0)
-	shot("rama_looks_back", func(t: float, _dt: float):
-		var hp := head_of(rama)
+	rf.look_target = head_of(lal)
+	lal.look_target = L(1.0, 1.6, -6.0)
+	shot("lal_looks_back", func(t: float, _dt: float):
+		var hp := head_of(lal)
 		var lk := (L(1.0, 1.6, -6.0) - hp).normalized()
 		aim(hp + lk * 1.6 - lk.cross(Vector3.UP) * 0.5 + Vector3(0, 0.04, 0), hp - Vector3(0, 0.12, 0), 34.0))
 	await _w(3.0)
@@ -1383,8 +1511,8 @@ func _seat(veh: Vehicle, h: Human, local: Vector3) -> void:
 func _s10_questions() -> void:
 	var auto: Vehicle = cast["auto"]
 	var f2: Human = cast["raja_friend"]
-	var rama: Human = cast["rama"]
-	var rf: Human = cast["rama_friend"]
+	var lal: Human = cast["lal"]
+	var rf: Human = cast["lal_friend"]
 	raja.look_target = null
 	vmovers[auto] = {"pts": [L(-160.0, 0, -6.6), L(-400.0, 0, -6.6)], "i": 0, "spd": 8.5}
 	auto.v = 4.0
@@ -1402,37 +1530,44 @@ func _s10_questions() -> void:
 	raja.mood = "glare"
 	line(raja, "Raja", "Aa sule maga...", "That son of a...", 2.6)
 	await _w(2.7)
-	# Rama, walking, with the same question waiting for him
+	# Lal, walking, with the same question waiting for him
 	eng.stop()
 	world.story.amb_override = {"amb_city": 0.2}
-	put(rama, L(-2.0, 0, 84.0), L(-30, 0, 86))
+	put(lal, L(-2.0, 0, 84.0), L(-30, 0, 86))
 	put(rf, L(-1.4, 0, 84.9), L(-30, 0, 86))
-	go(rama, L(-20.0, 0, 86.5), 1.25)
+	go(lal, L(-20.0, 0, 86.5), 1.25)
 	go(rf, L(-19.5, 0, 87.4), 1.25)
-	rama.look_target = null
-	rf.look_target = head_of(rama)
-	shot("rama_walk", func(t: float, _dt: float):
-		var rp := pos_of(rama)
-		var fw := -rama.global_transform.basis.z
+	lal.look_target = null
+	rf.look_target = head_of(lal)
+	shot("lal_walk", func(t: float, _dt: float):
+		var rp := pos_of(lal)
+		var fw := -lal.global_transform.basis.z
 		aim(rp + fw * 2.5 + fw.cross(Vector3.UP) * -0.4 + Vector3(0, 1.62, 0), rp.lerp(pos_of(rf), 0.4) + Vector3(0, 1.45, 0), 38.0))
 	await _w(1.2)
-	line(rf, "Rama's friend", "Yaaru avnu?", "Who is he?", 2.0)
+	line(rf, "Lal's friend", "Yaaru avnu?", "Who is he?", 2.0)
 	await _w(2.0)
-	rama.mood = "glare"
-	rama.look_target = null
-	line(rama, "Rama", "Avn hesru...", "His name...", 3.0)
+	lal.mood = "glare"
+	lal.look_target = null
+	line(lal, "Lal", "Avn hesru...", "His name...", 3.0)
 	await _w(1.05)
 	# cut to black: picture and sound together
 	clear_line()
 	_black.color.a = 1.0
+	black_frame = Engine.get_process_frames()
 	_cam_fn = Callable()
 	phase = "black"
 	beat.emit("black")
+	# on the same frame as the black: every other sound stops, and the theme comes in at its whistle
 	world.story.amb_override = {"amb_city": 0.0}
-	var mi := AudioServer.get_bus_index("Master")
-	AudioServer.set_bus_mute(mi, true)
-	await _real(2.0)
-	AudioServer.set_bus_mute(mi, false)
+	if _siren != null:
+		_siren.stop()
+	for p in root.find_children("*", "AudioStreamPlayer3D", true, false):
+		(p as AudioStreamPlayer3D).stop()
+	Sfx.cut_all()
+	Sfx.theme_at(Sfx.WHISTLE_T)
+	whistle_frame = Engine.get_process_frames()
+	beat.emit("whistle")
+	await _real(1.2)
 
 # ---------------------------------------------------------------- 11. title
 func _s11_title() -> void:
@@ -1442,75 +1577,52 @@ func _s11_title() -> void:
 	var bg := UI.rect(Color.BLACK)
 	layer.add_child(bg)
 	var vs := get_viewport().get_visible_rect().size
-	var fsize := int(clampf(vs.x * 0.135, 110.0, 230.0))
+	var fsize := int(clampf(vs.y * 0.34, 150.0, 330.0))
 	var sh := ShaderMaterial.new()
 	sh.shader = _title_shader()
 	sh.set_shader_parameter("progress", 0.0)
-	sh.set_shader_parameter("cell", maxf(6.0, vs.y / 90.0))
-	var lb := Label.new()
-	lb.text = "BIG BANG LORE"
-	lb.add_theme_font_override("font", UI.comic())
-	lb.add_theme_font_size_override("font_size", fsize)
-	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lb.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-	lb.add_theme_color_override("font_outline_color", Color.BLACK)
-	lb.add_theme_constant_override("outline_size", int(fsize * 0.07))
-	lb.add_theme_color_override("font_shadow_color", Color(0.62, 0.05, 0.04))     # the offset print shadow
-	lb.add_theme_constant_override("shadow_offset_x", int(fsize * 0.045))
-	lb.add_theme_constant_override("shadow_offset_y", int(fsize * 0.05))
-	lb.material = sh
-	layer.add_child(lb)
-	# centre the ink itself (cap height), not the font's line box
-	var font: Font = UI.comic()
-	var cap := font.get_ascent(fsize) * 0.72
-	lb.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	lb.size = Vector2(vs.x, fsize * 1.6)
-	lb.position = Vector2(0, vs.y * 0.5 - (font.get_ascent(fsize) - cap * 0.5))
+	var title := UI.deco_title("BIG BANG LORE", fsize, UI.YELLOW, 0.06)
+	title.size = vs
+	title.position = Vector2(0, -vs.y * 0.04)
+	layer.add_child(title)
+	for l in title.get_children():
+		(l as Label).material = sh
 	phase = "title"
 	beat.emit("title_start")
-	# the letters come up out of the black as print does: dot by dot
+	# not slid in from anywhere: the letters gather out of the black itself, light first catching
+	# the faces, then the depth behind them
 	var t := 0.0
-	var dur := 3.6
-	var boomed := false
+	var dur := 5.0
 	var mid_sent := false
 	while t < dur + 0.2:
 		var dt := get_process_delta_time() / maxf(Engine.time_scale, 0.05)
 		t += dt if not _skip else dur
-		var p := clampf(t / dur, 0.0, 1.0)
-		sh.set_shader_parameter("progress", p)
-		if p > 0.82 and not boomed:
-			boomed = true
-			Sfx.play("boom", 0.55, 0.62)
+		sh.set_shader_parameter("progress", clampf(t / dur, 0.0, 1.0))
 		if t >= dur * 0.5 and not mid_sent:
 			mid_sent = true
 			beat.emit("title_mid")
 		await get_tree().process_frame
 	beat.emit("title")
-	await _real(3.5)
+	await _real(3.0)
 	_finish(layer)
 
 func _title_shader() -> Shader:
 	var s := Shader.new()
 	s.code = """shader_type canvas_item;
 uniform float progress = 0.0;
-uniform float cell = 8.0;
 float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y);
+}
 void fragment() {
 	vec4 c = COLOR;
-	vec2 sp = FRAGCOORD.xy / cell;
-	vec2 id = floor(sp);
-	vec2 f = fract(sp) - 0.5;
-	// each halftone cell comes up at its own moment, roughly from the centre outwards
-	float n = h21(id) * 0.55 + 0.45 * smoothstep(0.0, 1.0, abs(SCREEN_UV.x - 0.5) * 1.6);
-	float local = clamp((progress * 1.55 - n * 0.75), 0.0, 1.0);
-	float r = local * 0.78;
-	float dotm = 1.0 - smoothstep(r - 0.06, r + 0.02, length(f));
-	float solid = smoothstep(0.86, 1.0, progress);
-	float m = max(dotm, solid);
-	// and the ink brightens from black as it settles
-	float lum = smoothstep(0.05, 0.75, progress);
-	COLOR = vec4(c.rgb * mix(0.25, 1.0, lum), c.a * m);
+	// grain of the black: each fleck of the letter surfaces at its own moment
+	float n = vnoise(FRAGCOORD.xy / 3.0) * 0.55 + vnoise(FRAGCOORD.xy / 40.0) * 0.45;
+	float a = smoothstep(n * 0.7, n * 0.7 + 0.3, progress * 1.25);
+	// and the colour comes up from black as it settles
+	float lum = smoothstep(0.1, 1.0, progress);
+	COLOR = vec4(c.rgb * mix(0.04, 1.0, lum), c.a * a);
 }
 """
 	return s
@@ -1566,6 +1678,7 @@ func _release() -> void:
 	world.weather.shadow_reach = 0.0
 	world.story.clock_runs = true
 	_black.color.a = 0.0
+	Sfx.theme_stop(3.0)
 	root.queue_free()
 	root = null
 	cam.queue_free()

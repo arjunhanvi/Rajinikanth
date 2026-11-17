@@ -152,6 +152,8 @@ func s_streets() -> void:
 
 # ------------------------------------------------------------------ BIG BANG LORE: the opening, end to end
 var _beats: Array = []
+var _raja_fell := false
+var _lal_seen_at_fall := true
 
 func s_opening() -> void:
 	var w = world()
@@ -166,11 +168,16 @@ func s_opening() -> void:
 	ok(op != null, "opening sequence started")
 	if op == null:
 		return
-	op.beat.connect(func(b: String): _beats.append(b); _beat_shot(b))
+	op.beat.connect(func(b: String):
+		_beats.append(b)
+		if b == "raja_falls":
+			_raja_fell = op.raja.state == "fall"
+			_lal_seen_at_fall = op.cast["lal"].visible
+		_beat_shot(b))
 	ok(w.player.human.model == "raja", "player body is Raja")
 	while op.raja == null:
 		await wait(0.1)
-	ok(op.cast["rama"].model == "rama", "Rama has his own body")
+	ok(op.cast["lal"].model == "lal" and op.cast["lal"].model != op.raja.model, "Lal has his own body, distinct from Raja's")
 	ok(w.get_node_or_null("Chunk") != null or true, "")
 	# play through; when control is handed over, walk about a bit like a player would
 	t = 0.0
@@ -195,15 +202,23 @@ func s_opening() -> void:
 		if n != null:
 			lm = n
 	ok(lm != null, "MSRIT campus built in the streamed city")
-	for b in ["aerial", "walk_in", "reel_news", "inform_sir", "rajini_ots", "ad_away", "raja_crowd", "shove", "rama_rises", "play", "lips", "back", "feet", "approach", "split", "punch", "high_angle", "chaos1", "siren_heard", "jeep_in", "raja_looks_back", "rama_looks_back", "auto_inside", "rama_walk", "black", "title", "done"]:
+	for b in ["aerial", "walk_in", "reel_news", "inform_sir", "rajini_ots", "ad_away", "raja_crowd", "shove", "raja_falls", "raja_rises", "play", "lips", "back", "feet", "approach", "split", "punch", "high_angle", "chaos1", "siren_heard", "jeep_in", "raja_looks_back", "lal_looks_back", "auto_inside", "lal_walk", "black", "whistle", "title", "done"]:
 		ok(_beats.has(b), "shot reached: " + b)
 	ok(Game.flag("opening_done"), "opening marked complete in the save")
+	ok(_raja_fell, "Raja is the one who is pushed and falls (fall animation played on the player's body)")
+	ok(not _lal_seen_at_fall, "Lal is not present at Raja's fall")
+	ok(op.whistle_frame == op.black_frame and op.black_frame > 0, "whistle starts on the blackout frame (black %d, whistle %d)" % [op.black_frame, op.whistle_frame])
+	ok(op.rajini_front_frames == 0, "Rajinikanth never seen from the front (%d frames)" % op.rajini_front_frames)
+	var meds := 0
+	for c in op.crowd:
+		if c.get("med", false): meds += 1
+	ok(meds >= 10, "medical students present (%d)" % meds)
 	print("beats: ", _beats)
 
 func _beat_shot(b: String) -> void:
 	await wait(0.05)
 	await shot("op_%02d_%s" % [_beats.size(), b])
-	if b in ["aerial", "walk_in", "rajini_ots", "raja_crowd", "rama_rises", "split", "high_angle", "chaos1", "title_start", "auto_inside"]:
+	if b in ["aerial", "walk_in", "rajini_approach", "rajini_ots", "raja_crowd", "shove", "raja_falls", "raja_rises", "split", "high_angle", "chaos1", "title_start", "auto_inside"]:
 		await wait(1.6)
 		await shot("op_%02d_%s_b" % [_beats.size(), b])
 
@@ -221,8 +236,8 @@ func s_dbg() -> void:
 		while op.phase != target:
 			await wait(0.01)
 		await wait(0.05)
-		var r = op.cast["rama"]
-		print("== ", target, " cam ", op.cam.global_position, " fwd ", -op.cam.global_transform.basis.z, " rama ", op.pos_of(r), " yaw ", r.global_rotation.y, " vis ", r.visible, r.body.visible, " parent ", r.get_parent().name, " head ", op.head_of(r))
+		var r = op.cast["lal"]
+		print("== ", target, " cam ", op.cam.global_position, " fwd ", -op.cam.global_transform.basis.z, " lal ", op.pos_of(r), " yaw ", r.global_rotation.y, " vis ", r.visible, r.body.visible, " parent ", r.get_parent().name, " head ", op.head_of(r))
 		await shot("dbg_" + target)
 
 func s_title() -> void:
@@ -235,3 +250,12 @@ func s_title() -> void:
 		await wait(0.1)
 	await wait(0.3)
 	await shot("title_only")
+
+func s_intro() -> void:
+	for t in [[5.0, "intro_logo"], [10.0, "intro_star"], [12.0, "intro_title"], [4.0, "intro_title_full"], [6.5, "menu"]]:
+		await wait(t[0])
+		await shot(t[1])
+	ok(Sfx._theme.playing, "BIG BANG LORE theme playing on the main menu")
+	var st = Sfx._theme.stream
+	ok(st != null and st.loop, "menu theme loops")
+	ok(str(st.resource_path).ends_with("menu_theme.ogg") or st.resource_path == "", "menu theme is the supplied track")

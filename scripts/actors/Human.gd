@@ -19,7 +19,7 @@ const GLASSES := ["None", "Square frames", "Aviator shades", "Round frames"]
 const WATCHES := ["None", "Steel watch", "Gold watch", "Leather strap"]
 const ACCS := ["None", "Gold chain", "Cap", "Shoulder towel", "Ticket bag", "Jasmine flowers", "Shoulder bag", "Cloth bag"]
 const DIR := "res://assets/humans/"
-const HEROES := ["raja", "rama", "rajini", "shankar", "kvanand", "ad", "umashankar", "raji", "kamakshi", "uma", "devaraj"]
+const HEROES := ["raja", "lal", "rajini", "shankar", "kvanand", "ad", "umashankar", "raji", "kamakshi", "uma", "devaraj"]
 const SKIN_REF := Color(0.86, 0.66, 0.5)      # tone the crowd skin maps are baked at
 
 static var _scenes := {}
@@ -67,6 +67,8 @@ var _fist := 0.0
 var _hip_y := 0.9
 var _scale := 1.0
 var _foot_lock := {}
+var fall_t := -1.0         # >= 0 while a fall-and-recover plays (state "fall")
+var seat_lift := 0.0       # raise the body so the pelvis rests on a seat of a given height
 
 static func default_look() -> Dictionary:
 	return {"sex": 0, "skin": 2, "face": 0, "hair": 1, "hair_col": 0, "beard": 2, "height": 0.5, "build": 0.4,
@@ -221,8 +223,8 @@ static func cloth_mat(pattern: String, tint: Color, vcol := true, rough := 0.9) 
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		return m)
 
-static func hair_mat(c: Color, solid := false) -> Material:
-	return _mat("hair_%s_%s" % [c.to_html(), solid], func():
+static func hair_mat(c: Color, solid := false, cut := 0.5) -> Material:
+	return _mat("hair_%s_%s_%s" % [c.to_html(), solid, cut], func():
 		var m := StandardMaterial3D.new()
 		m.albedo_color = c if not solid else c.darkened(0.2)
 		m.vertex_color_use_as_albedo = true
@@ -232,7 +234,7 @@ static func hair_mat(c: Color, solid := false) -> Material:
 			m.albedo_texture = _tex("hair.png")
 			m.vertex_color_use_as_albedo = true
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			m.alpha_scissor_threshold = 0.5
+			m.alpha_scissor_threshold = cut
 			m.normal_enabled = true
 			m.normal_texture = _tex("hair_n.png")
 			m.uv1_scale = Vector3(3.0, 0.5, 1)
@@ -254,8 +256,8 @@ static func eye_mat() -> Material:
 	return _mat("eye", func():
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = _tex("eye.png")
-		m.roughness = 0.06                # wet: catches a highlight
-		m.metallic_specular = 0.9
+		m.roughness = 0.22                # wet, but not a mirror in daylight
+		m.metallic_specular = 0.45
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		m.alpha_scissor_threshold = 0.3
 		return m)
@@ -395,6 +397,10 @@ func _dress(info: Dictionary, hero: bool) -> void:
 		hair_c = HAIR_COL[2]
 	_show("skin_a", skin)
 	_show("skin_feet", skin)
+	# the body is one continuous surface: the skin under the clothes is always there, so a sleeve,
+	# collar or hem that lifts in motion shows the body beneath, never a gap into nothing
+	_show("skin_torso", skin)
+	_show("skin_legs", skin)
 	_show("eyes", eye_mat())
 	_show("teeth", plain_mat("teeth", Color.WHITE, 0.3))
 	_show("tongue", plain_mat("tongue", Color.WHITE, 0.4))
@@ -412,8 +418,8 @@ func _dress(info: Dictionary, hero: bool) -> void:
 				continue
 			if p.begins_with("hair_"):
 				_show(p, hair_mat(Color.WHITE, p.ends_with("_cap")))
-			elif p in ["moustache", "beard"]:
-				_show(p, hair_mat(Color.WHITE))
+			elif p in ["moustache", "beard", "goatee"]:
+				_show(p, hair_mat(Color.WHITE, false, 0.28))
 			elif p == "glasses":
 				pass      # the fitted frames are not good enough yet; left off rather than shown wrong
 			elif p == "watch":
@@ -490,9 +496,11 @@ func _dress(info: Dictionary, hero: bool) -> void:
 	var bd := int(look.beard)
 	if not female:
 		if bd in [1, 2, 3, 5, 6]:
-			_show("moustache", hair_mat(hair_c))
+			_show("moustache", hair_mat(hair_c, false, 0.28))
 		if bd in [5, 6]:
-			_show("beard", hair_mat(hair_c))
+			_show("beard", hair_mat(hair_c, false, 0.28))
+	if bool(look.get("labcoat", false)):
+		_show("labcoat", cloth_mat("plain", Color.WHITE))
 	if int(look.glasses) > 0:
 		_show("glasses", plain_mat("frame", Color.WHITE, 0.3, 0.4))
 	if int(look.watch) > 0:
@@ -556,6 +564,15 @@ func _make_props() -> void:
 	_props["tray"] = tray
 	_props["load"] = _prop(hdb, _box(0.42, 0.26, 0.34), Mats.col(Color(0.6, 0.5, 0.35)), Vector3(0, 0.36, 0))
 	# things that are simply worn
+	if bool(look.get("steth", false)):
+		# a stethoscope round the neck: tubing over the shoulders, the chest piece hanging
+		var nb := _attach("spine_03")
+		var tube := Mats.col(Color(0.05, 0.05, 0.06), 0.4)
+		for sd: float in [-1.0, 1.0]:
+			var t1 := _prop(nb, _box(0.012, 0.24, 0.012), tube, Vector3(sd * 0.075, 0.1, -0.1), Vector3(0.25, 0, sd * 0.12))
+			t1.visible = true
+		_prop(nb, _box(0.17, 0.012, 0.012), tube, Vector3(0, 0.24, 0.02)).visible = true
+		_prop(nb, _cyl(0.022, 0.022, 0.012), Mats.col(Color(0.75, 0.76, 0.78), 0.2, 0.9), Vector3(0.07, -0.04, -0.13), Vector3(PI * 0.5, 0, 0)).visible = true
 	match int(look.acc):
 		4:      # the conductor's leather cash bag, slung at the hip
 			var bag := _prop(_attach("pelvis"), _box(0.15, 0.11, 0.045), Mats.col(Color(0.24, 0.14, 0.08), 0.55), Vector3(-0.165, -0.02, -0.07), Vector3(0, 0.75, 0))
@@ -642,6 +659,13 @@ func _process(delta: float) -> void:
 			if speed > 0.3:
 				_phase += delta * 7.0
 				lL.x += sin(_phase) * 0.35; lR.x -= sin(_phase) * 0.35
+		"fall":
+			fall_t += delta
+			var P := _fall_pose(fall_t)
+			hip_y = P.hip; tor = P.tor; hd = P.hd
+			aL = P.aL; aR = P.aR; eL = P.eL; eR = P.eR
+			lL = P.lL; lR = P.lR; kL = P.kL; kR = P.kR
+			k = 1.0 - exp(-16.0 * delta)
 		"ko":
 			body_rx = 1.45
 			body_y = 0.16
@@ -889,6 +913,8 @@ func _process(delta: float) -> void:
 					var par: String = "hand_" + s if kk == "01" else "%s_%s_%s" % [f, "01" if kk == "02" else "02", s]
 					_pose(bn, par, Quaternion(_curl[bn], amt * (0.8 if kk == "01" else 1.0)))
 	body.rotation.x = lerpf(body.rotation.x, body_rx, k * 0.6)
+	if state == "sit":
+		body_y += seat_lift
 	body.position.y = lerpf(body.position.y, body_y, k)
 	var yaw_now := global_rotation.y
 	var dyaw := wrapf(yaw_now - _last_yaw, -PI, PI)
@@ -900,6 +926,43 @@ func _process(delta: float) -> void:
 		_props[pk].visible = pk == prop
 	if near:
 		_face(delta)
+
+## A push that takes the feet away: staggering back, sitting down hard onto the hands,
+## a beat on the ground, then onto one knee and up. Keyframes in seconds.
+const FALL_KEYS := [
+	[0.00, {"hip": 0.90, "tor": Vector3(0.0, 0, 0), "hd": Vector3(0, 0, 0), "aL": Vector3(0.2, 0, -0.1), "aR": Vector3(0.2, 0, 0.1), "eL": 0.3, "eR": 0.3, "lL": Vector3(0, 0, 0), "lR": Vector3(0, 0, 0), "kL": 0.0, "kR": 0.0}],
+	[0.22, {"hip": 0.86, "tor": Vector3(0.38, 0, 0.05), "hd": Vector3(-0.25, 0, 0), "aL": Vector3(1.1, 0, -0.9), "aR": Vector3(0.9, 0, 1.0), "eL": 0.5, "eR": 0.6, "lL": Vector3(0.35, 0, 0), "lR": Vector3(-0.55, 0, 0), "kL": -0.3, "kR": -0.25}],
+	[0.45, {"hip": 0.6, "tor": Vector3(0.55, 0, -0.05), "hd": Vector3(-0.3, 0, 0), "aL": Vector3(-0.5, 0, -0.5), "aR": Vector3(-0.6, 0, 0.5), "eL": 0.25, "eR": 0.2, "lL": Vector3(1.1, 0, -0.1), "lR": Vector3(0.7, 0, 0.1), "kL": -1.2, "kR": -1.3}],
+	[0.62, {"hip": 0.24, "tor": Vector3(0.62, 0, 0), "hd": Vector3(-0.15, 0, 0), "aL": Vector3(-0.85, 0, -0.35), "aR": Vector3(-0.9, 0, 0.35), "eL": 0.15, "eR": 0.15, "lL": Vector3(1.85, 0, -0.18), "lR": Vector3(1.6, 0, 0.18), "kL": -1.75, "kR": -1.5}],
+	[1.25, {"hip": 0.24, "tor": Vector3(0.48, 0, 0), "hd": Vector3(0.1, 0.25, 0), "aL": Vector3(-0.8, 0, -0.32), "aR": Vector3(-0.85, 0, 0.32), "eL": 0.2, "eR": 0.2, "lL": Vector3(1.8, 0, -0.18), "lR": Vector3(1.55, 0, 0.18), "kL": -1.8, "kR": -1.45}],
+	[1.75, {"hip": 0.5, "tor": Vector3(-0.45, 0, 0), "hd": Vector3(0.2, 0, 0), "aL": Vector3(0.6, 0, -0.2), "aR": Vector3(0.75, 0, 0.15), "eL": 0.25, "eR": 0.2, "lL": Vector3(1.55, 0, -0.1), "lR": Vector3(0.05, 0, 0.1), "kL": -1.65, "kR": -1.75}],
+	[2.3, {"hip": 0.7, "tor": Vector3(-0.5, 0, 0), "hd": Vector3(0.15, 0, 0), "aL": Vector3(0.35, 0, -0.1), "aR": Vector3(0.9, 0, 0.1), "eL": 0.3, "eR": 1.2, "lL": Vector3(1.2, 0, -0.05), "lR": Vector3(-0.1, 0, 0.05), "kL": -1.35, "kR": -1.2}],
+	[2.9, {"hip": 0.88, "tor": Vector3(-0.12, 0, 0), "hd": Vector3(0.05, 0, 0), "aL": Vector3(0.15, 0, -0.1), "aR": Vector3(0.2, 0, 0.1), "eL": 0.4, "eR": 0.5, "lL": Vector3(0.15, 0, 0), "lR": Vector3(-0.05, 0, 0), "kL": -0.2, "kR": -0.15}],
+	[3.2, {"hip": 0.9, "tor": Vector3(0.0, 0, 0), "hd": Vector3(0, 0, 0), "aL": Vector3(0.1, 0, -0.07), "aR": Vector3(0.1, 0, 0.07), "eL": 0.15, "eR": 0.15, "lL": Vector3(0, 0, 0), "lR": Vector3(0, 0, 0), "kL": 0.0, "kR": 0.0}],
+]
+
+static func _fall_pose(t: float) -> Dictionary:
+	var keys: Array = FALL_KEYS
+	var i := 0
+	while i < keys.size() - 2 and t > float(keys[i + 1][0]):
+		i += 1
+	var a: Dictionary = keys[i][1]
+	var b: Dictionary = keys[i + 1][1]
+	var u := clampf((t - float(keys[i][0])) / (float(keys[i + 1][0]) - float(keys[i][0])), 0.0, 1.0)
+	u = u * u * (3.0 - 2.0 * u)
+	var out := {}
+	for kk in a:
+		var va = a[kk]
+		var vb = b[kk]
+		if va is Vector3:
+			out[kk] = (va as Vector3).lerp(vb, u)
+		else:
+			out[kk] = lerpf(float(va), float(vb), u)
+	for kk in ["eL", "eR"]:
+		out[kk] = Vector3(float(out[kk]), 0, 0)
+	for kk in ["kL", "kR"]:
+		out[kk] = Vector3(float(out[kk]), 0, 0)
+	return out
 
 func _m(nm: String, target: float, k: float) -> void:
 	var v: float = lerpf(float(_morph.get(nm, 0.0)), target, k)

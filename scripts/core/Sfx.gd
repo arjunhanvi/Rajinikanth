@@ -14,6 +14,13 @@ var duck := 1.0
 ## is missing the intro and menu simply run silent and the menu says so.
 const INTRO_TRACK := "res://assets/audio/user/intro_theme.ogg"
 var _intro: AudioStreamPlayer
+## The BIG BANG LORE theme (the user's supplied track): loops on the main menu, and its
+## whistle section is cut to the opening's blackout. The whistle begins at 20.47 s
+## (measured: a 1.2 -> 1.4 kHz glide reaching full level by 20.6 s, running to the end).
+const THEME_TRACK := "res://assets/audio/user/menu_theme.ogg"
+const WHISTLE_T := 20.47
+var _theme: AudioStreamPlayer
+var _theme_tw: Tween
 var _intro_tw: Tween           # slow-motion ducks everything but the cue
 
 func _ready() -> void:
@@ -35,6 +42,7 @@ func _ready() -> void:
 		_amb[n] = p
 		_amb_target[n] = 0.0
 	_intro = _mk("Music")
+	_theme = _mk("Music")
 	_radio = _mk("Radio")
 	_radio.finished.connect(func():
 		if _radio_on:
@@ -73,6 +81,57 @@ func intro_stop(fade := 1.2) -> void:
 	_intro_tw = create_tween()
 	_intro_tw.tween_property(_intro, "volume_db", -60.0, fade)
 	_intro_tw.tween_callback(_intro.stop)
+
+func _theme_stream(loop: bool) -> AudioStream:
+	if not ResourceLoader.exists(THEME_TRACK):
+		push_warning("Theme missing: " + THEME_TRACK)
+		return null
+	var st: AudioStream = load(THEME_TRACK)
+	if st is AudioStreamOggVorbis:
+		st = st.duplicate()
+		st.loop = loop
+	return st
+
+## Main menu: the theme from the top, looping.
+func theme_loop() -> void:
+	if _theme.playing and _theme.stream != null and (_theme.stream as AudioStreamOggVorbis).loop:
+		return
+	if _theme_tw != null:
+		_theme_tw.kill()
+	_theme.stream = _theme_stream(true)
+	_theme.volume_db = 0.0
+	if _theme.stream != null:
+		_theme.play()
+
+## Start the theme at a given point (the whistle), once, with no fade-in: the cut is the cue.
+func theme_at(t: float) -> void:
+	if _theme_tw != null:
+		_theme_tw.kill()
+	_theme.stream = _theme_stream(false)
+	_theme.volume_db = 0.0
+	if _theme.stream != null:
+		_theme.play(t)
+
+func theme_time() -> float:
+	return _theme.get_playback_position() if _theme.playing else -1.0
+
+func theme_stop(fade := 1.0) -> void:
+	if not _theme.playing:
+		return
+	if _theme_tw != null:
+		_theme_tw.kill()
+	_theme_tw = create_tween()
+	_theme_tw.tween_property(_theme, "volume_db", -60.0, fade)
+	_theme_tw.tween_callback(_theme.stop)
+
+## Silence every ambience bed and one-shot at once (a hard cut to black).
+func cut_all() -> void:
+	for k in _amb:
+		_amb_target[k] = 0.0
+		_amb[k].volume_db = -80.0
+		_amb[k].stop()
+	for p in _pool:
+		p.stop()
 
 func _mk(bus: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()

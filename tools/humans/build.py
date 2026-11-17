@@ -202,8 +202,29 @@ class Char:
         arm = np.abs(v[:, 0]) > sh[0] * 1.02
         off[arm] += 0.05 + loose * 0.08
         p = self.part(name, f, offset=off, shift=shift, uv='cyl', colour=colour)
+        if not collar:
+            self._clean_neckline(p, h)
         self._hems(p, 0.72)
         return p
+
+    def _clean_neckline(self, p, h):
+        """a collarless neck opening cut from faces has a saw-tooth edge; pull the open edge
+        round the neck onto one smooth ring so it reads as a sewn neckband"""
+        e = {}
+        for t in p.tris:
+            for a, b in ((t[0], t[1]), (t[1], t[2]), (t[2], t[0])):
+                k = (min(a, b), max(a, b)); e[k] = e.get(k, 0) + 1
+        bnd = set()
+        for (a, b), n in e.items():
+            if n == 1: bnd.add(a); bnd.add(b)
+        nk = h['neck_01']
+        ids = [i for i in bnd if p.P[i, 1] > nk[1] - 0.9 and np.hypot(p.P[i, 0] - nk[0], p.P[i, 2] - nk[2]) < 1.1]
+        if not ids: return
+        ids = np.array(ids)
+        ang = np.arctan2(p.P[ids, 0] - nk[0], p.P[ids, 2] - nk[2])
+        # a ring that dips a little at the front, as a crew neck does
+        y = np.median(p.P[ids, 1]) - 0.12 * np.clip(np.cos(ang), 0, 1)
+        p.P[ids, 1] = y
 
     def _hems(self, p, k=0.75):
         """darken the open edges: a stitched hem / cuff line"""
@@ -376,6 +397,19 @@ class Char:
             nape = head[1] - 0.75
         elif style == 'curly':
             L[:] = 0.26 + 0.1 * np.sin(v[:, 0] * 23) * np.sin(v[:, 1] * 19 + v[:, 2] * 17)
+        elif style == 'thick_side':      # Raja: dense, long on top, swept to one side and back, full over the ears, longer at the nape
+            cu = np.clip(up, 0, 1)
+            L[:] = 0.13 + 0.17 * cu ** 1.2 + 0.07 * np.clip(front, 0, 1) * cu + 0.025 * np.sin(v[:, 0] * 9 + v[:, 2] * 7)
+            shift[:, 0] = -0.1 * cu * np.clip(front + 0.6, 0, 1.2)
+            shift[:, 2] = -0.07 * cu
+            shift[:, 1] = 0.03 * cu * np.clip(front, 0, 1)
+            nape = head[1] - 0.85
+        elif style == 'puff':            # Lal: a big rounded crown of wavy hair, full at the sides, sideburns
+            cu = np.clip(up, 0, 1)
+            L[:] = 0.17 + 0.26 * cu ** 1.1 + 0.04 * np.sin(v[:, 0] * 17) * np.sin(v[:, 2] * 15 + v[:, 1] * 9)
+            shift[:, 1] = 0.08 * cu
+            shift[:, 2] = 0.02 * cu * np.clip(front, 0, 1) - 0.05 * cu * np.clip(-front, 0, 1)
+            nape = head[1] - 0.7
         elif style == 'balding':
             L[:] = 0.1
             pred = lambda c: (c[:, 1] > nape) & ~((c[:, 1] - head[1] > (top - head[1]) * 0.62) & (c[:, 2] - head[2] > -0.75))
@@ -446,6 +480,8 @@ class Char:
             x = np.abs(c[:, 0]); y = c[:, 1]; z = c[:, 2]
             if region == 'moustache':
                 return (x < lm['mouth_w'] * 1.12) & (y > lm['lip_top'] - 0.01) & (y < lm['nose_base'] + 0.02) & (z > lm['mouth_z'] - 0.35)
+            if region == 'goatee':
+                return (y < lm['lip_bot'] + 0.02) & (y > lm['chin'] - 0.22) & (x < lm['mouth_w'] * 1.15) & (z > lm['mouth_z'] - 0.9)
             if region == 'beard':
                 jaw = (y < lm['lip_bot'] + 0.02) & (y > lm['chin'] - 0.25) & (z > lm['mouth_z'] - 1.25) & (x < lm['mouth_w'] * 2.3)
                 side = (y < lm['lip_top'] + 0.2) & (y > lm['chin'] - 0.1) & (x > lm['mouth_w'] * 1.2) & (x < lm['mouth_w'] * 2.4) & (z > lm['mouth_z'] - 1.3) & (z < lm['mouth_z'] - 0.25)
