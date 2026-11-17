@@ -583,6 +583,8 @@ func s_proto() -> void:
 	var att := BoneAttachment3D.new()
 	att.bone_name = "hand_r"
 	raja.skel.add_child(att)
+	await get_tree().process_frame       # let the attachment take up the hand's pose first
+	await get_tree().process_frame
 	var gx := glass.global_transform
 	glass.reparent(att)
 	glass.global_transform = gx
@@ -610,11 +612,11 @@ func s_proto() -> void:
 		var p: Vector3 = pl.global_position
 		var rp := _L(C.rail_x, C.g + 1.03, 0)
 		var lp: Vector3 = Campus.frame().affine_inverse() * p
-		var rt := _L(C.rail_x + 0.035, C.g + 1.03 + 0.035, lp.z + 0.12)
-		raja.reach_to("l", rt)
-		if raja.reach.has("l") and float(raja.reach.l.w) >= 0.999:
-			_rail_err_max = maxf(_rail_err_max, raja.gait.palm("l").distance_to(rt))
-		_tcam(p + side * 2.2 + fwd * 0.6 + Vector3(0, 1.3, 0), p + Vector3(0, 0.95, 0), 42.0))
+		var rt := _L(C.rail_x + 0.01, C.g + 1.03 + 0.04, lp.z + 0.12)
+		raja.reach_to("r", rt)
+		if raja.reach.has("r") and float(raja.reach.r.w) >= 0.999:
+			_rail_err_max = maxf(_rail_err_max, raja.gait.palm("r").distance_to(rt))
+		_tcam(p - side * 1.9 + fwd * 1.6 + Vector3(0, 1.5, 0), p + Vector3(0, 0.95, 0), 44.0))
 	_drive_to(_L(-25.95, 0, 70.2))
 	while _driving: await get_tree().process_frame
 	_drive_to(_L(-25.95, 0, 75.5))
@@ -625,14 +627,14 @@ func s_proto() -> void:
 		k += 1
 	_watch(Callable())
 	_metrics["palm_to_rail_target_m_max_while_walking"] = _rail_err_max
-	raja.reach_release("l")
+	raja.reach_release("r")
 	# --- E. the push: both hands to his chest, he takes catch-steps back
 	var other: Human = C.other
 	_drive_to(_L(-25.0, 0, 79.4))
 	while _driving: await get_tree().process_frame
 	raja.rotation.y = _yaw_local(0, 1)
 	# he steps up to arm's length (the other man takes the step)
-	other.global_position = pl.global_position + fwd * 0.6
+	other.global_position = pl.global_position + fwd * 0.68
 	await wait(0.8)
 	var chest := func(dx: float) -> Vector3:
 		var sp: Vector3 = other.skel.global_transform * other.skel.get_bone_global_pose(other.skel.find_bone("spine_03")).origin

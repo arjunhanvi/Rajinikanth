@@ -380,6 +380,7 @@ func apply(delta: float) -> void:
 		off.y = -0.006 - absf(w) * 0.008
 	# reach: a foot lower than the body (a step down, a trailing foot) pulls the hips down
 	var prot := sk.get_bone_pose_rotation(bi["pelvis"])
+	var need_total := 0.0
 	for _pass in 2:
 		var need := 0.0
 		for s in feet:
@@ -394,8 +395,11 @@ func apply(delta: float) -> void:
 				var vert_ok := sqrt(maxf(lmax * lmax - horiz * horiz, 0.0))
 				need = minf(need, -(absf(d.y) - vert_ok))
 		off.y += need
+		need_total += need
 	off.y = maxf(off.y, -0.16)          # a person bends the knees, they do not sink to the floor
 	pelvis_off = pelvis_off.lerp(off, 1.0 - exp(-14.0 * delta))
+	if need_total < -0.001:
+		pelvis_off.y = minf(pelvis_off.y, off.y)   # a leg that cannot reach pulls the hips down now, not next frame
 	sk.set_bone_pose_position(bi["pelvis"], rest["pelvis"] + pelvis_off)
 	# --- legs
 	for s in feet:
