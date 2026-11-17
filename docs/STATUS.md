@@ -33,11 +33,14 @@ Version **0.6.0** (Android version code 6). The package id is unchanged (`com.ha
 10. Inside the moving auto: "Yaaru adhu?" "Aa sule maga…". Lal walking: "Yaaru avnu?" "Avn hesru…", then **cut to black**.
 11. The title rises out of the black, dot by dot. Then: watch again, walk Bengaluru as Raja, or the main menu.
 
-## Evidence
+## Evidence (0.6.0)
 
-- `docs/opening/video_frames_*.jpg`: one frame every 6 s from a real-time recording of the full opening (Godot movie writer, 24 fps, 1024×576, software renderer in this container). The recording itself, `build/bigbanglore_opening_v0.6.mp4` (about 3 min 32 s, with sound), is not committed because of its size; it was sent with this build.
-- `docs/opening/shots_*.jpg`: one frame per shot from the automated play-through.
-- `docs/opening/title_reveal.jpg`: the title at two screen sizes. `docs/opening/raja_and_rama_models.jpg`: the two new bodies.
+- `build/bigbanglore_opening_v0.6.mp4`: a real-time recording of the whole opening with sound (3 min 32 s, 24 fps, 1024×576, Godot movie writer, software renderer). It is not committed because of its size; it was sent with this build. The same run passed all 44 automated checks.
+- Measured in that recording: the blackout is at 202.500 s (frame 4860). The audio level jumps from 0.021 to 0.125 within the first 40 ms after the cut, and the whistle band is dominant from +120 ms, exactly where it is in the supplied track (+120 ms after 20.47 s).
+- `docs/opening/video_frames_*.jpg`: one frame every 4 s from that recording.
+- `docs/opening/key_moments.jpg`: the push, Raja's fall and recovery, the hand-over, Rajinikanth from behind, Lal's smile, the split screen, the auto, the title.
+- `docs/opening/props_students_intro.jpg`: the notes on set and on the table, the medical students, the intro title.
+- `docs/opening/raja_lal_rajini_models.jpg`, `docs/opening/shoes_fixed.jpg`.
 
 ## Corrections in 0.6.0 (Directive: critical opening corrections)
 
