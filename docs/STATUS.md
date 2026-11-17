@@ -17,7 +17,7 @@ Version **0.6.0** (Android version code 6). The package id is unchanged (`com.ha
 | 9. Crowd fight and police | **Done** | The player throws the first punch (an on-screen PUNCH prompt in slow motion). There is a high-angle shot of two crowds converging, three ground-level shots, dust, the AD yelling, then a siren heard first and the police jeep arriving after. |
 | 10. Auto and title | **Done** | Raja leaves in a black-and-yellow auto (2007 livery); Lal is led deeper into the campus. Both look back. "Yaaru adhu?" / "Aa sule maga…"; "Yaaru avnu?" / "Avn hesru…", then a hard cut to black with sound muted, and BIG BANG LORE comes up out of the black as halftone print dots. |
 | 11. Full test | **Done (automated)** | `tools/playtest.sh opening --fast`: 37 checks pass. |
-| 12. Android build | **Built** | `build/rajinikanth.apk`, v0.5.0 (code 5), 150 MB, debug-signed (v1/v2/v3 verified), arm64-v8a and armeabi-v7a. The retired RAJINIKANTH hero models are excluded. The exported pack boots with no script errors. **Not tested on a phone.** |
+| 12. Android build | **Built** | `build/rajinikanth.apk`, v0.6.0 (code 6), 160 MB, debug-signed (v1/v2/v3 verified), arm64-v8a and armeabi-v7a. The retired RAJINIKANTH hero models are excluded. The exported pack boots with no script errors. **Not tested on a phone.** |
 
 ### What plays, shot by shot
 
@@ -35,7 +35,7 @@ Version **0.6.0** (Android version code 6). The package id is unchanged (`com.ha
 
 ## Evidence
 
-- `docs/opening/video_frames_*.jpg`: one frame every 6 s from a real-time recording of the full opening (Godot movie writer, 24 fps, 1024×576, software renderer in this container). The recording itself, `build/bigbanglore_opening.mp4` (3 min 44 s, with sound), is not committed because of its size; it was sent with this build.
+- `docs/opening/video_frames_*.jpg`: one frame every 6 s from a real-time recording of the full opening (Godot movie writer, 24 fps, 1024×576, software renderer in this container). The recording itself, `build/bigbanglore_opening_v0.6.mp4` (about 3 min 32 s, with sound), is not committed because of its size; it was sent with this build.
 - `docs/opening/shots_*.jpg`: one frame per shot from the automated play-through.
 - `docs/opening/title_reveal.jpg`: the title at two screen sizes. `docs/opening/raja_and_rama_models.jpg`: the two new bodies.
 
@@ -59,6 +59,7 @@ Version **0.6.0** (Android version code 6). The package id is unchanged (`com.ha
 | Anatomical continuity | Improved | The skin under clothing is now always rendered (it used to be cut away), so a lifting hem, sleeve or collar shows body, not a hole. Collarless necklines are snapped to a clean ring. Body parts were already one continuous skinned mesh; no gaps were found in the extreme-pose fall frames. |
 | Hair | Improved | A new 1024² strand texture with thousands of individual strands, with density chosen per shell (dense at the scalp, wispy at the edge). Heroes have 12 shells (was 7), the crowd 7 (was 4), face hair 4 to 6 with a denser cut. All 19 active models regenerated. |
 | Human-to-human contact | Improved | Bodies keep a personal radius and give way to each other, so nobody walks through anybody. Deliberate contact (push, hold, fall) allows hands to land. The push is staged at arm's length so the hands meet the chest. |
+| Footwear | Fixed | Shoes now enclose the whole foot heel to toe (previously the toe box was lifted, so toes poked through and heels were bare in close-up) |
 | Human-to-object contact | Improved | Rajinikanth's pelvis rests on the chair seat (seat lift); auto passengers sit on the bench; the notes lie on the ground. |
 
 ### What is still short of the benchmark

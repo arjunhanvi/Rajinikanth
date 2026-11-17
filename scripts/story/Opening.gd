@@ -78,7 +78,13 @@ func head_of(h: Human) -> Vector3:
 		var er := h.skel.find_bone("eye_r")
 		if el >= 0 and er >= 0:
 			var g := h.skel.global_transform
-			return (g * h.skel.get_bone_global_pose(el).origin + g * h.skel.get_bone_global_pose(er).origin) * 0.5
+			var hp := (g * h.skel.get_bone_global_pose(el).origin + g * h.skel.get_bone_global_pose(er).origin) * 0.5
+			# right after a body is placed its pose can still be stale for a frame or two;
+			# trust it only if it is near where the head should be
+			var est := pos_of(h) + Vector3(0, float(Human.manifest.get(h.model, {}).get("eye_y", 1.6)), 0)
+			if h.state in ["idle", "talk"] and hp.distance_to(est) > 0.35:
+				return est
+			return hp
 	return pos_of(h) + Vector3(0, float(Human.manifest.get(h.model, {}).get("eye_y", 1.6)), 0)
 
 ## Which way the face points (the head bone's -Z).

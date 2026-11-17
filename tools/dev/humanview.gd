@@ -42,6 +42,8 @@ func _ready():
 		get_tree().quit(); return
 	await shot("back", Vector3(0.6, 1.3, 3.3), Vector3(0, 0.95, 0), 30)
 	await shot("hand", Vector3(-0.62, 0.86, -0.5), Vector3(-0.27, 0.82, 0), 22)
+	await shot("feet", Vector3(0.6, 0.25, -1.1), Vector3(0, 0.1, 0), 40)
+	await shot("feet_far", Vector3(1.5, 0.6, -6.5), Vector3(0, 0.1, 0), 30)
 	await shot("cloth", Vector3(0.25, 1.25, -0.95), Vector3(0, 1.2, 0), 34)
 	for e in [["smile", "smile"], ["angry", "angry"], ["surprise", "surprise"], ["sad", "sad"]]:
 		h.mood = e[1]

@@ -530,9 +530,13 @@ class Char:
         fn = np.array([self.VN[self.b.faces[i]].mean(0) for i in f]); c = self.face_c[f]
         ball_z = h['ball_l'][2]; ankle = h['foot_l']
         if kind == 'shoe':
-            sel = f[c[:, 1] < ankle[1] - 0.05]
-            off = np.full(len(v), 0.07); sh = np.zeros_like(v)
-            toe = v[:, 2] > ball_z + 0.25; sh[toe, 1] = np.clip(g + 0.42 - v[toe, 1], 0, None) * 0.6
+            # the whole foot, heel to toe, up to just over the ankle bone: a closed shoe that
+            # stands a little off the skin everywhere (more at the toe box), so nothing pokes through
+            sel = f[c[:, 1] < ankle[1] + 0.12]
+            off = np.full(len(v), 0.1)
+            toe = v[:, 2] > ball_z - 0.1
+            off[toe] += np.clip((v[toe, 2] - ball_z + 0.1) * 0.12, 0, 0.08)
+            sh = np.zeros_like(v); sh[:, 1] = np.where(v[:, 1] < g + 0.08, -0.04, 0.0)
             self.part('shoes', sel, offset=off, shift=sh, uv='cyl', colour=[0.07, 0.06, 0.06, 1]); return
         sole = f[fn[:, 1] < -0.45]
         sh = np.zeros_like(v); sh[:, 1] = -(v[:, 1] - g) * 0.9 - 0.02
