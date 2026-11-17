@@ -254,6 +254,20 @@ static func hair_mat(c: Color, solid := false, cut := 0.5) -> Material:
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		return m)
 
+## Facial hair on the prototype: matte and dark (coarse hair barely reflects the sky), strands cut with alpha.
+static func facial_hair_mat() -> Material:
+	return _mat("facial_hair", func():
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = _tex("hair.png")
+		m.vertex_color_use_as_albedo = true
+		m.albedo_color = Color(0.55, 0.52, 0.5)
+		m.roughness = 0.82
+		m.metallic_specular = 0.12
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA      # soft strand edges instead of a hard cut-out
+		m.uv1_scale = Vector3(5.0, 0.6, 1)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		return m)
+
 static func plain_mat(key: String, c: Color, rough: float, metal := 0.0, vcol := true) -> Material:
 	return _mat("pl_%s_%s" % [key, c.to_html()], func():
 		var m := StandardMaterial3D.new()
@@ -457,7 +471,7 @@ func _dress(info: Dictionary, hero: bool) -> void:
 			elif p.begins_with("hair_"):
 				_show(p, hair_mat(Color.WHITE, p.ends_with("_cap")))
 			elif p in ["moustache", "beard", "goatee"]:
-				_show(p, hair_mat(Color.WHITE, false, 0.28))
+				_show(p, facial_hair_mat() if model in PROTO else hair_mat(Color.WHITE, false, 0.28))
 			elif p == "glasses":
 				pass      # the fitted frames are not good enough yet; left off rather than shown wrong
 			elif p == "watch":

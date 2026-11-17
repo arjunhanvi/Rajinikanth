@@ -46,7 +46,7 @@ def normal_from_height(h, strength):
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     return ((n * 0.5 + 0.5) * 255).astype(np.uint8)
 
-def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stubble=0.0, seed=1, R=1024, grey=0.0):
+def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stubble=0.0, seed=1, R=1024, grey=0.0, hero=False, moustache=0.0):
     b = c.b; lm = c.landmarks(); pos, hit = raster(c, R)
     X, Y, Z = pos[..., 0], pos[..., 1], pos[..., 2]
     def mask(n): return np.asarray(Image.open(b.data + '/textures/mpfb_%s.jpg' % n).convert('L').resize((R, R), Image.BILINEAR)) / 255.0
@@ -56,7 +56,7 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     rng = np.random.default_rng(seed)
     mott = noise(R, 90, seed, 3) - 0.5; fine = noise(R, 6, seed + 1, 2) - 0.5
     col = np.ones((R, R, 3)) * base
-    col *= (1 + mott[..., None] * 0.16 + fine[..., None] * 0.05)
+    col *= (1 + mott[..., None] * (0.09 if hero else 0.16) + fine[..., None] * (0.07 if hero else 0.05))
     ey, ez = lm['eye_l'][1], lm['eye_l'][2]; exl = abs(lm['eye_l'][0])
     headm = (Y > lm['chin'] - 0.6) & hit
     # blood near the surface: cheeks, nose, ears, knuckles
@@ -72,7 +72,13 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     col[low] = col[low] * 0.5 + np.array(TONES[max(0, tone - 2)]) * 0.5
     # lips, nails
     lipc = base * np.array([0.86, 0.66, 0.64]) + np.array([0.04, 0.0, 0.0]) + (0.06 if female else 0.0) * np.array([1, 0, 0.2])
-    col = col * (1 - lips[..., None] * 0.85) + lipc * lips[..., None] * 0.85
+    lk = 0.85
+    if hero:
+        # a man's lips: barely redder than the skin, darker at the line, with fine vertical creases
+        lipc = base * np.array([0.8, 0.64, 0.64])
+        lips = np.asarray(Image.fromarray((lips * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 700))) / 255.0
+        lk = 0.6
+    col = col * (1 - lips[..., None] * lk) + lipc * lips[..., None] * lk
     nailc = base * 0.6 + np.array([0.36, 0.3, 0.28])
     col = col * (1 - nails[..., None] * 0.8) + nailc * nails[..., None] * 0.8
     # eyebrows: an arch of strands over each eye
@@ -88,9 +94,36 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
         dots = (noise(R, 2.5, seed + 5, 1) > 0.55).astype(float)
         area = headm * (Y < lm['lip_top'] + 0.22) * (Y > lm['chin'] - 0.25) * (Z > lm['mouth_z'] - 1.3) * (1 - lips)
         area = np.asarray(Image.fromarray((np.clip(area, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 200))) / 255.0
-        col *= (1 - area[..., None] * stubble * (0.16 + 0.1 * dots[..., None]))
+        if hero:
+            # shaved beard: dark follicles under the skin give a cool grey-blue cast, not a brown smudge
+            fol = (noise(R, 0.9, seed + 6, 1) > 0.62).astype(float)
+            shade = np.array([0.26, 0.25, 0.27])
+            k = (area * stubble * (0.35 + 0.35 * fol))[..., None]
+            col = col * (1 - k) + col * shade * 1.6 * k
+        else:
+            col *= (1 - area[..., None] * stubble * (0.16 + 0.1 * dots[..., None]))
+    # a painted moustache under the shell layers: dense dark strands growing down and out from the
+    # philtrum, so the hair reads as hair where the shells thin out at the edges
+    if moustache > 0:
+        ax = np.abs(X)
+        mw = lm['mouth_w'] * 1.18
+        top = lm['nose_base'] + 0.02 - ax * 0.12
+        bot = lm['lip_top'] - 0.03 - np.clip(ax - lm['mouth_w'] * 0.7, 0, 1) * 0.5
+        reg = headm * (ax < mw) * (Y < top) * (Y > bot) * (Z > lm['mouth_z'] - 0.45) * (1 - lips * 0.9)
+        reg = np.asarray(Image.fromarray((np.clip(reg, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 900))) / 255.0
+        # strands: streaks along a direction that turns from straight down at the centre to down-and-out at the corners
+        ang = np.clip(ax / mw, 0, 1) * 0.9
+        u = (X * np.cos(ang) * np.sign(X + 1e-6) * 0 + ax * np.cos(ang) + Y * np.sin(ang))
+        streak = noise(R, 0.7, seed + 21, 1)
+        sx = np.sin(u * 900 + streak * 6.0) * 0.5 + 0.5
+        hairs = np.clip((sx - 0.35) * 2.2, 0, 1) * (0.6 + 0.4 * noise(R, 1.5, seed + 22, 1))
+        k = np.clip(reg * (0.7 + 0.3 * hairs) * moustache, 0, 1)[..., None]
+        col = col * (1 - k) + np.array(brow) * 1.4 * k
+        height_m = reg * hairs * 0.5
+    else:
+        height_m = 0.0
     # moles and blemishes
-    for _ in range(int(14 + age * 30)):
+    for _ in range(int((4 + age * 8) if hero else (14 + age * 30))):
         y, x = rng.integers(0, R, 2)
         if hit[y, x]:
             r = rng.integers(1, 3); col[max(0, y - r):y + r + 1, max(0, x - r):x + r + 1] *= rng.uniform(0.55, 0.85)
@@ -108,6 +141,7 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     height -= orbit * (0.5 + 0.5 * np.sin((Y - ey) * 40)) ** 3 * age * 0.8
     height += lips * (0.5 + 0.5 * np.sin(X * 55)) * 0.25
     height += browm * strands * 0.6
+    height += height_m
     # fill outside the islands so mipmaps do not bleed dark
     img = np.clip(col, 0, 1)
     fill = ~hit

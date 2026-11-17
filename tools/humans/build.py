@@ -579,7 +579,7 @@ class Char:
                 # twist the card about its own axis a little for volume
                 side = side * np.cos(twist) + n0 * np.sin(twist) * 0.6
                 side /= (np.linalg.norm(side) + 1e-9)
-                taper = 1.0 - 0.55 * (k / segs)
+                taper = 1.0 - 0.75 * (k / segs) ** 1.4
                 for e in (-0.5, 0.5):
                     Ps.append(pt + side * w * e * taper)
                     Ns.append(n0)

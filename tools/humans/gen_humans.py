@@ -133,7 +133,7 @@ def make(base, core, name, spec, hero):
             # distance, the old shell only far away; card eyebrows, moustache and sideburns
             for st, col in spec['hair']:
                 c.hair('hair_' + st, st, 1, col, cap_only=True)
-                c.hair_cards('hair_' + st + '_cards', st, col, 1700, levels=(0,), seed=7)
+                c.hair_cards('hair_' + st + '_cards', st, col, 3000, levels=(0,), seed=7, card_w=0.11, segs=6)
                 c.hair_cards('hair_' + st + '_cards1', st, col, 600, levels=(1,), seed=9, card_w=0.26)
                 far = c.hair('hair_' + st + '_far', st, 3, col)
                 far.levels = {2}
@@ -157,7 +157,8 @@ def make(base, core, name, spec, hero):
     stats = c.export(g, lods)
     g.save(os.path.join(OUT, name + '.glb'))
     if hero:
-        tex.skin(c, os.path.join(OUT, 'tex'), name, spec['tone'], spec['age_lines'], female, stubble=0.0 if female else 0.5, seed=hash(name) % 1000, grey=0.8 if name in ('devaraj', 'rajini') else 0.0)
+        proto = bool(spec.get('cards'))      # the quality prototype gets a finer, 2048 skin
+        tex.skin(c, os.path.join(OUT, 'tex'), name, spec['tone'], spec['age_lines'], female, stubble=0.0 if female else (0.3 if proto else 0.5), seed=hash(name) % 1000, grey=0.8 if name in ('devaraj', 'rajini') else 0.0, R=2048 if proto else 1024, hero=proto, moustache=1.0 if (proto and any(r == 'moustache' for r, _ in spec['face_hair'])) else 0.0)
     if not hero:
         tex.skin(c, os.path.join(OUT, 'tex'), name, 0, float(np.clip((p['age'] - 0.45) * 1.6, 0.05, 0.9)), female, stubble=0.0 if (female or p['age'] < 0.3) else 0.35, seed=hash(name) % 1000, R=512)
     lm = c.landmarks()
