@@ -1046,7 +1046,7 @@ func _s6_entrance() -> void:
 	raja.speed = 0.0
 	raja.state = "idle"
 	var rpos := pos_of(raja)
-	var gate_side := L(10.0, 0, 3.5)            # he comes in through the gate, alone
+	var gate_side := L(3.5, 0, 1.5)             # he comes in through the open gateway, alone (clear of the security cabin)
 	put(lal, gate_side, rpos)
 	lal.visible = true
 	# let his body settle at the gate for a few frames before the first close-up cuts in

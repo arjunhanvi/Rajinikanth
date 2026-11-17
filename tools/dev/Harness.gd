@@ -227,18 +227,11 @@ func s_dbg() -> void:
 	while w.story.opening == null:
 		await wait(0.1)
 	var op = w.story.opening
-	while op.phase != "play":
-		await wait(0.05)
-	Input.action_press("mv_l")
-	await wait(1.2)
-	Input.action_release("mv_l")
-	for target in ["lips", "back", "feet"]:
-		while op.phase != target:
-			await wait(0.01)
-		await wait(0.05)
-		var r = op.cast["lal"]
-		print("== ", target, " cam ", op.cam.global_position, " fwd ", -op.cam.global_transform.basis.z, " lal ", op.pos_of(r), " yaw ", r.global_rotation.y, " vis ", r.visible, r.body.visible, " parent ", r.get_parent().name, " head ", op.head_of(r))
-		await shot("dbg_" + target)
+	while op.phase != "lips":
+		await wait(0.01)
+	for k in 6:
+		await shot("dbg_lips_%d" % k)
+		await wait(0.12)
 
 func s_title() -> void:
 	var w = world()
