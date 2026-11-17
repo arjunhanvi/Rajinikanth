@@ -33,6 +33,12 @@ Version **0.5.0** (Android version code 5). The package id is unchanged (`com.ha
 10. Inside the moving auto: "Yaaru adhu?" "Aa sule maga…". Rama walking: "Yaaru avnu?" "Avn hesru…", then **cut to black**.
 11. The title rises out of the black, dot by dot. Then: watch again, walk Bengaluru as Raja, or the main menu.
 
+## Evidence
+
+- `docs/opening/video_frames_*.jpg`: one frame every 6 s from a real-time recording of the full opening (Godot movie writer, 24 fps, 1024×576, software renderer in this container). The recording itself, `build/bigbanglore_opening.mp4` (3 min 44 s, with sound), is not committed because of its size; it was sent with this build.
+- `docs/opening/shots_*.jpg`: one frame per shot from the automated play-through.
+- `docs/opening/title_reveal.jpg`: the title at two screen sizes. `docs/opening/raja_and_rama_models.jpg`: the two new bodies.
+
 ## Honest limits
 
 - **Not run on Android hardware.** Performance on phones is unknown. The opening adds about 50 to 75 animated people (scaled by the graphics preset: 26, 40 or 56 crowd plus the cast). On the software renderer in this container it is slow. Try the Low preset first. Shadows (including the umbrella's) are off on Low.

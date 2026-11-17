@@ -224,3 +224,14 @@ func s_dbg() -> void:
 		var r = op.cast["rama"]
 		print("== ", target, " cam ", op.cam.global_position, " fwd ", -op.cam.global_transform.basis.z, " rama ", op.pos_of(r), " yaw ", r.global_rotation.y, " vis ", r.visible, r.body.visible, " parent ", r.get_parent().name, " head ", op.head_of(r))
 		await shot("dbg_" + target)
+
+func s_title() -> void:
+	var w = world()
+	while w.story.opening == null:
+		await wait(0.1)
+	var op = w.story.opening
+	op._skip = true
+	while op.phase != "done":
+		await wait(0.1)
+	await wait(0.3)
+	await shot("title_only")

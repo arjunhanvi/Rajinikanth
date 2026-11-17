@@ -1461,9 +1461,12 @@ func _s11_title() -> void:
 	lb.add_theme_constant_override("shadow_offset_y", int(fsize * 0.05))
 	lb.material = sh
 	layer.add_child(lb)
-	lb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	lb.offset_top = fsize * 0.42
-	lb.offset_bottom = fsize * 0.42
+	# centre the ink itself (cap height), not the font's line box
+	var font: Font = UI.comic()
+	var cap := font.get_ascent(fsize) * 0.72
+	lb.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	lb.size = Vector2(vs.x, fsize * 1.6)
+	lb.position = Vector2(0, vs.y * 0.5 - (font.get_ascent(fsize) - cap * 0.5))
 	phase = "title"
 	beat.emit("title_start")
 	# the letters come up out of the black as print does: dot by dot
