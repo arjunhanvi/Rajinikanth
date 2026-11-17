@@ -259,3 +259,27 @@ func s_intro() -> void:
 	var st = Sfx._theme.stream
 	ok(st != null and st.loop, "menu theme loops")
 	ok(str(st.resource_path).ends_with("menu_theme.ogg") or st.resource_path == "", "menu theme is the supplied track")
+
+## Evidence stills: the scattered notes and the medical students, from close.
+func s_props() -> void:
+	var w = world()
+	while w.story.opening == null:
+		await wait(0.1)
+	var op = w.story.opening
+	while op.phase != "reel_news":
+		await wait(0.1)
+	op._cam_fn = Callable()
+	op.slow(0.0001)
+	var B: Basis = Campus.frame().basis
+	op.aim(Opening.L(-6.0, 1.2, 56.5), Opening.L(-3.0, 0.0, 61.0), 45.0)
+	await wait(0.6)
+	await shot("ev_notes_set")
+	op.aim(Opening.L(-17.0, 1.25, 54.6), Opening.L(-18.0, 0.78, 56.0), 40.0)
+	await wait(0.6)
+	await shot("ev_notes_bundles")
+	op.aim(Opening.L(15.5, 1.6, 31.0), Opening.L(19.0, 1.3, 35.2), 50.0)
+	await wait(0.6)
+	await shot("ev_medical_students")
+	op.aim(Opening.L(1.0, 1.7, 80.5), Opening.L(1.0, 1.3, 85.0), 50.0)
+	await wait(0.6)
+	await shot("ev_medical_students_porch")

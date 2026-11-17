@@ -1043,6 +1043,9 @@ func _s6_entrance() -> void:
 	var gate_side := L(10.0, 0, 3.5)            # he comes in through the gate, alone
 	put(lal, gate_side, rpos)
 	lal.visible = true
+	# let his body settle at the gate for a few frames before the first close-up cuts in
+	for _i in 4:
+		await get_tree().process_frame
 	lal.mood = "smirk"
 	lal.look_target = null
 	var stop := rpos + (gate_side - rpos).normalized() * 4.6

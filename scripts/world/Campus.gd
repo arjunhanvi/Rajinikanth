@@ -335,7 +335,7 @@ static func _film_unit(ctx: Dictionary) -> void:
 static func _notes(ctx: Dictionary, table: Vector3) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1000
-	for kind in [["inr", "res://assets/img/note_inr1000.png", Vector2(0.177, 0.073), 70], ["usd", "res://assets/img/note_usd100.png", Vector2(0.156, 0.066), 50]]:
+	for kind in [["inr", "res://assets/img/note_inr1000.png", Vector2(0.177, 0.073), 130], ["usd", "res://assets/img/note_usd100.png", Vector2(0.156, 0.066), 90]]:
 		var q := QuadMesh.new()
 		q.size = kind[2]
 		q.orientation = PlaneMesh.FACE_Y
@@ -354,16 +354,17 @@ static func _notes(ctx: Dictionary, table: Vector3) -> void:
 			var p: Vector3
 			var r := rng.randf()
 			if r < 0.7:
-				p = Vector3(rng.randfn(-3.0, 4.0), 0.0, rng.randfn(61.0, 3.2))
+				p = Vector3(rng.randfn(-3.0, 3.0), 0.0, rng.randfn(60.5, 2.6))
 			elif r < 0.9:
 				p = Vector3(rng.randfn(4.0, 6.0), 0.0, rng.randfn(52.0, 4.0))
 			else:
 				p = Vector3(rng.randf_range(-20.0, 24.0), 0.0, rng.randf_range(39.5, 45.0))
 			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3(1, 0, 0), rng.randf_range(-0.12, 0.12)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.1, 0.1))
-			mm.set_instance_transform(i, Transform3D(b, p + Vector3(0, 0.135 + rng.randf() * 0.01, 0)))
+			# on top of the paving (its surface is at 0.14 m)
+			mm.set_instance_transform(i, Transform3D(b, p + Vector3(0, 0.148 + rng.randf() * 0.006, 0)))
 		for i in 12:     # a bundle on the table: notes stacked, slightly fanned
 			var b2 := Basis(Vector3.UP, 0.1 + rng.randf_range(-0.04, 0.04))
-			var off := Vector3(-0.55 if kind[0] == "inr" else -0.05, 0.785 + i * 0.002, 0.18)
+			var off := Vector3(-0.5 if kind[0] == "inr" else -0.05, 0.782 + i * 0.003, -0.22)
 			mm.set_instance_transform(n + i, Transform3D(b2, table + off))
 		var mi := MultiMeshInstance3D.new()
 		mi.multimesh = mm
@@ -371,7 +372,7 @@ static func _notes(ctx: Dictionary, table: Vector3) -> void:
 		mi.visibility_range_end = 60.0
 		ctx.root.add_child(mi)
 	for k in 2:   # paper bands round the bundles
-		ctx.vc.box(table + Vector3(-0.55 if k == 0 else -0.05, 0.8, 0.18), Vector3(0.03, 0.03, 0.08), Color(0.9, 0.88, 0.8))
+		ctx.vc.box(table + Vector3(-0.5 if k == 0 else -0.05, 0.8, -0.22), Vector3(0.03, 0.045, 0.08), Color(0.9, 0.88, 0.8))
 
 static func _chair(ctx: Dictionary, p: Vector3, yaw: float, canvas: Color) -> void:
 	var b := Basis(Vector3.UP, yaw)
