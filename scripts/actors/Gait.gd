@@ -416,6 +416,8 @@ func _ankle_skel(s: String, tg: Dictionary, inv: Transform3D) -> Vector3:
 	var piv_rest := Vector3(A.x, 0, A.z)
 	var piv := sole_s
 	var fs := _yaw_dir_skel(float(tg.yaw), inv)
+	# the pivot (ball or heel) lies on the ground plane, which on a ramp is not level with the ankle
+	var n_s: Vector3 = (inv.basis * (tg.n as Vector3)).normalized()
 	if pitch > 0.0:
 		var lb := Vector2(Bl.x - A.x, Bl.z - A.z).length()
 		piv_rest = Vector3(Bl.x, 0, Bl.z)
@@ -423,6 +425,9 @@ func _ankle_skel(s: String, tg: Dictionary, inv: Transform3D) -> Vector3:
 	elif pitch < 0.0:
 		piv_rest = Vector3(A.x, 0, A.z + 0.06)
 		piv = sole_s - fs * 0.06
+	if n_s.y > 0.5:
+		var o := piv - sole_s
+		piv.y += -(n_s.x * o.x + n_s.z * o.z) / n_s.y
 	return piv + G * (A - piv_rest)
 
 func _yaw_dir_skel(yaw: float, inv: Transform3D) -> Vector3:

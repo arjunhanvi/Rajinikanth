@@ -616,6 +616,9 @@ func s_proto() -> void:
 		raja.reach_to("r", rt)
 		if raja.reach.has("r") and float(raja.reach.r.w) >= 0.999:
 			_rail_err_max = maxf(_rail_err_max, raja.gait.palm("r").distance_to(rt))
+			if Engine.get_process_frames() % 6 == 0:
+				var sh: Vector3 = raja.skel.global_transform * raja.skel.get_bone_global_pose(raja.skel.find_bone("upperarm_r")).origin
+				print("[rail] err %.3f short %.3f shoulder_to_target %.3f palm %s target %s" % [raja.gait.palm("r").distance_to(rt), float(raja.reach_err.get("r", -1.0)), sh.distance_to(rt), str(Campus.frame().affine_inverse() * raja.gait.palm("r")), str(Campus.frame().affine_inverse() * rt)])
 		_tcam(p - side * 1.9 + fwd * 1.6 + Vector3(0, 1.5, 0), p + Vector3(0, 0.95, 0), 44.0))
 	_drive_to(_L(-25.95, 0, 70.2))
 	while _driving: await get_tree().process_frame
