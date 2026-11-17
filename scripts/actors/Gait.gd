@@ -210,12 +210,33 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 		_run_cycle = 0.5 if feet.l.planted else 0.0
 	if run_mode:
 		var T := clampf(0.74 - 0.035 * spd, 0.56, 0.68)
-		var duty := 0.34
+		var duty := lerpf(0.34, 0.27, clampf((spd - 2.5) / 2.0, 0.0, 1.0))
 		_run_cycle += delta / T
 		for s in feet:
 			var f: Dictionary = feet[s]
 			var ph := fposmod(_run_cycle + (0.0 if s == "l" else 0.5), 1.0)
 			var side := _right() * _side_sign(s) * stance_width * 0.8 * h.body.scale.x
+			# a foot still planted from the walk, now far behind the body, lets go instead of dragging the body into a lunge
+			if f.planted and -((f.lock as Vector3) - pos).dot(vel.normalized()) > 0.5:
+				f.planted = false
+				f.from = f.lock
+				f.from_yaw = f.yaw
+				f.lift = 0.12
+				f.t = 0.0
+				f.dur = 0.16
+				f["catch"] = true
+			if f.get("catch", false):
+				# a quick catch-up swing to where this foot should be, then back into the rhythm
+				var lpc := pos + side + vel * (duty * T * 0.5 - ph * T + 0.16)
+				f.to = Vector3(lpc.x, float(_ground_at(lpc).y), lpc.z)
+				f.t = float(f.t) + delta / float(f.dur)
+				if float(f.t) >= 1.0:
+					f["catch"] = false
+					f.planted = true
+					f.lock = f.to
+					f.yaw = facing_yaw() + _side_sign(s) * -0.06
+					f.land = 0.4
+				continue
 			if ph < duty:
 				if not f.planted:
 					var lp := pos + side + vel * (duty * T * 0.5 - ph * T)
