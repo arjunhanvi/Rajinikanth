@@ -17,7 +17,7 @@ Version **0.5.0** (Android version code 5). The package id is unchanged (`com.ha
 | 9. Crowd fight and police | **Done** | The player throws the first punch (an on-screen PUNCH prompt in slow motion). There is a high-angle shot of two crowds converging, three ground-level shots, dust, the AD yelling, then a siren heard first and the police jeep arriving after. |
 | 10. Auto and title | **Done** | Raja leaves in a black-and-yellow auto (2007 livery); Rama is led deeper into the campus. Both look back. "Yaaru adhu?" / "Aa sule maga…"; "Yaaru avnu?" / "Avn hesru…", then a hard cut to black with sound muted, and BIG BANG LORE comes up out of the black as halftone print dots. |
 | 11. Full test | **Done (automated)** | `tools/playtest.sh opening --fast`: 37 checks pass. |
-| 12. Android build | See the build line in `README.md` | Built with the container's export templates. **Not tested on a phone.** |
+| 12. Android build | **Built** | `build/rajinikanth.apk`, v0.5.0 (code 5), 150 MB, debug-signed (v1/v2/v3 verified), arm64-v8a and armeabi-v7a. The retired RAJINIKANTH hero models are excluded. The exported pack boots with no script errors. **Not tested on a phone.** |
 
 ### What plays, shot by shot
 
