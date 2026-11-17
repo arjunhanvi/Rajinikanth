@@ -22,6 +22,7 @@ var cam_zoom := 1.0             # 0.6 close .. 1.6 wide
 var pose := ""                  # cinematics can hold the body in a pose ("sit")
 var ride: Vehicle = null        # riding pillion: somebody else is driving
 var cam_override := false      # cinematics drive the camera
+var puppet := false            # a cinematic moves the body itself (position, state, activity)
 var _vy := 0.0
 var _step := 0.0
 var _look_idle := 0.0
@@ -56,7 +57,10 @@ func _ready() -> void:
 func _hero_look(l: Dictionary) -> Dictionary:
 	var d := l.duplicate()
 	if Game.s.get("mode", "story") == "story":
-		d["model"] = "raji"
+		d["model"] = "raja"
+		d["acc"] = 0
+		d["top"] = 2
+		d["pat"] = {"shirt_out": "check"}
 	return d
 
 func set_look(l: Dictionary) -> void:
@@ -101,6 +105,8 @@ func in_vehicle() -> bool:
 func _physics_process(delta: float) -> void:
 	_punch_cd -= delta
 	_look_idle += delta
+	if puppet:
+		return
 	var mv := input_move
 	var kb := Input.get_vector("mv_l", "mv_r", "mv_d", "mv_u")
 	if kb.length() > 0.1:

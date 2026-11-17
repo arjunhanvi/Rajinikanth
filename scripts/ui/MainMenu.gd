@@ -7,18 +7,18 @@ var _panel: Control = null
 func _ready() -> void:
 	UI.full(self)
 	add_child(UI.rect(Color.BLACK))
-	var star := TextureRect.new()
-	star.texture = load("res://assets/img/star.png")
-	star.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	star.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	star.position = Vector2(90, 70)
-	star.size = Vector2(150, 150)
-	add_child(star)
-	var t := UI.label("RAJINIKANTH", 76, Color.WHITE)
-	t.position = Vector2(84, 220)
+	var t := UI.label("BIG BANG\nLORE", 118, UI.YELLOW)
+	t.add_theme_font_override("font", UI.comic())
+	t.add_theme_constant_override("outline_size", 10)
+	t.add_theme_color_override("font_outline_color", Color.BLACK)
+	t.add_theme_color_override("font_shadow_color", Color(0.62, 0.06, 0.06))
+	t.add_theme_constant_override("shadow_offset_x", 7)
+	t.add_theme_constant_override("shadow_offset_y", 7)
+	t.add_theme_constant_override("line_spacing", -26)
+	t.position = Vector2(84, 70)
 	add_child(t)
-	var st := UI.label("A HANVI'S ORIGINAL PRODUCTION  -  BANGALORE, 2002", 18, UI.YELLOW)
-	st.position = Vector2(90, 318)
+	var st := UI.label("A HANVI'S ORIGINAL PRODUCTION  -  BENGALURU, 1 JANUARY - 15 JUNE 2007", 18, UI.YELLOW)
+	st.position = Vector2(90, 330)
 	add_child(st)
 	var vb := VBoxContainer.new()
 	vb.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
@@ -36,14 +36,14 @@ func _ready() -> void:
 		if info != null and float(info.playtime) > best:
 			best = float(info.playtime)
 			latest = i
-	var items := [["Continue", func(): _load(latest), latest >= 0], ["New story", func(): _slots("story"), true], ["Free play (your own character)", func(): _slots("free"), true],
+	var items := [["Continue", func(): _load(latest), latest >= 0], ["New story", func(): _slots("story"), true], ["Free roam (Bengaluru, 2007)", func(): _slots("free"), true],
 		["Load game", func(): _slots("load"), true], ["Settings", func(): add_child(SettingsPanel.new()), true], ["About", _about, true]]
 	for it in items:
 		var b := UI.button(it[0], 26)
 		b.disabled = not it[2]
 		b.pressed.connect(it[1])
 		vb.add_child(b)
-	var ver := UI.label("v%s  -  all characters and events are fictional" % ProjectSettings.get_setting("application/config/version"), 14, Color(0.5, 0.5, 0.5))
+	var ver := UI.label("v%s  -  a work of fiction; real public figures appear only in a fictionalised context" % ProjectSettings.get_setting("application/config/version"), 14, Color(0.5, 0.5, 0.5))
 	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	ver.offset_left = 90
 	ver.offset_top = -40
@@ -120,14 +120,18 @@ func _slots(mode: String) -> void:
 			b.pressed.connect(func():
 				if info != null and not b.text.begins_with("OVERWRITE"):
 					b.text = "OVERWRITE slot %d? Tap again to confirm." % (i + 1)
+				elif mode == "story":
+					# the protagonist is fixed: the story begins with Raja
+					Game.start_new(i, "story", "Raja", Human.default_look())
+					Game.goto("world")
 				else:
 					Game.goto("creator", {"slot": i, "mode": mode}))
 		vb.add_child(row)
 	_close_row(vb)
 
 func _about() -> void:
-	var vb := _open("RAJINIKANTH")
-	var l := UI.label("A Hanvi's Original production.\n\nAn open-world crime drama about a Bangalore bus conductor, set in 2002. Chapter One, \"Ticket\", is playable; the city, its people and the story are still growing.\n\nEvery character, party, gang, film and business in this game is fictional. Real place names are used only as geography.\n\nBuilt with the open-source Godot Engine. All art, sound and music are original and generated for this game.", 19, Color(0.9, 0.9, 0.88))
+	var vb := _open("BIG BANG LORE")
+	var l := UI.label("A Hanvi's Original production.\n\nBengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth fans, Raja and Ramanna - everyone calls him Rama - and what they turn out to mean to each other. The opening sequence is playable; the story continues in later updates.\n\nThis is a work of fiction. Real public figures, institutions and places appear in a fictionalised, alternate-history context; none of their words or actions in this game are real records. The January 2007 shoot at M.S. Ramaiah Institute of Technology is invented for the game.\n\nBuilt with the open-source Godot Engine. Title lettering: Bangers (SIL Open Font License).", 19, Color(0.9, 0.9, 0.88))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vb.add_child(l)
 	_close_row(vb)

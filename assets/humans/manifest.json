@@ -763,5 +763,251 @@
    -0.05810759999999998
   ],
   "tone": -1
+ },
+ "raja": {
+  "tris": {
+   "0": 43145,
+   "1": 15086,
+   "2": 2932
+  },
+  "height": 1.815963550442941,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "eyes",
+   "hair_side",
+   "hair_side_cap",
+   "lashes",
+   "moustache",
+   "shirt_out",
+   "shoes",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.7035970960000002,
+  "arm_dir": [
+   1.7783497312000005,
+   -2.033240717600001,
+   0.008584144000000044
+  ],
+  "tone": 3
+ },
+ "rama": {
+  "tris": {
+   "0": 44029,
+   "1": 15352,
+   "2": 2993
+  },
+  "height": 1.7068047200000003,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "beard",
+   "belt",
+   "chappal_sole",
+   "chappal_straps",
+   "eyes",
+   "hair_curly",
+   "hair_curly_cap",
+   "lashes",
+   "moustache",
+   "shirt_full",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.6004303200000003,
+  "arm_dir": [
+   1.6360817619999997,
+   -1.866387944,
+   -0.011526789999999981
+  ],
+  "tone": 4
+ },
+ "rajini": {
+  "tris": {
+   "0": 43309,
+   "1": 15119,
+   "2": 2947
+  },
+  "height": 1.7731750106230173,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "eyes",
+   "hair_bouffant",
+   "hair_bouffant_cap",
+   "lashes",
+   "moustache",
+   "shirt_full",
+   "shoes",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers"
+  ],
+  "eye_y": 1.64888078,
+  "arm_dir": [
+   1.697782600000001,
+   -1.915131500000001,
+   0.03028840000000002
+  ],
+  "tone": 3
+ },
+ "shankar": {
+  "tris": {
+   "0": 43072,
+   "1": 15068,
+   "2": 2930
+  },
+  "height": 1.7039014402891604,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "eyes",
+   "hair_side",
+   "hair_side_cap",
+   "lashes",
+   "shirt_full",
+   "shoes",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.5909395400000002,
+  "arm_dir": [
+   1.6201767999999996,
+   -1.8167995000000006,
+   0.03292620000000002
+  ],
+  "tone": 2
+ },
+ "kvanand": {
+  "tris": {
+   "0": 46036,
+   "1": 15950,
+   "2": 3139
+  },
+  "height": 1.7304303600000006,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "beard",
+   "belt",
+   "eyes",
+   "hair_short",
+   "hair_short_cap",
+   "lashes",
+   "moustache",
+   "shirt_out",
+   "shoes",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.6199101599999999,
+  "arm_dir": [
+   1.6589797000000002,
+   -1.8659655000000002,
+   0.031607300000000005
+  ],
+  "tone": 3
+ },
+ "ad": {
+  "tris": {
+   "0": 43087,
+   "1": 15067,
+   "2": 2927
+  },
+  "height": 1.6670207165179312,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "eyes",
+   "hair_short",
+   "hair_short_cap",
+   "lashes",
+   "moustache",
+   "shirt_out",
+   "shoes",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.561204728,
+  "arm_dir": [
+   1.5948151360000002,
+   -1.8216544040000002,
+   -0.00985896
+  ],
+  "tone": 2
+ },
+ "umashankar": {
+  "tris": {
+   "0": 40474,
+   "1": 14268,
+   "2": 2757
+  },
+  "height": 1.6363604812089954,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "chappal_sole",
+   "chappal_straps",
+   "eyes",
+   "hair_short",
+   "hair_short_cap",
+   "lashes",
+   "moustache",
+   "shirt_out",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers"
+  ],
+  "eye_y": 1.514953908,
+  "arm_dir": [
+   1.5486045359999991,
+   -1.77284898,
+   -0.018569399999999958
+  ],
+  "tone": 3
  }
 }

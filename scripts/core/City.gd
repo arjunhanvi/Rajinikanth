@@ -334,8 +334,8 @@ func np(id: String) -> Vector2:
 
 func _define_places() -> void:
 	# --- the starting neighbourhood (Majestic / Cottonpet lanes) ---
-	_site("uma_home", "Umashankar's House (Lakshmi Vatara)", 25, 104.5, "N", 16, 11, "house", "home")
-	_site("devaraj", "Sri Devaraj Enterprises", -125, 104.5, "N", 14, 10, "office", "flag")
+	_site("uma_home", "Lakshmi Vatara (house)", 25, 104.5, "N", 16, 11, "house", "home")
+	_site("devaraj", "Sri Lakshmi Enterprises", -125, 104.5, "N", 14, 10, "office", "flag")
 	_site("tea", "Nanjappa's Tea Stall", -25, 104.5, "N", 8, 5, "tea", "tea")
 	_site("std", "Meena's S.T.D. Booth", -25, 95.5, "S", 7, 6, "std", "phone")
 	_site("darshini", "Hotel Dwaraka Darshini", 25, 95.5, "S", 14, 9, "food", "food")
@@ -361,8 +361,8 @@ func _define_places() -> void:
 	_site("jpp", "J.P.P. Party Office", np("gandhinagar").x + 25, np("gandhinagar").y + 54.5, "N", 14, 10, "office", "flag")
 	_site("knv", "K.N.V. Party Office", np("malleshwaram").x + 75, np("malleshwaram").y + 45.5, "S", 14, 10, "office", "flag")
 	_site("paper", "Sanje Vaani Press", np("corporation").x - 75, np("corporation").y - 54.5, "S", 14, 10, "office", "news")
-	_site("shetty", "Devaraj Steel Rolling Mills", np("peenya").x + 75, np("peenya").y + 54.5, "N", 30, 20, "factory", "factory")
-	_site("home", "Your House (8th Cross, Malleshwaram)", np("malleshwaram").x - 75, np("malleshwaram").y + 104.5, "N", 11, 9, "home", "home")
+	_site("shetty", "Peenya Steel Rolling Mills", np("peenya").x + 75, np("peenya").y + 54.5, "N", 30, 20, "factory", "factory")
+	_site("home", "Rented Room (8th Cross, Malleshwaram)", np("malleshwaram").x - 75, np("malleshwaram").y + 104.5, "N", 11, 9, "home", "home")
 	_site("court", "High Court of Karnataka", v.x + 75, v.y + 54.5, "N", 30, 16, "court", "landmark")
 	_site("flat", "Flat for Sale (Jayanagar 4th Block)", np("jayanagar").x + 75, np("jayanagar").y + 54.5, "N", 14, 12, "property", "home")
 	var u := np("ulsoor")
@@ -371,5 +371,7 @@ func _define_places() -> void:
 	_zone("lalbagh", "Lalbagh Botanical Garden", Rect2(l.x + 20, l.y + 20, 150, 150), "park2", "park", Vector2(l.x + 30, l.y + 30))
 	var b := np("basavanagudi")
 	_zone("temple", "Dodda Gudi Temple", Rect2(b.x - 90, b.y + 14, 60, 60), "temple", "landmark", Vector2(b.x - 60, b.y + 10))
+	# M.S. Ramaiah Institute of Technology, MSR Nagar: on the Outer Ring Road between Yeshwanthpur and Hebbal
+	_zone("msrit", "M.S. Ramaiah Institute of Technology", Rect2(-258, -1520, 185, 152), "campus", "landmark", Vector2(-175, -1478))
 	var h := np("hal")
 	_zone("airport", "H.A.L. Airport", Rect2(h.x + 20, h.y + 20, 260, 120), "airport", "plane", Vector2(h.x + 30, h.y + 30))

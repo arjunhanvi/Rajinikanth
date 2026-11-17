@@ -191,7 +191,7 @@ func _refresh() -> void:
 func _begin() -> void:
 	var nm := _name.text.strip_edges()
 	if nm == "":
-		nm = "Rajinikanth"
+		nm = "Raja"
 	Game.start_new(int(args.get("slot", 0)), str(args.get("mode", "story")), nm, look)
 	for slot in ["top", "bottom", "shoes", "glasses", "watch", "acc"]:
 		Game.s.wardrobe.append("%s:%d" % [slot, int(look[slot])])

@@ -33,6 +33,31 @@ HEROES = {
                 hair=[('curly', (0.04, 0.035, 0.035))], face_hair=[('moustache', 0.12)], tone=3, age_lines=0.3, outfit='driver'),
     'devaraj': dict(p=P(1, 0.82, 0.68, 0.45, 0.52, {**face(51, 6, 0.4), 'head/head-rectangular': 0.6, 'chin/chin-bones-incr': 0.5, 'eyes/l-eye-bag-incr': 0.7, 'eyes/r-eye-bag-incr': 0.7, 'nose/nose-hump-incr': 0.4}),
                     hair=[('side', (0.5, 0.5, 0.52))], face_hair=[('moustache', 0.09)], tone=2, age_lines=0.85, outfit='safari'),
+    # ---- BIG BANG LORE (2007) ----
+    # Raja: lean, tall, restless; side-parted thick hair, full moustache; maroon checked shirt out over jeans
+    'raja': dict(p=P(1, 0.47, 0.36, 0.62, 0.6, {**face(71, 7, 0.45), 'chin/chin-prominent-incr': 0.45, 'cheek/l-cheek-bones-incr': 0.55, 'cheek/r-cheek-bones-incr': 0.55, 'nose/nose-scale-vert-incr': 0.3, 'eyes/l-eye-bag-incr': 0.0}),
+                 hair=[('side', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.11)], tone=3, age_lines=0.12,
+                 outfit=dict(top=('shirt_out', 'half', False, [0.5, 0.09, 0.11, 1], 0.3, 6), bottom=[0.19, 0.26, 0.42, 1], feet='shoe', watch=(0.7, 0.7, 0.72))),
+    # Rama: broad, heavier, deliberate; curly hair, short beard; dark full-sleeve shirt, sleeves to the wrist, over beige trousers
+    'rama': dict(p=P(1, 0.53, 0.66, 0.66, 0.5, {**face(83, 7, 0.45), 'head/head-rectangular': 0.5, 'chin/chin-bones-incr': 0.5, 'neck/neck-scale-horiz-incr': 0.4, 'nose/nose-flaring-incr': 0.4, 'eyes/l-eye-bag-incr': 0.3, 'eyes/r-eye-bag-incr': 0.3}),
+                 hair=[('curly', (0.035, 0.03, 0.03))], face_hair=[('moustache', 0.1), ('beard', 0.06)], tone=4, age_lines=0.2,
+                 outfit=dict(top=('shirt_full', 'full', False, [0.11, 0.13, 0.12, 1], 0.35, 6), bottom=[0.55, 0.5, 0.41, 1], feet='chappal', watch=(0.85, 0.68, 0.2))),
+    # the superstar on set, in costume: white shirt, black trousers (seen from behind, in shades)
+    'rajini': dict(p=P(1, 0.62, 0.38, 0.5, 0.54, {**face(91, 6, 0.4), 'cheek/l-cheek-bones-incr': 0.5, 'cheek/r-cheek-bones-incr': 0.5}),
+                   hair=[('bouffant', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.1)], tone=3, age_lines=0.45,
+                   outfit=dict(top=('shirt_full', 'full', True, [0.94, 0.94, 0.92, 1], 0.2, 6), bottom=[0.06, 0.06, 0.07, 1], feet='shoe', watch=None)),
+    'shankar': dict(p=P(1, 0.66, 0.5, 0.42, 0.5, {**face(97, 6, 0.4), 'head/head-oval': 0.4}),
+                    hair=[('side', (0.06, 0.055, 0.055))], face_hair=[], tone=2, age_lines=0.4,
+                    outfit=dict(top=('shirt_full', 'full', True, [0.62, 0.72, 0.86, 1], 0.2, 6), bottom=[0.22, 0.22, 0.25, 1], feet='shoe', watch=(0.7, 0.7, 0.72))),
+    'kvanand': dict(p=P(1, 0.64, 0.58, 0.45, 0.52, {**face(113, 6, 0.4)}),
+                    hair=[('short', (0.2, 0.2, 0.2))], face_hair=[('moustache', 0.07), ('beard', 0.05)], tone=3, age_lines=0.45,
+                    outfit=dict(top=('shirt_out', 'half', False, [0.28, 0.3, 0.33, 1], 0.3, 5), bottom=[0.2, 0.24, 0.36, 1], feet='shoe', watch=(0.1, 0.1, 0.1))),
+    'ad': dict(p=P(1, 0.44, 0.42, 0.45, 0.52, {**face(127, 7, 0.45)}),
+               hair=[('short', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.06)], tone=2, age_lines=0.1,
+               outfit=dict(top=('shirt_out', 'half', False, [0.86, 0.78, 0.5, 1], 0.3, 6), bottom=[0.18, 0.24, 0.4, 1], feet='shoe', watch=(0.7, 0.7, 0.72))),
+    'umashankar': dict(p=P(1, 0.46, 0.62, 0.4, 0.44, {**face(139, 7, 0.45), 'cheek/l-cheek-volume-incr': 0.5, 'cheek/r-cheek-volume-incr': 0.5, 'head/head-round': 0.4}),
+                       hair=[('short', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.08)], tone=3, age_lines=0.1,
+                       outfit=dict(top=('shirt_out', 'half', False, [0.2, 0.42, 0.3, 1], 0.4, 6), bottom=[0.4, 0.3, 0.22, 1], feet='chappal', watch=None)),
 }
 CROWD = {
     'm_lean': P(1, 0.5, 0.3, 0.45, 0.5, face(101)), 'm_avg': P(1, 0.55, 0.5, 0.5, 0.5, face(102)), 'm_heavy': P(1, 0.62, 0.9, 0.4, 0.45, {**face(103), 'stomach/stomach-pregnant-incr': 0.35}),
@@ -43,7 +68,12 @@ CROWD = {
 
 def dress(c, outfit, female, hero):
     """every garment this body can wear; the game shows the ones the look asks for"""
-    if hero and outfit == 'conductor':
+    if hero and isinstance(outfit, dict):
+        name, sl, tucked, col, loose, btn = outfit['top']
+        s = c.top(name, sl, tucked=tucked, loose=loose, colour=col); c.details(s, btn, True, colour=(0.85, 0.85, 0.82))
+        c.trousers(loose=0.25, colour=outfit['bottom']); c.footwear(outfit['feet'])
+        if outfit.get('watch'): c.watch(outfit['watch'])
+    elif hero and outfit == 'conductor':
         s = c.top('shirt', 'half', tucked=True, colour=WHITE); c.details(s, 5, False)
         o = c.top('over', 'half', tucked=False, open_front=True, offset=0.2, loose=0.5, colour=KHAKI); c.details(o, 0, True, colour=KHAKI[:3])
         c.trousers(colour=KHAKI); c.footwear('sandal'); c.watch((0.1, 0.1, 0.1))

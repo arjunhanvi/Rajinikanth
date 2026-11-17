@@ -3,14 +3,14 @@ extends Control
 ## The production identity, cut to the supplied soundtrack.
 ##   0.0  white.  HANVI'S sets letter by letter, ORIGINAL is drawn in beneath it.
 ##  10.0  the frame falls to black.
-##  12.5  the star rises.
-##  23.0  (the swell in the score) RAJINIKANTH lands, letter by letter.
-##  33.0  hand over to the menu; the music carries on underneath.
+##  12.5  hand over to the BIG BANG LORE menu; the music carries on underneath.
+## (The old star and RAJINIKANTH title card were retired with the old story;
+##  the game's own title now lands at the end of the opening sequence.)
 
 const T_BLACK := 10.0
 const T_STAR := 12.5
 const T_TITLE := 23.0
-const T_END := 33.5
+const T_END := 12.5
 
 var _done := false
 var _t := 0.0
@@ -104,10 +104,12 @@ func _ready() -> void:
 	_star.modulate.a = 0.0
 	_star.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_star)
+	_star.visible = false
+	_glow.visible = false
 	_row = Control.new()
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_row)
-	for ch in "RAJINIKANTH":
+	for ch in "":
 		for shadow in [true, false]:
 			var l := UI.label(ch, 86, Color(0.35, 0.28, 0.0) if shadow else Color(0.98, 0.97, 0.94), HORIZONTAL_ALIGNMENT_CENTER)
 			l.size = Vector2(80, 110)

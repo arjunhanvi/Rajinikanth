@@ -11,6 +11,8 @@ var cloud := 0.0          # 0 clear .. 1 overcast
 var raining := 0.0
 var power := true
 var indoors := false
+var haze := 0.0           # a scene can thicken the air (the opening's aerial)
+var shadow_reach := 0.0   # a scene can ask for longer sun shadows
 var _phase := -1
 var _lamps: Array = []
 var _acc := 0.0
@@ -144,7 +146,9 @@ func update(delta: float, t: float, weather: String, cam_pos: Vector3, lamp_posi
 	env.ambient_light_energy = ae if not indoors else 0.75
 	env.fog_light_color = hor
 	var mist := clampf(1.0 - absf(t - 6.6) / 1.6, 0.0, 1.0) * 0.004 + clampf(1.0 - absf(t - 13.0) / 3.0, 0.0, 1.0) * 0.0008
-	env.fog_density = lerpf(0.0011 + mist, 0.009, maxf(raining, cloud * 0.3))
+	env.fog_density = lerpf(0.0011 + mist, 0.009, maxf(raining, cloud * 0.3)) + haze
+	if shadow_reach > 0.0:
+		sun.directional_shadow_max_distance = shadow_reach
 	Mats.set_wetness(wet)
 	Mats.set_rain(raining)
 	var ph := 0

@@ -4,6 +4,8 @@ extends RefCounted
 ## Each builder returns a Node3D with merged meshes, collision and signage.
 
 static func build(z: Dictionary) -> Node3D:
+	if z.kind == "campus":
+		return Campus.build(z)
 	var root := Node3D.new()
 	root.name = "LM_" + str(z.id)
 	var ctx := {"root": root, "vc": MB.new(), "fac": MB.new(), "gr": MB.new(), "con": MB.new(), "wat": MB.new(), "trees": [], "solids": []}

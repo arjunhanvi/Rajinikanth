@@ -175,7 +175,7 @@ static func populate(id: String, world, origin: Vector3) -> void:
 	}
 	var t := float(Game.s.time)
 	var here: Array = []
-	for nid in People.DB:
+	for nid in (People.DB if People.LEGACY_CAST else {}):
 		var sl := People.slot(nid, t)
 		var present: bool = sl[0] == id and (sl[1] != "off" or id == "home")
 		if id == "home" and nid != "kamakshi":

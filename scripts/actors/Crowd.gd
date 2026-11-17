@@ -19,7 +19,7 @@ const BARKS := ["Howdu, howdu.", "Aiyo, what to do?", "Swalpa adjust maadi.", "C
 
 func _ready() -> void:
 	rng.randomize()
-	for id in People.DB:
+	for id in (People.DB if People.LEGACY_CAST else {}):
 		var sl := People.slot(id, float(Game.s.time))
 		var a := anchor_for(sl[0], sl[1], id)
 		named[id] = {"pos": Vector2(a.pos.x, a.pos.z), "place": sl[0], "mode": sl[1], "path": PackedVector2Array(), "pidx": 0, "node": null, "pin": null, "anchor": a}

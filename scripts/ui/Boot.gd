@@ -15,7 +15,7 @@ func _ready() -> void:
 		show_screen("menu", {})
 	elif args.has("--play") and not args.has("--harness=ui"):
 		# dev/test shortcut: jump straight into a fresh story game in the last slot
-		Game.start_new(Game.SLOTS - 1, "story" if not args.has("--free") else "free", "Rajinikanth", Human.default_look())
+		Game.start_new(Game.SLOTS - 1, "story" if not args.has("--free") else "free", "Raja", Human.default_look())
 		show_screen("world", {})
 	else:
 		show_screen("intro", {})
@@ -39,7 +39,7 @@ func show_screen(screen: String, args: Dictionary) -> void:
 			var cl := CanvasLayer.new()
 			cl.layer = 50
 			cl.add_child(load_ui)
-			var lb := UI.label("BANGALORE, 2002", 30, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
+			var lb := UI.label("BENGALURU  -  1 JANUARY 2007" if str(Game.s.get("mode", "story")) == "story" else "BENGALURU, 2007", 30, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
 			lb.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 			lb.offset_left = -300
 			lb.offset_right = 300

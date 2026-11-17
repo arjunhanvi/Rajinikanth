@@ -1,14 +1,16 @@
-# RAJINIKANTH
+# BIG BANG LORE
 
-**A HANVI'S ORIGINAL production.** An Android-first, third-person, open-world crime drama set in
-Bangalore, 2002. You are Rajinikanth, conductor on Route 27E, just out on bail for something
-another man did. Your wife Kamakshi argued you out. Your friend Umashankar stood surety. Then a
-passenger jumps off the last bus and leaves a bag behind.
-
-*One city. Countless stories. One man's unexpected transformation.*
+**A HANVI'S ORIGINAL production.** Bengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth
+fans, Raja and Ramanna (everyone calls him Rama), and what they turn out to mean to each other.
+The story opens on the day a film shoot at M.S. Ramaiah Institute of Technology runs out of reel,
+and ends on the day *Sivaji* releases.
 
 This repository is the real game: a native Godot 4.3 project that exports an installable APK.
-Every character, gang, party, film and business in it is fictional; real place names are geography only.
+It is a work of fiction. Real public figures, institutions and places appear in a fictionalised,
+alternate-history context. See `docs/2007_CULTURAL_BIBLE.md` for what is verified and what is invented.
+
+**Status:** only the opening sequence is built (see `docs/STATUS.md`). The previous RAJINIKANTH
+story is retired and archived in `archive/rajinikanth/`; it no longer loads.
 
 ## Get the APK
 
@@ -24,7 +26,7 @@ Open it in your phone's browser, tap the downloaded file, allow "install unknown
 tools/build_apk.sh
 ```
 
-The result is `build/rajinikanth.apk` (debug-signed, arm64-v8a + armeabi-v7a, about 57 MB).
+The result is `build/rajinikanth.apk` (debug-signed, arm64-v8a + armeabi-v7a; the file name is kept so the download link stays the same).
 Install with `adb install build/rajinikanth.apk` or copy it to a phone and open it. No network,
 account or developer machine is needed to play.
 
@@ -38,33 +40,14 @@ Mouse acts as touch. Keys: WASD move, Shift run, Space jump, C crouch, E interac
 
 ## What is playable now
 
-v0.3.0 rebuilds Chapter One around the new canon and adds a living-world pass (see [docs/STATUS.md](docs/STATUS.md)). Rollback points: tags `v0.1.0`, `v0.2.0`.
+The opening sequence, from the aerial view of Bengaluru to the BIG BANG LORE title, with player
+control of Raja in the crowd and the first punch. After the title you can watch it again, walk the
+city as Raja, or return to the menu. Free roam (Bengaluru 2007) is on the main menu.
 
-**Music:** the game has no background score. Put your own Kannada tracks (`.ogg` / `.mp3`) in `assets/audio/radio/` before building; they play only while driving a car or an auto.
-
-- Animated HANVI'S ORIGINAL opening, yellow-star title, main menu, 4 independent save slots.
-- Character creation with live 3D preview (face, skin, hair, facial hair, build, clothes, accessories).
-- Touch controls (stick, camera drag, contextual buttons) that switch for walking, driving and conducting; layout, size, opacity and sensitivity settings; Low/Medium/High graphics.
-- A streamed city laid out from real Bangalore coordinates (43 localities, 66 named arterial roads, side-street grid, generated buildings) plus handcrafted places: Kempegowda Bus Station, City Railway Station, Vidhana Soudha, K.R. Market, Cubbon Park, Lalbagh, Ulsoor Lake, H.A.L. Airport, a temple, and the shops of the starting neighbourhood. Five interiors.
-- Day/night, weather, rain with wet roads, street lamps, shops that shutter at night, power cuts.
-- 22 named characters with jobs, homes, daily schedules, friends and memory; ambient pedestrians with generated identities; police response.
-- Left-hand traffic with 10 period vehicle types, buses that halt at stops, parked and ownable vehicles, a dealer.
-- **Chapter One, "Ticket"** (five chapters): the tea-sequence opening and bail, riding pillion behind Kamakshi, the conductor ticketing game with Umashankar, the last-trip incident, the bag, Thimmaiah's godown and the raid, the courier job that ends in Devaraj's office. Choices change money, relationships, faction standing and later scenes.
-- Side stories: Umashankar's loan, the evening show with Kamakshi, the reporter, repeatable work shifts, chain-snatchers, street-corner rallies.
-- In-game 2002 mobile phone (contacts, messages, call register, missions, profile, people) and a pannable, zoomable city map with waypoints and routes.
-- Economy: wages, tea stall, darshini, bar, tailor and wardrobe, cinema, buses and autos for travel, rent, property.
-
-See [docs/STATUS.md](docs/STATUS.md) for what is tested, what is thin, and what is not built yet.
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains the engine choice and the code layout.
-
-## Tests
+## Automated test
 
 ```bash
-tools/check.sh              # parse every script
-tools/playtest.sh story     # automated playthrough of Chapter One + save/load (needs xvfb)
-tools/playtest.sh tour      # screenshots: street, tea stall, bus station, traffic, night, rain
-tools/playtest.sh streets   # six neighbourhoods
-tools/playtest.sh people    # character line-up
-tools/playtest.sh panels    # phone, map at three zooms, dialogue, pause, driving
-tools/playtest.sh ui        # intro frames, soundtrack checks, menu, creator
+tools/playtest.sh opening --fast
 ```
+
+This plays the whole opening, walks the player around after the hand-over, and checks that every shot is reached. Screenshots go to `/tmp/rk_shots/`.

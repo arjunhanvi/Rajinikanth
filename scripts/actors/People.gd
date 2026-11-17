@@ -3,6 +3,10 @@ extends RefCounted
 ## The cast. Every named character has an identity, an occupation, a home, a
 ## daily schedule, friends and things to say. All characters are fictional.
 
+## The named cast below belongs to the retired RAJINIKANTH story (archived in
+## archive/rajinikanth/). BIG BANG LORE does not spawn them.
+const LEGACY_CAST := false
+
 const NAMES := {
 	"nanjappa": "Nanjappa", "meena": "Meenakshi", "uma": "Umashankar", "kamakshi": "Kamakshi", "devaraj": "Devaraj", "immu": "Imtiaz",
 	"girija": "Girija", "putti": "Putti", "lokesh": "S.I. Lokesh", "shivaramu": "Inspector Shivaramu", "tiger": "'Tiger' Thimmaiah",

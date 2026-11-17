@@ -212,7 +212,7 @@ func _process(delta: float) -> void:
 		mini.waypoint = Vector2(wp[0], wp[1]) if wp != null else null
 		mini.visible = not cinematic and world.interior == ""
 		mini.queue_redraw()
-		_clock.text = "%s  -  Day %d" % [Game.clock_text(), int(Game.s.day)]
+		_clock.text = "%s  -  %s" % [Game.clock_text(), Game.date_text()] if str(Game.s.mode) == "story" else "%s  -  Day %d" % [Game.clock_text(), int(Game.s.day)]
 		var an: String = world.area_name()
 		if an != _area_name:
 			_area_name = an

@@ -26,6 +26,7 @@ var _event_t := 40.0
 var _power_t := 0.0
 var _slow := false
 var _autosave := 0.0
+var chunk_bonus := 0              # a scene can widen the streamed radius (aerial shots)
 
 func _ready() -> void:
 	Game.world = self
@@ -96,7 +97,7 @@ func write_state() -> void:
 # ------------------------------------------------------------------ streaming
 func _want_chunks(immediate := false) -> void:
 	var centre := City.chunk_of(exterior_pos if interior != "" else Vector2(player.global_position.x, player.global_position.z))
-	var r: int = Game.gfx("chunks")
+	var r: int = int(Game.gfx("chunks")) + chunk_bonus
 	var need := {}
 	for dx in range(-r, r + 1):
 		for dz in range(-r, r + 1):
@@ -141,7 +142,9 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	var real := delta / maxf(Engine.time_scale, 0.05)
-	Human.cam_pos = player.cam.global_position
+	var vcam := get_viewport().get_camera_3d()
+	var cpos: Vector3 = vcam.global_position if vcam != null else player.cam.global_position
+	Human.cam_pos = cpos
 	if not busy or story.clock_runs:
 		Game.s.time = float(Game.s.time) + delta / HOUR_SECONDS
 		if float(Game.s.time) >= 24.0:
@@ -155,7 +158,7 @@ func _process(delta: float) -> void:
 	if not _queue.is_empty():
 		_build_next()
 	weather.indoors = interior != ""
-	weather.update(delta, float(Game.s.time), Game.s.weather, player.cam.global_position, lamp_positions() if interior == "" else [])
+	weather.update(delta, float(Game.s.time), Game.s.weather, cpos, lamp_positions() if interior == "" else [])
 	_ambience()
 	Sfx.radio_set(radio_ok())
 	_int_t -= delta
@@ -166,7 +169,7 @@ func _process(delta: float) -> void:
 		crowd.vehicle_hits(player.vehicle)
 	_update_beacon()
 	_weather_t -= delta
-	if _weather_t <= 0.0:
+	if _weather_t <= 0.0 and not busy:
 		_weather_t = randf_range(200.0, 520.0)
 		var r := randf()
 		Game.s.weather = "clear" if r < 0.58 else ("cloudy" if r < 0.82 else "rain")
@@ -187,6 +190,9 @@ func _process(delta: float) -> void:
 		Game.s.hp = minf(100.0, float(Game.s.hp) + delta * 1.5)
 
 func _ambience() -> void:
+	if not story.amb_override.is_empty():
+		Sfx.ambience(story.amb_override)
+		return
 	var t := float(Game.s.time)
 	var night := weather.is_night(t)
 	var inside := interior != ""

@@ -153,7 +153,7 @@ func _block(x0: float, z0: float, fac: MB, sg: MB, roof: MB, hoard: MB, shed: MB
 	var d := City.district(Vector2(x0 + size * 0.5, z0 + size * 0.5))
 	if d.kind == "rural":
 		if rng.randf() < 0.5:
-			for t in rng.randi_range(1, 4):
+			for t in rng.randi_range(1, 4) if not City.rect_hits_zone(Rect2(x0, z0, size, size)) else 0:
 				_trees.append([Vector3(x0 + rng.randf() * size, 0, z0 + rng.randf() * size), rng.randf_range(0.8, 1.5)])
 		return
 	var kind: String = d.kind
@@ -182,10 +182,11 @@ func _block(x0: float, z0: float, fac: MB, sg: MB, roof: MB, hoard: MB, shed: MB
 					if City.on_arterial(sp, 3.6):
 						skip = true
 						break
-			if not skip and City.rect_hits_zone(rect):
+			var zoned := City.rect_hits_zone(rect)
+			if not skip and zoned:
 				skip = true
 			if skip:
-				if kind in ["res", "cant", "out"] and rng.randf() < 0.4:
+				if not zoned and kind in ["res", "cant", "out"] and rng.randf() < 0.4:
 					_trees.append([Vector3(x + w * 0.5, 0, cz), rng.randf_range(0.9, 1.6)])
 			else:
 				var corner := -1 if x == x0 else (1 if x + w >= x0 + size - 0.1 else 0)

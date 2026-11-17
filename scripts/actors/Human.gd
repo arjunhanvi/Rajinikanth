@@ -19,7 +19,7 @@ const GLASSES := ["None", "Square frames", "Aviator shades", "Round frames"]
 const WATCHES := ["None", "Steel watch", "Gold watch", "Leather strap"]
 const ACCS := ["None", "Gold chain", "Cap", "Shoulder towel", "Ticket bag", "Jasmine flowers", "Shoulder bag", "Cloth bag"]
 const DIR := "res://assets/humans/"
-const HEROES := ["raji", "kamakshi", "uma", "devaraj"]
+const HEROES := ["raja", "rama", "rajini", "shankar", "kvanand", "ad", "umashankar", "raji", "kamakshi", "uma", "devaraj"]
 const SKIN_REF := Color(0.86, 0.66, 0.5)      # tone the crowd skin maps are baked at
 
 static var _scenes := {}
@@ -366,6 +366,9 @@ func _dress(info: Dictionary, hero: bool) -> void:
 		has_l0 = true
 	for mi in body.find_children("*", "MeshInstance3D", true, false):
 		mi.visible = false
+		# skinned + morphed meshes can carry bounds that do not follow the posed body;
+		# a fixed person-sized box keeps culling and LOD distance honest from every angle
+		mi.custom_aabb = AABB(Vector3(-0.9, -0.05, -0.9), Vector3(1.8, 2.15, 1.8))
 		var nm := String(mi.name)
 		var lvl := int(nm.substr(1, 1))
 		# level of detail by distance: full model only for close-ups
@@ -424,7 +427,8 @@ func _dress(info: Dictionary, hero: bool) -> void:
 				if top_i == 7:
 					_show(p, white)
 			else:
-				_show(p, white)
+				var pats: Dictionary = look.get("pat", {})
+				_show(p, cloth_mat(str(pats[p]), Color.WHITE) if pats.has(p) else white)
 		if model == "kamakshi":
 			_show("skin_torso", skin)
 			_show("skin_legs", skin)
@@ -747,6 +751,40 @@ func _process(delta: float) -> void:
 				aR.x = 0.6 + sin(_t * 2.6) * 0.3; eR.x = 0.5; aL.x = 0.8 + sin(_t * 2.6) * 0.3; eL.x = 0.7; tor.x -= 0.3; tor.y = sin(_t * 2.6) * 0.2; hd.x += 0.2
 			"pray":
 				aL.x = 0.9; aR.x = 0.9; eL.x = 1.5; eR.x = 1.5; aL.z = 0.25; aR.z = -0.25; hd.x += 0.25
+			"cheer":
+				# "Thalaiva!": a fist pumped over the head, up on the toes, face lifted to the star
+				var pump := sin(_t * 8.5 + _seed)
+				aR = Vector3(2.75 + pump * 0.22, 0, 0.25); eR.x = 0.35 + maxf(0.0, -pump) * 0.4
+				if sin(_t * 0.9 + _seed) > 0.2:
+					aL = Vector3(2.3 + sin(_t * 6.0) * 0.2, 0, -0.45); eL.x = 0.5
+				hd.x -= 0.18; tor.x += 0.06; hip_y += absf(pump) * 0.025
+			"wave_star":
+				aR.z = 2.5; eR.z = sin(_t * 9.0 + _seed) * 0.45; hd.x -= 0.12
+			"dust":
+				# brushing the dust off: shirt, then the seat of the trousers
+				var dc := fmod(_t * 0.5 + _seed, 1.0)
+				if dc < 0.55:
+					aR.x = 0.55 + sin(_t * 9.0) * 0.22; eR.x = 1.55; aR.z = -0.15
+					aL.x = 0.35 + sin(_t * 9.0 + 1.5) * 0.18; eL.x = 1.25; aL.z = 0.15
+					tor.x -= 0.22; hd.x += 0.38
+				else:
+					aR = Vector3(-0.35 + sin(_t * 10.0) * 0.15, 0, 0.2); eR.x = 0.5
+					aL = Vector3(-0.3 + sin(_t * 10.0 + 1.0) * 0.15, 0, -0.2); eL.x = 0.5
+					tor.x -= 0.3; tor.y = 0.35; hd.x += 0.2; hd.y = 0.6
+			"bend":
+				# leaning down to speak to someone seated
+				tor.x -= 0.62; hd.x -= 0.32; lL.x = 0.28; lR.x = 0.22; kL.x = -0.32; kR.x = -0.26; hip_y -= 0.05
+				aL.x = 0.2; eL.x = 0.4; aR.x = 0.3; eR.x = 1.2
+			"hold":
+				# restraining somebody: both arms forward, weight back
+				aL = Vector3(1.15 + sin(_t * 5.0 + _seed) * 0.12, 0, 0.12); aR = Vector3(1.2 + sin(_t * 4.3) * 0.12, 0, -0.12)
+				eL.x = 0.55; eR.x = 0.5; tor.x -= 0.18; lL.x = 0.2; lR.x = -0.25; kL.x = -0.3
+			"shout":
+				# yelling an order across a crowd: one arm out, pointing, body behind it
+				aR = Vector3(1.35, 0, 0.15); eR.x = 0.12 + sin(_t * 3.0) * 0.1; aL.x = 0.25; eL.x = 0.8
+				tor.x -= 0.12; hd.x -= 0.08
+			"crossed":
+				aL.x = 0.2; eL.x = 1.5; aR.x = 0.2; eR.x = 1.5; aL.z = 0.3; aR.z = -0.3
 	if state == "talk" or talk_t > 0.0:
 		talk_t = maxf(0.0, talk_t - delta)
 		var g := sin(_t * 1.1 + _seed)
@@ -775,6 +813,24 @@ func _process(delta: float) -> void:
 				aL.x = 0.9; aR.x = 0.9; eL.x = 1.5; eR.x = 1.5; aL.z = 0.25; aR.z = -0.25; hd.x = -0.2
 			"nod":
 				hd.x += sin(_shot_t * 14.0) * 0.18
+			"nod_slow":
+				hd.x += maxf(0.0, sin(_shot_t * 4.2)) * 0.26
+			"push":
+				aL = Vector3(1.45, 0, 0.1); aR = Vector3(1.45, 0, -0.1); eL.x = 0.12; eR.x = 0.12; tor.x -= 0.25; lR.x = -0.4; kR.x = -0.2
+			"facepalm":
+				aR = Vector3(1.85, 0, 0.32); eR.x = 2.35; hd.x += 0.22; tor.x -= 0.05
+			"point_small":
+				aR = Vector3(0.42, 0, 0.32); eR.x = 0.55; hd.y += 0.35; hd.x += 0.05
+			"sigh":
+				var sg := sin(clampf(_shot_t / 2.2, 0.0, 1.0) * PI)
+				tor.x += 0.1 * sg; hd.x += 0.28 * sg; aL.z -= 0.05 * sg; aR.z += 0.05 * sg
+			"calm":
+				aR = Vector3(0.55, 0, 0.12); eR.x = 1.15; hd.x += 0.08
+			"shades":
+				aR = Vector3(1.6, 0, 0.25); eR.x = 2.5; hd.x -= 0.04
+			"leap":
+				aR = Vector3(1.9, 0, 0.3); eR.x = 1.9; aL = Vector3(1.0, 0, -0.3); eL.x = 1.4
+				lL.x = 1.1; kL.x = -1.5; lR.x = -0.35; kR.x = -0.6; tor.x -= 0.3; tor.y = 0.4
 			"shake":
 				hd.y += sin(_shot_t * 14.0) * 0.3
 	# the head turns to whoever has our attention (clamped so nobody is an owl)
@@ -817,7 +873,9 @@ func _process(delta: float) -> void:
 		_pose("foot_l", "", _eul(Vector3(0.25, 0, 0))); _pose("foot_r", "", _eul(Vector3(0.25, 0, 0)))
 	# hands: relaxed curl, a fist to hit, a grip when holding something
 	var want_fist := 0.25
-	if _shot_t > 0.0 and _shot == "punch": want_fist = 1.0
+	if _shot_t > 0.0 and _shot in ["punch", "leap"]: want_fist = 1.0
+	if activity in ["cheer", "shout"]: want_fist = 0.9 if activity == "cheer" else 0.4
+	if activity in ["dust", "hold", "bend", "wave_star"] or (_shot_t > 0.0 and _shot in ["push", "facepalm", "calm", "point_small"]): want_fist = 0.1
 	if prop != "" or activity in ["carry", "load", "tray", "sweep", "work", "fix", "pour", "phone", "umbrella"] or state == "drive": want_fist = 0.75
 	if _shot_t > 0.0 and _shot in ["namaste", "wave", "salute"]: want_fist = 0.02
 	if talk_t > 0.0: want_fist = 0.3 + 0.2 * sin(_t * 2.3 + _seed)
@@ -833,7 +891,8 @@ func _process(delta: float) -> void:
 	body.rotation.x = lerpf(body.rotation.x, body_rx, k * 0.6)
 	body.position.y = lerpf(body.position.y, body_y, k)
 	var yaw_now := global_rotation.y
-	var yr := wrapf(yaw_now - _last_yaw, -PI, PI) / maxf(delta, 0.001)
+	var dyaw := wrapf(yaw_now - _last_yaw, -PI, PI)
+	var yr := dyaw / maxf(delta, 0.001) if absf(dyaw) < 0.6 else 0.0      # a snap (teleport) is not a turn to lean into
 	_last_yaw = yaw_now
 	_tilt = lerpf(_tilt, clampf(-yr * 0.03 * minf(speed, 5.0), -0.18, 0.18), 1.0 - exp(-6.0 * delta))
 	body.rotation.z = _tilt
@@ -876,6 +935,14 @@ func _face(delta: float) -> void:
 		"smile": em += 0.9
 		"surprise":
 			w.brow_up = 1.0; w.jaw_open = maxf(w.jaw_open, 0.45); w.lips_part = 0.6
+		"scream":
+			em -= 1.0; w.jaw_open = 1.0; w.lips_part = 1.0; w.wide = 0.6; w.squint = 0.4
+		"glare":
+			em -= 0.85; w.squint = 0.55; w.lips_part = 0.05; w.blink = minf(w.blink, 0.15)
+		"smirk":
+			em += 0.45; w.sneer = 0.35; w.squint = 0.3
+		"frustrated":
+			em -= 0.6; w.brow_sad = 0.3; w.lips_part = 0.25
 		"nervous":
 			w.brow_sad = 0.6; w.lips_part = 0.2; w.wide = 0.3
 		"tired":
@@ -889,11 +956,11 @@ func _face(delta: float) -> void:
 		if em < -0.2: w.brow_sad = 0.4
 	if em > 0.0:
 		w.smile = clampf(em, 0.0, 1.0)
-		w.squint = em * 0.3
+		w.squint = maxf(w.squint, em * 0.3)
 	else:
 		w.brow_down = clampf(-em, 0.0, 1.0)
 		w.frown = clampf(-em * 0.6, 0.0, 1.0)
-		w.sneer = clampf(-em - 0.6, 0.0, 0.5)
+		w.sneer = maxf(w.sneer, clampf(-em - 0.6, 0.0, 0.5))
 	var kf := 1.0 - exp(-9.0 * delta)
 	for nm in w:
 		if nm == "blink":

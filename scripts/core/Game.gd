@@ -5,10 +5,12 @@ signal toast(text)
 signal changed            # money / rep / heat / objectives changed -> HUD refresh
 signal settings_changed
 
-const SAVE_DIR := "user://saves/"
+const SAVE_DIR := "user://saves_bbl/"     # BIG BANG LORE; the old RAJINIKANTH saves stay untouched in user://saves/
 const SETTINGS_PATH := "user://settings.json"
 const SLOTS := 4
-const VERSION := 2
+const VERSION := 3
+const START_DATE := [2007, 1, 1]     # the story runs 1 January 2007 .. 15 June 2007 (Sivaji release)
+const END_DAY := 166
 
 var settings := {
 	"gfx": 1, "sens": 1.0, "btn_scale": 1.0, "btn_alpha": 0.75, "lefty": false,
@@ -73,11 +75,11 @@ func gfx(key: String):
 func new_state(mode: String, pname: String, look: Dictionary) -> Dictionary:
 	return {
 		"v": VERSION, "mode": mode, "name": pname, "look": look,
-		"money": 140 if mode == "story" else 2500, "rep": 0, "heat": 0.0, "hp": 100.0,
-		"time": 16.2 if mode == "story" else 7.0, "day": 1, "weather": "clear", "pos": [125.0, 0.0, -11.0], "rot": 0.0, "interior": "",
+		"money": 85 if mode == "story" else 2500, "rep": 0, "heat": 0.0, "hp": 100.0,
+		"time": 10.4 if mode == "story" else 7.0, "day": 1, "weather": "clear", "pos": [-175.0, 0.0, -1470.0] if mode == "story" else [125.0, 0.0, -11.0], "rot": 0.0, "interior": "",
 		"flags": {}, "missions": {}, "active": "", "step": 0, "mvars": {},
-		"rel": {}, "faction": {"tiger": 0, "devaraj": 0, "soda": 0, "police": 0, "jpp": 0, "knv": 0},
-		"npc_mem": {}, "discovered": ["home", "tea", "majestic", "police", "court", "uma_home"], "vehicles": [], "props": [], "wardrobe": [],
+		"rel": {}, "faction": {"police": 0},
+		"npc_mem": {}, "discovered": ["msrit", "majestic"], "vehicles": [], "props": [], "wardrobe": [],
 		"contacts": [], "messages": [], "calls": [], "log": [], "phone": mode != "story",
 		"playtime": 0.0, "stats": {"tickets": 0, "km": 0.0, "talks": 0}, "politics": {"jpp": 50.0, "knv": 50.0, "day": 0},
 		"waypoint": null,
@@ -112,8 +114,8 @@ func load_game(i: int) -> bool:
 	if not (d is Dictionary) or not d.has("look"):
 		return false
 	var base := new_state(str(d.get("mode", "story")), str(d.get("name", "Rajinikanth")), d.look)
-	if int(d.get("v", 1)) < 2:
-		d = _migrate_v1(d, base)
+	if int(d.get("v", 1)) < 3:
+		return false       # a save from the retired RAJINIKANTH story: never loaded into BIG BANG LORE
 	for k in d:
 		base[k] = d[k]
 	s = base
@@ -236,11 +238,20 @@ func discover(id: String) -> void:
 
 func rank() -> String:
 	var r := int(s.rep)
-	if r < 10: return "Conductor"
+	if r < 10: return "Nobody yet"
 	if r < 30: return "Known Face"
 	if r < 60: return "Area Boy"
 	if r < 100: return "Dada"
 	return "Anna"
+
+## The calendar date for a story day: day 1 is Monday, 1 January 2007.
+func date_text(day := -1) -> String:
+	if day < 0:
+		day = int(s.get("day", 1))
+	var t := Time.get_unix_time_from_datetime_dict({"year": START_DATE[0], "month": START_DATE[1], "day": START_DATE[2], "hour": 12}) + (day - 1) * 86400
+	var d := Time.get_datetime_dict_from_unix_time(t)
+	var months := ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+	return "%d %s %d" % [d.day, months[d.month - 1], d.year]
 
 func clock_text() -> String:
 	var h := int(s.time) % 24

@@ -103,7 +103,7 @@ func stream(n: String) -> AudioStream:
 			st.loop = true
 	elif ResourceLoader.exists(DIR + n + ".wav"):
 		st = load(DIR + n + ".wav")
-		if st is AudioStreamWAV and n.begins_with("eng_"):
+		if st is AudioStreamWAV and (n.begins_with("eng_") or n == "siren"):
 			st.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			st.loop_end = int(st.get_length() * st.mix_rate)
 	_cache[n] = st

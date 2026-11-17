@@ -16,6 +16,14 @@ static func box(c: Color, radius := 8, border := 0, bc := Color.BLACK, pad := 10
 	s.set_content_margin_all(pad)
 	return s
 
+static var _comic: Font = null
+
+## The BIG BANG LORE display face (Bangers, SIL Open Font License).
+static func comic() -> Font:
+	if _comic == null:
+		_comic = load("res://assets/fonts/Bangers.ttf")
+	return _comic
+
 static func label(text: String, size := 22, c := Color.WHITE, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := Label.new()
 	l.text = text
