@@ -352,11 +352,20 @@ func apply(delta: float) -> void:
 		f.pitch = pitch
 		targets[s] = {"sole": sole, "yaw": yaw, "pitch": pitch, "n": n}
 	# the height the body is carried at: between the two footholds (a swinging foot counts where it will land)
+	# only feet actually on the ground count (a swing target can be stale, e.g. in the run cycle),
+	# blended with the ground under the body and kept close to it
+	var g_mid: float = float(_ground_at(pos).y)
 	var hy := []
 	for s in feet:
 		var f: Dictionary = feet[s]
-		hy.append(float((f.lock as Vector3).y) if f.planted else float((f.to as Vector3).y))
-	foot_ground_y = (float(hy[0]) + float(hy[1])) * 0.5
+		if f.planted:
+			hy.append(float((f.lock as Vector3).y))
+	var fy := g_mid
+	if hy.size() == 2:
+		fy = (float(hy[0]) + float(hy[1])) * 0.5
+	elif hy.size() == 1:
+		fy = (float(hy[0]) + g_mid) * 0.5
+	foot_ground_y = clampf(fy, g_mid - 0.2, g_mid + 0.2)
 	foot_ground_ok = true
 	# --- pelvis: weight over the stance leg, bob, and low enough for both legs to reach
 	var off := Vector3.ZERO

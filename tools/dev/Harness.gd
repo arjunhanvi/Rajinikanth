@@ -446,7 +446,7 @@ func _build_course() -> Dictionary:
 	var rl := 3.2
 	var ang := atan2(rise, rl)
 	_sbox(Vector3(-25, g + rise * 0.5 - 0.06, 56.0 + rl * 0.5), Vector3(2.0, 0.12, sqrt(rl * rl + rise * rise)), conc, true, -ang)
-	_sbox(Vector3(-25, g + rise * 0.5, 60.2), Vector3(2.0, rise, 1.6), conc.darkened(0.08), true)
+	_sbox(Vector3(-25, g + rise * 0.5, 60.1), Vector3(2.0, rise, 1.8), conc.darkened(0.08), true)
 	for k in 4:
 		var top := rise - (k + 1) * 0.09
 		_sbox(Vector3(-25, g + top * 0.5, 61.15 + k * 0.3), Vector3(2.0, maxf(top, 0.01), 0.3), conc.lightened(0.03 * k), true)
@@ -616,7 +616,7 @@ func s_proto() -> void:
 		raja.reach_to("r", rt)
 		if raja.reach.has("r") and float(raja.reach.r.w) >= 0.999:
 			_rail_err_max = maxf(_rail_err_max, raja.gait.palm("r").distance_to(rt))
-			if Engine.get_process_frames() % 6 == 0:
+			if false:
 				var sh: Vector3 = raja.skel.global_transform * raja.skel.get_bone_global_pose(raja.skel.find_bone("upperarm_r")).origin
 				print("[rail] err %.3f short %.3f shoulder_to_target %.3f palm %s target %s" % [raja.gait.palm("r").distance_to(rt), float(raja.reach_err.get("r", -1.0)), sh.distance_to(rt), str(Campus.frame().affine_inverse() * raja.gait.palm("r")), str(Campus.frame().affine_inverse() * rt)])
 		_tcam(p - side * 1.9 + fwd * 1.6 + Vector3(0, 1.5, 0), p + Vector3(0, 0.95, 0), 44.0))
@@ -693,7 +693,7 @@ func s_proto() -> void:
 	var yt: float = raja.rotation.y
 	_watch(func():
 		var p: Vector3 = pl.global_position
-		_tcam(p + Vector3(0, 1.7, 0) + fwd * 1.3 + side * 1.3, p + Vector3(0, 0.15, 0), 50.0))
+		_tcam(p + Vector3(0, 1.5, 0) + fwd * 2.6 + side * 2.0, p + Vector3(0, 0.85, 0), 46.0))
 	for i in 30:
 		raja.rotation.y = yt + PI * (i + 1) / 30.0
 		await wait(0.05)
