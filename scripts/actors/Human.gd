@@ -21,6 +21,9 @@ const ACCS := ["None", "Gold chain", "Cap", "Shoulder towel", "Ticket bag", "Jas
 const DIR := "res://assets/humans/"
 const HEROES := ["raja", "lal", "rajini", "shankar", "kvanand", "ad", "umashankar", "raji", "kamakshi", "uma", "devaraj"]
 const SKIN_REF := Color(0.86, 0.66, 0.5)      # tone the crowd skin maps are baked at
+## Milestone 2 quality prototype: these bodies get the skin shader, card hair with motion
+## and (when enabled) the ground-locked gait.
+const PROTO := ["raja"]
 
 static var _scenes := {}
 static var _mats := {}
@@ -69,6 +72,16 @@ var _scale := 1.0
 var _foot_lock := {}
 var fall_t := -1.0         # >= 0 while a fall-and-recover plays (state "fall")
 var seat_lift := 0.0       # raise the body so the pelvis rests on a seat of a given height
+var ground_follow := true  # stand on the real walkable surface (off when riding in a vehicle)
+var _gy := 0.0             # how far the walkable surface is above our root
+var _blob: MeshInstance3D = null
+var gait: Gait = null      # ground-locked procedural locomotion (feet planted, IK legs)
+var gait_measure := false
+var _card_mats: Array = []     # per-person hair-card materials (each carries its own sway)
+var _hs := Vector3.ZERO        # hair spring: lagging position of the hair mass
+var _hsv := Vector3.ZERO
+var _hs_init := false
+var _gait_was := false
 
 static func default_look() -> Dictionary:
 	return {"sex": 0, "skin": 2, "face": 0, "hair": 1, "hair_col": 0, "beard": 2, "height": 0.5, "build": 0.4,
@@ -252,6 +265,25 @@ static func plain_mat(key: String, c: Color, rough: float, metal := 0.0, vcol :=
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		return m)
 
+static func skin_shader_mat(model_name: String) -> Material:
+	return _mat("skinsh_" + model_name, func():
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/skin.gdshader")
+		m.set_shader_parameter("albedo_tex", _tex(model_name + "_skin.jpg"))
+		m.set_shader_parameter("normal_tex", _tex(model_name + "_skin_n.jpg"))
+		m.set_shader_parameter("pores_tex", _tex("skin_pores_n.png"))
+		return m)
+
+func _card_mat(fine: bool, facial := false) -> Material:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/hair_cards.gdshader")
+	m.set_shader_parameter("strands", _tex("hair_card.png"))
+	m.set_shader_parameter("cut", 0.58 if facial else (0.4 if fine else 0.33))
+	if facial:
+		m.set_shader_parameter("tint", Color(1.6, 1.45, 1.35))     # facial hair reads a touch browner than the head
+	_card_mats.append(m)
+	return m
+
 static func eye_mat() -> Material:
 	return _mat("eye", func():
 		var m := StandardMaterial3D.new()
@@ -314,6 +346,7 @@ func set_look(l: Dictionary) -> void:
 	sh.material_override = Mats.blob()
 	sh.position.y = 0.03
 	sh.visibility_range_end = 40.0
+	_blob = sh
 	sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(sh)
 
@@ -388,7 +421,9 @@ func _dress(info: Dictionary, hero: bool) -> void:
 			_faces.append(mi)
 	var tone: Color = SKIN[int(look.skin) % SKIN.size()]
 	var skin: Material
-	if hero:
+	if hero and model in PROTO:
+		skin = skin_shader_mat(model)
+	elif hero:
 		skin = skin_mat(model, Color.WHITE)
 	else:
 		skin = skin_mat(model, Color(tone.r / SKIN_REF.r, tone.g / SKIN_REF.g, tone.b / SKIN_REF.b).clamp())
@@ -416,7 +451,10 @@ func _dress(info: Dictionary, hero: bool) -> void:
 			var p := String(part)
 			if p.begins_with("skin") or p in ["eyes", "teeth", "tongue", "lashes"]:
 				continue
-			if p.begins_with("hair_"):
+			if p.ends_with("_cards") or p.ends_with("_cards1"):
+				var facial := p.begins_with("brows") or p.begins_with("moustache") or p.begins_with("sideburn") or p.begins_with("beard")
+				_show(p, _card_mat(not p.ends_with("_cards1"), facial))
+			elif p.begins_with("hair_"):
 				_show(p, hair_mat(Color.WHITE, p.ends_with("_cap")))
 			elif p in ["moustache", "beard", "goatee"]:
 				_show(p, hair_mat(Color.WHITE, false, 0.28))
@@ -588,6 +626,99 @@ func _make_props() -> void:
 			_prop(hdb, _box(0.13, 0.03, 0.03), Mats.col(Color(0.98, 0.97, 0.9)), Vector3(0, 0.05, 0.1)).visible = true
 
 # ------------------------------------------------------------------ animation
+## Body language. A posture shapes the whole body, not just the face, and comes with its own
+## small habits. Values are added to the animated pose.
+var posture := ""          # confident, nervous, defensive, frustrated, curious, tired, relaxed
+var _post_t := 0.0
+var reach := {}            # side -> {target: Vector3 (world), w: float, want: float}
+var reach_err := {}
+
+## Additive pose for the current posture: {tor, hd, aL, aR, eL, eR, arms (bool: the posture owns the arms)}.
+func _posture_pose(delta: float) -> Dictionary:
+	_post_t += delta
+	var t := _post_t
+	var o := {"tor": Vector3.ZERO, "hd": Vector3.ZERO, "aL": Vector3.ZERO, "aR": Vector3.ZERO, "eL": 0.0, "eR": 0.0, "arms": false}
+	match posture:
+		"confident":       # chest up, chin up, shoulders back, arms loose and a little away from the body
+			o.tor = Vector3(0.06, 0, 0); o.hd = Vector3(-0.07, 0, 0)
+			o.aL = Vector3(-0.05, 0, -0.1); o.aR = Vector3(-0.05, 0, 0.1)
+		"nervous":         # folded in, head down, hands working at each other, eyes and head never still
+			o.tor = Vector3(-0.1, 0, 0); o.hd = Vector3(0.14, sin(t * 1.9) * 0.22 + sin(t * 4.3) * 0.05, 0)
+			o.arms = true
+			o.aL = Vector3(0.38 + sin(t * 5.0) * 0.04, 0, 0.26); o.aR = Vector3(0.38 + sin(t * 5.7 + 1.0) * 0.04, 0, -0.26)
+			o.eL = 1.25 + sin(t * 6.0) * 0.08; o.eR = 1.3 + sin(t * 6.4) * 0.08
+		"defensive":       # arms folded across the chest, weight back, chin tucked
+			o.tor = Vector3(0.05, 0, 0); o.hd = Vector3(0.04, 0, 0)
+			o.arms = true
+			o.aL = Vector3(0.22, 0, 0.32); o.aR = Vector3(0.26, 0, -0.3); o.eL = 1.55; o.eR = 1.5
+		"frustrated":      # hands on the hips, a slow shake of the head, a sigh every so often
+			o.arms = true
+			var sig := maxf(0.0, sin(t * 0.7)) ** 6
+			o.tor = Vector3(-0.04 + sig * 0.08, 0, 0); o.hd = Vector3(0.05 + sig * 0.2, sin(t * 0.9) * 0.12, 0)
+			o.aL = Vector3(-0.25, 0, -0.62); o.aR = Vector3(-0.25, 0, 0.62); o.eL = 1.7; o.eR = 1.7
+		"curious":         # leaning in, head tilted, chin forward
+			o.tor = Vector3(-0.09, 0, 0); o.hd = Vector3(-0.06, sin(t * 0.6) * 0.1, 0.16)
+		"tired":           # slumped, head heavy, arms hanging dead
+			o.tor = Vector3(-0.14, 0, 0); o.hd = Vector3(0.2, 0, sin(t * 0.3) * 0.05)
+			o.aL = Vector3(0.0, 0, 0.05); o.aR = Vector3(0.0, 0, -0.05)
+		"relaxed":         # weight on one hip, one hand resting on the belt, slow looks around
+			o.hd = Vector3(0.0, sin(t * 0.35) * 0.3, 0.04)
+			o.aR = Vector3(-0.1, 0, 0.1); o.eR = 0.6
+	return o
+
+## Reach with a hand: blend toward the target over ~0.4 s, hold, release by calling reach_release.
+func reach_to(side: String, target: Vector3) -> void:
+	var r: Dictionary = reach.get(side, {"w": 0.0})
+	r["target"] = target
+	r["want"] = 1.0
+	reach[side] = r
+
+func reach_release(side: String) -> void:
+	if reach.has(side):
+		reach[side]["want"] = 0.0
+
+func _reach_ik(delta: float) -> void:
+	if gait == null:
+		return
+	for side in reach.keys():
+		var r: Dictionary = reach[side]
+		r.w = move_toward(float(r.w), float(r.get("want", 0.0)), delta / 0.45)
+		var ws := float(r.w) * float(r.w) * (3.0 - 2.0 * float(r.w))
+		reach_err[side] = gait.solve_arm(side, r.target, ws)
+		if float(r.w) <= 0.0 and float(r.get("want", 0.0)) <= 0.0:
+			reach.erase(side)
+	# seated: hands come to rest on the thighs, just behind the knee
+	if gait.seating():
+		var st: float = gait.seat_t
+		var wr := clampf((st - 0.55) / 0.45, 0.0, 1.0)
+		wr = wr * wr * (3.0 - 2.0 * wr)
+		for side in ["l", "r"]:
+			var busy: float = float(reach[side].w) if reach.has(side) else 0.0
+			var w := wr * (1.0 - busy)
+			if w <= 0.001 or (side == "r" and activity != ""):
+				continue
+			var th: Vector3 = skel.global_transform * skel.get_bone_global_pose(_bone["thigh_" + side]).origin
+			var kn: Vector3 = skel.global_transform * skel.get_bone_global_pose(_bone["calf_" + side]).origin
+			var out := global_transform.basis.x * (-1.0 if side == "l" else 1.0)
+			# top of the thigh: the bone runs through its middle, the surface is ~7 cm above it
+			gait.solve_arm(side, th.lerp(kn, 0.62) + Vector3(0, 0.075, 0) + out * 0.02, w)
+
+## Sit on a seat surface (world point at the centre of the seat), facing yaw.
+func sit_on(seat_pos: Vector3, yaw: float) -> void:
+	if gait == null:
+		enable_gait()
+	rotation.y = yaw
+	gait.sit_on(seat_pos, yaw)
+
+func stand_up() -> void:
+	if gait != null:
+		gait.stand_up()
+
+## Switch this person to the ground-locked gait (planted feet, IK legs, weight transfer).
+func enable_gait() -> void:
+	if skel != null and gait == null:
+		gait = Gait.new(self)
+
 func play_once(nm: String, dur := 0.45) -> void:
 	_shot = nm
 	_shot_t = dur
@@ -620,6 +751,14 @@ func _process(delta: float) -> void:
 		delta *= 3.0
 	var near := cd < 14.0 * 14.0
 	_t += delta
+	if ground_follow:
+		var root_y := global_position.y
+		var gh := Ground.height(global_position) - root_y
+		_gy = lerpf(_gy, maxf(0.0, gh), 1.0 - exp(-14.0 * delta)) if absf(gh - _gy) < 0.35 else maxf(0.0, gh)
+	else:
+		_gy = 0.0
+	if _blob != null:
+		_blob.position.y = _gy + 0.012
 	var k := 1.0 - exp(-12.0 * delta)
 	var hip_y := 0.9
 	var body_rx := 0.0
@@ -630,6 +769,13 @@ func _process(delta: float) -> void:
 	var hipr := Vector3.ZERO
 	var breath := sin(_t * 1.6 + _seed) * 0.012
 	var prop := ""
+	if gait != null and gait.seating():
+		gait.seat_update(delta)          # may finish standing up and clear the seat
+	var seated_gait := gait != null and gait.seating()
+	var gait_on := gait != null and not seated_gait and ground_follow and state in ["idle", "talk"] and not (_shot_t > 0.0 and _shot == "leap") and absf(body.rotation.x) < 0.2
+	if gait_on and not _gait_was:
+		gait.reset()
+	_gait_was = gait_on
 	var st_k: float = walk[0]
 	var sw_k: float = walk[1]
 	var ar_k: float = walk[2]
@@ -673,7 +819,7 @@ func _process(delta: float) -> void:
 		"air":
 			lL.x = 0.5; lR.x = -0.2; kL.x = -0.7; kR.x = -0.3; aL.z = -0.5; aR.z = 0.5
 		_:
-			if speed > 0.25:
+			if speed > 0.25 and not gait_on:
 				var run := clampf((speed - 2.2) / 3.0, 0.0, 1.0)
 				# cadence follows ground speed so the feet do not skate
 				_phase += delta * speed * lerpf(4.9, 2.6, run) * (1.0 + stoop) / st_k
@@ -866,6 +1012,27 @@ func _process(delta: float) -> void:
 			hd.y = clampf(want, -1.1, 1.1) * 0.85
 			tor.y += clampf(want, -1.1, 1.1) * 0.15
 			hd.x += clampf(-atan2(to.y, Vector2(to.x, to.z).length()), -0.4, 0.4)
+	if seated_gait:
+		# sitting: the torso leans over the knees on the way down and up, settles back when seated
+		var st := gait.seat_t
+		tor.x -= sin(PI * st) * 0.5 - st * 0.04
+		hd.x += sin(PI * st) * 0.25
+		aL.x = 0.45; aR.x = 0.45; eL.x = 0.85; eR.x = 0.85
+	var po := _posture_pose(delta)
+	tor += po.tor; hd += po.hd
+	var still := gait == null or gait.vel.length() < 0.25
+	if po.arms and still and activity == "" and prop == "":
+		aL = po.aL; aR = po.aR; eL.x = po.eL; eR.x = po.eR
+	else:
+		aL += po.aL; aR += po.aR; eL.x += po.eL; eR.x += po.eR
+	if gait_on:
+		var free: bool = prop == "" and activity in ["", "listen", "laugh"] and not (_shot_t > 0.0)
+		var g := gait.plan(delta, free)
+		tor += g.tor; hd += g.hd; hipr += g.hip
+		if free and gait.vel.length() > 0.2:
+			aL.x = g.armL; aR.x = g.armR
+			eL.x = maxf(eL.x, g.elbow + maxf(0.0, -g.armL) * 0.2); eR.x = maxf(eR.x, g.elbow + maxf(0.0, -g.armR) * 0.2)
+			aL.z = -0.09; aR.z = 0.09
 	# ---- drive the skeleton
 	var a_l := _sm("armL", aL, k); var a_r := _sm("armR", aR, k)
 	var e_l := _sm("elbowL", eL, k); var e_r := _sm("elbowR", eR, k)
@@ -875,7 +1042,8 @@ func _process(delta: float) -> void:
 	_hip_y = lerpf(_hip_y, hip_y, k)
 	hips.position.y = _hip_y
 	var drop := (_hip_y - 0.9) / 0.9
-	skel.set_bone_pose_position(_bone["pelvis"], _pelvis_rest + Vector3(0, drop * _pelvis_rest.y, 0))
+	if not gait_on and not seated_gait:
+		skel.set_bone_pose_position(_bone["pelvis"], _pelvis_rest + Vector3(0, drop * _pelvis_rest.y, 0))
 	_pose("pelvis", "", _eul(hp))
 	var third := t_s / 3.0
 	_pose("spine_01", "", _eul(third)); _pose("spine_02", "", _eul(third)); _pose("spine_03", "", _eul(third))
@@ -886,15 +1054,23 @@ func _process(delta: float) -> void:
 	_pose("upperarm_l", "", _eul(a_l)); _pose("upperarm_r", "", _eul(a_r))
 	_pose("lowerarm_l", "upperarm_l", _eul(e_l)); _pose("lowerarm_r", "upperarm_r", _eul(e_r))
 	_pose("hand_l", "lowerarm_l", Quaternion.IDENTITY); _pose("hand_r", "lowerarm_r", Quaternion.IDENTITY)
-	_pose("thigh_l", "", _eul(l_l)); _pose("thigh_r", "", _eul(l_r))
-	_pose("calf_l", "", _eul(k_l)); _pose("calf_r", "", _eul(k_r))
+	if not gait_on and not seated_gait:
+		_pose("thigh_l", "", _eul(l_l)); _pose("thigh_r", "", _eul(l_r))
+		_pose("calf_l", "", _eul(k_l)); _pose("calf_r", "", _eul(k_r))
 	# feet stay level with the ground through the stride, rolling off the toe
 	var planted := state in ["idle", "talk", "crouch"] or (state != "sit" and state != "drive" and state != "pillion" and state != "ko" and state != "air")
-	if planted:
+	if seated_gait:
+		gait.apply_seat(delta)
+	elif gait_on:
+		gait.apply(delta)
+		if gait_measure:
+			gait.measure()
+	elif planted:
 		_pose("foot_l", "", _eul(Vector3(-(l_l.x + k_l.x) + maxf(0.0, -l_l.x) * 0.35 - hp.x, 0, -l_l.z)))
 		_pose("foot_r", "", _eul(Vector3(-(l_r.x + k_r.x) + maxf(0.0, -l_r.x) * 0.35 - hp.x, 0, -l_r.z)))
 	else:
 		_pose("foot_l", "", _eul(Vector3(0.25, 0, 0))); _pose("foot_r", "", _eul(Vector3(0.25, 0, 0)))
+	_reach_ik(delta)
 	# hands: relaxed curl, a fist to hit, a grip when holding something
 	var want_fist := 0.25
 	if _shot_t > 0.0 and _shot in ["punch", "leap"]: want_fist = 1.0
@@ -915,7 +1091,7 @@ func _process(delta: float) -> void:
 	body.rotation.x = lerpf(body.rotation.x, body_rx, k * 0.6)
 	if state == "sit":
 		body_y += seat_lift
-	body.position.y = lerpf(body.position.y, body_y, k)
+	body.position.y = lerpf(body.position.y - _gy, body_y, k) + _gy
 	var yaw_now := global_rotation.y
 	var dyaw := wrapf(yaw_now - _last_yaw, -PI, PI)
 	var yr := dyaw / maxf(delta, 0.001) if absf(dyaw) < 0.6 else 0.0      # a snap (teleport) is not a turn to lean into
@@ -926,6 +1102,8 @@ func _process(delta: float) -> void:
 		_props[pk].visible = pk == prop
 	if near:
 		_face(delta)
+	if not _card_mats.is_empty() and cd < 25.0 * 25.0:
+		_hair_motion(delta)
 
 ## A push that takes the feet away: staggering back, sitting down hard onto the hands,
 ## a beat on the ground, then onto one knee and up. Keyframes in seconds.
@@ -963,6 +1141,32 @@ static func _fall_pose(t: float) -> Dictionary:
 	for kk in ["kL", "kR"]:
 		out[kk] = Vector3(float(out[kk]), 0, 0)
 	return out
+
+## Hair motion: the hair's mass (a point a little above and behind the head centre) is
+## carried on a damped spring. When the head moves, turns, starts or stops, the mass lags
+## and overshoots a little; a light breeze moves it too. The lag, in the body's own space,
+## drives the card shader's tip offset, so the roots never leave the scalp.
+func _hair_motion(delta: float) -> void:
+	if head == null:
+		return
+	var target := head.global_transform * Vector3(0, 0.1, 0.03)
+	if not _hs_init:
+		_hs = target
+		_hsv = Vector3.ZERO
+		_hs_init = true
+	var dt := minf(delta, 0.05)
+	var k := 70.0
+	var c := 9.0
+	_hsv += ((target - _hs) * k - _hsv * c) * dt
+	_hs += _hsv * dt
+	var lag := _hs - target
+	if lag.length() > 0.06:
+		lag = lag.normalized() * 0.06
+		_hs = target + lag
+	var wind := Vector3(sin(_t * 1.3 + _seed) * 0.004 + sin(_t * 3.1) * 0.0015, 0, cos(_t * 1.1 + _seed) * 0.003)
+	var local := (skel.global_transform.basis.inverse() * (lag * 0.8 + wind))
+	for m in _card_mats:
+		(m as ShaderMaterial).set_shader_parameter("sway", local)
 
 func _m(nm: String, target: float, k: float) -> void:
 	var v: float = lerpf(float(_morph.get(nm, 0.0)), target, k)

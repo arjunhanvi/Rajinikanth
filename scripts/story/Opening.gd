@@ -275,7 +275,7 @@ func _build_cast() -> void:
 	# seated facing into the campus: from the crowd, the gate and the unit he is a back and a pair of shades
 	var rajini := spawn("rajini", {"model": "rajini", "acc": 0, "top": 11}, rc + Campus.frame().basis * Vector3(0, 0, -0.08), L(16, 0, 80))
 	rajini.state = "sit"
-	rajini.seat_lift = 0.07
+	rajini.seat_lift = 0.015          # chair seat 0.6 m; his body already stands on the 0.055 m paving
 	spectacles(rajini, true)
 	var sh := spawn("shankar", {"model": "shankar", "acc": 0, "top": 1}, L(-13.9, 0, 53.4), L(-12.2, 0, 53.9))
 	spawn("kvanand", {"model": "kvanand", "acc": 0}, L(-12.2, 0, 53.9), L(-13.9, 0, 53.4))
@@ -1514,6 +1514,7 @@ func _seat(veh: Vehicle, h: Human, local: Vector3) -> void:
 		h.rotation.y = 0.0
 	h.state = "sit"
 	h.speed = 0.0
+	h.ground_follow = false
 	h.activity = ""
 
 # ---------------------------------------------------------------- 10. the two questions

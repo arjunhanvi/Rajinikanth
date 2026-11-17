@@ -277,3 +277,415 @@ func s_props() -> void:
 	op.aim(Opening.L(1.0, 1.7, 80.5), Opening.L(1.0, 1.3, 85.0), 50.0)
 	await wait(0.6)
 	await shot("ev_medical_students_porch")
+
+# ------------------------------------------------------------------ Milestone 2: gait test
+var _cam_t: Camera3D
+
+func _tcam(pos: Vector3, look: Vector3, fov := 40.0) -> void:
+	if _cam_t == null:
+		_cam_t = Camera3D.new()
+		world().add_child(_cam_t)
+	_cam_t.make_current()
+	_cam_t.fov = fov
+	_cam_t.global_position = pos
+	_cam_t.look_at(look, Vector3.UP)
+
+func _raja_proto():
+	while world() == null or world().player == null:
+		await get_tree().process_frame
+	var w = world()
+	var pl = w.player
+	pl.human.set_look({"model": "raja", "acc": 0, "top": 0})
+	pl.human.enable_gait()
+	pl.human.gait_measure = true
+	return pl
+
+var _driving := false
+
+func _drive_to(target: Vector3, sprint := false, timeout := 20.0) -> void:
+	_driving = true
+	var pl = world().player
+	if sprint: Input.action_press("sprint")
+	var t := 0.0
+	while t < timeout:
+		var d: Vector3 = target - pl.global_position
+		d.y = 0
+		if d.length() < 0.35: break
+		pl.yaw = atan2(-d.x, -d.z)
+		Input.action_press("mv_u")
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	Input.action_release("mv_u")
+	Input.action_release("sprint")
+	_driving = false
+
+func s_gait() -> void:
+	var w = world()
+	var pl = await _raja_proto()
+	await tp(Campus.world(Vector3(-25, 0, 50)), 0.0)
+	pl.cam_override = true
+	w.busy = true
+	var start: Vector3 = pl.global_position
+	var fwd := Campus.frame().basis * Vector3(0, 0, 1)
+	var side := Campus.frame().basis * Vector3(1, 0, 0)
+	await wait(1.0)
+	# walk, filmed side-on at foot level
+	var goal := start + fwd * 9.0
+	_drive_to(goal)
+	for i in 24:
+		var p: Vector3 = pl.global_position
+		_tcam(p + side * 2.6 + Vector3(0, 0.55, 0), p + Vector3(0, 0.45, 0), 42.0)
+		await wait(0.12)
+		await shot("g_walk_%02d" % i)
+	while _driving: await get_tree().process_frame
+	await wait(1.2)
+	await shot("g_stop")
+	print("walk: ", pl.human.gait.stats)
+	pl.human.gait.stats = {"slide_max": 0.0, "ground_err_max": 0.0, "samples": 0, "steps": 0, "reach_fail": 0}
+	# run
+	_drive_to(pl.global_position + fwd * 14.0, true)
+	for i in 16:
+		var p: Vector3 = pl.global_position
+		_tcam(p + side * 3.2 + Vector3(0, 0.7, 0), p + Vector3(0, 0.7, 0), 45.0)
+		await wait(0.08)
+		await shot("g_run_%02d" % i)
+	while _driving: await get_tree().process_frame
+	await wait(1.2)
+	print("run: ", pl.human.gait.stats)
+	# turn on the spot
+	var y0: float = pl.human.rotation.y
+	for i in 20:
+		pl.human.rotation.y = y0 + PI * (i + 1) / 20.0
+		var p: Vector3 = pl.global_position
+		_tcam(p + Vector3(0, 1.6, 0) + side * 1.2 + fwd * 1.2, p + Vector3(0, 0.1, 0), 50.0)
+		await wait(0.08)
+		if i % 4 == 0: await shot("g_turn_%02d" % i)
+	await wait(1.5)
+	await shot("g_turn_end")
+	print("turn: ", pl.human.gait.stats)
+
+func s_gaitdbg() -> void:
+	var w = world()
+	var pl = await _raja_proto()
+	await tp(Campus.world(Vector3(-25, 0, 50)), 0.0)
+	w.busy = true
+	await wait(1.0)
+	var g = pl.human.gait
+	var fwd := Campus.frame().basis * Vector3(0, 0, 1)
+	_drive_to(pl.global_position + fwd * 6.0)
+	for i in 40:
+		await get_tree().process_frame
+		var p: Vector3 = pl.global_position
+		print("%02d dt %.3f pos %s vel %.2f swing '%s' L %s t%.2f  R %s t%.2f  poff %s state %s gy %.3f" % [i, get_process_delta_time(), str(p), g.vel.length(), g._swing_side, str(g.feet.l.lock - p) if g.feet.l.planted else "air", g.feet.l.t, str(g.feet.r.lock - p) if g.feet.r.planted else "air", g.feet.r.t, str(g.pelvis_off), pl.human.state, pl.human._gy])
+
+func s_armdbg() -> void:
+	var w = world()
+	var pl = await _raja_proto()
+	await tp(Campus.world(Vector3(-25, 0, 50)), 0.0)
+	w.busy = true
+	await wait(1.0)
+	var raja: Human = pl.human
+	var fwd: Vector3 = -raja.global_transform.basis.z
+	var right: Vector3 = raja.global_transform.basis.x
+	var tg: Vector3 = raja.global_position + fwd * 0.42 + right * 0.22 + Vector3(0, 1.2, 0)
+	raja.reach_to("r", tg)
+	for i in 30:
+		await get_tree().process_frame
+		var sk := raja.skel
+		var hp: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("hand_r")).origin
+		var ep: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("lowerarm_r")).origin
+		var sp: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("upperarm_r")).origin
+		var d: Dictionary = raja.gait.arm_dbg.get("r", {})
+		if d.is_empty(): continue
+		print("%02d w %.2f | S %s vs %s | E %s vs %s | W %s vs %s | hand-target %.3f scale %s" % [i, float(raja.reach.r.w), str(sp), str(d.S), str(ep), str(d.elbow), str(hp), str(d.wrist), hp.distance_to(tg), str(sk.global_transform.basis.get_scale())])
+
+# ------------------------------------------------------------------ Milestone 2-A: the prototype course
+var _stage: Node3D
+var _cam_fn2 := Callable()
+var _metrics := {}
+var _rail_err_max := 0.0
+
+func _L(x: float, y: float, z: float) -> Vector3:
+	return Campus.world(Vector3(x, y, z))
+
+func _mat(c: Color, rough := 0.85) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	return m
+
+func _sbox(centre_local: Vector3, size: Vector3, c: Color, walk := false, tilt := 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.material_override = _mat(c)
+	_stage.add_child(mi)
+	mi.global_transform = Transform3D(Campus.frame().basis * Basis(Vector3(1, 0, 0), tilt), _L(centre_local.x, centre_local.y, centre_local.z))
+	if walk:
+		var b := Ground.new_body()
+		var cs := CollisionShape3D.new()
+		var sh := BoxShape3D.new()
+		sh.size = size
+		cs.shape = sh
+		b.add_child(cs)
+		_stage.add_child(b)
+		b.global_transform = mi.global_transform
+	return mi
+
+func _build_course() -> Dictionary:
+	_stage = Node3D.new()
+	world().add_child(_stage)
+	var g := 0.055                                   # the paving
+	var conc := Color(0.6, 0.58, 0.54)
+	# 1. a footpath block with a 16 cm kerb, crossed
+	_sbox(Vector3(-25, g + 0.08, 51.25), Vector3(4.0, 0.16, 2.5), conc.darkened(0.05), true)
+	_sbox(Vector3(-25, g + 0.08, 50.0), Vector3(4.0, 0.16, 0.12), Color(0.75, 0.74, 0.7))
+	# 2. a ramp up to a platform, and four stairs down the far side
+	var rise := 0.36
+	var rl := 3.2
+	var ang := atan2(rise, rl)
+	_sbox(Vector3(-25, g + rise * 0.5 - 0.06, 56.0 + rl * 0.5), Vector3(2.0, 0.12, sqrt(rl * rl + rise * rise)), conc, true, -ang)
+	_sbox(Vector3(-25, g + rise * 0.5, 60.2), Vector3(2.0, rise, 1.6), conc.darkened(0.08), true)
+	for k in 4:
+		var top := rise - (k + 1) * 0.09
+		_sbox(Vector3(-25, g + top * 0.5, 61.15 + k * 0.3), Vector3(2.0, maxf(top, 0.01), 0.3), conc.lightened(0.03 * k), true)
+	# 3. a chair (seat 0.45 m) and a table with a tea glass
+	var seat := _L(-25.0, g + 0.45, 67.0)
+	var seat_loc := Vector3(-25.0, 0, 67.0)
+	_sbox(Vector3(-25.0, g + 0.43, 67.0), Vector3(0.44, 0.04, 0.42), Color(0.45, 0.3, 0.18))
+	_sbox(Vector3(-25.0, g + 0.72, 67.2), Vector3(0.44, 0.55, 0.04), Color(0.45, 0.3, 0.18))
+	for sx: float in [-0.19, 0.19]:
+		for sz: float in [-0.18, 0.18]:
+			_sbox(Vector3(-25.0 + sx, g + 0.21, 67.0 + sz), Vector3(0.035, 0.42, 0.035), Color(0.38, 0.25, 0.15))
+	_sbox(Vector3(-24.25, g + 0.7, 66.95), Vector3(0.6, 0.04, 0.5), Color(0.5, 0.36, 0.22))
+	for sx: float in [-0.26, 0.26]:
+		for sz: float in [-0.21, 0.21]:
+			_sbox(Vector3(-24.25 + sx, g + 0.34, 66.95 + sz), Vector3(0.035, 0.68, 0.035), Color(0.42, 0.3, 0.18))
+	var glass := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.032
+	cm.bottom_radius = 0.026
+	cm.height = 0.09
+	glass.mesh = cm
+	var gm := _mat(Color(0.62, 0.42, 0.26, 0.9), 0.12)
+	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.material_override = gm
+	_stage.add_child(glass)
+	glass.global_position = _L(-24.12, g + 0.72 + 0.045, 66.85)
+	# 4. a railing along the path
+	for k in 5:
+		_sbox(Vector3(-26.4, g + 0.5, 70.0 + k * 1.5), Vector3(0.05, 1.0, 0.05), Color(0.3, 0.32, 0.35))
+	_sbox(Vector3(-26.4, g + 1.0, 73.0), Vector3(0.06, 0.06, 6.2), Color(0.35, 0.37, 0.4))
+	# 5. somebody to push
+	var other := Human.make({"model": "m_avg", "top": 4, "top_col": 8, "bottom": 0, "bot_col": 8, "acc": 0, "build": 0.6, "age": 0.35}, 1)
+	_stage.add_child(other)
+	other.global_position = _L(-25.0, 0, 80.0)
+	other.rotation.y = Campus.yaw_world(0.0)      # faces back down the course (local -Z)
+	other.enable_gait()
+	return {"seat": seat, "seat_loc": seat_loc, "glass": glass, "other": other, "rail_x": -26.4, "g": g}
+
+func _watch(fn: Callable) -> void:
+	_cam_fn2 = fn
+
+func _process(_d: float) -> void:
+	if _cam_fn2.is_valid():
+		_cam_fn2.call()
+
+func _yaw_local(lx: float, lz: float) -> float:
+	var d := Campus.frame().basis * Vector3(lx, 0, lz)
+	return atan2(-d.x, -d.z)
+
+func s_proto() -> void:
+	var w = world()
+	var pl = await _raja_proto()
+	await tp(_L(-25, 0, 46.5), 0.0)
+	w.busy = true
+	pl.cam_override = true
+	Game.s.time = 9.5
+	var C := _build_course()
+	var raja: Human = pl.human
+	var B := Campus.frame().basis
+	var side := B * Vector3(1, 0, 0)
+	var fwd := B * Vector3(0, 0, 1)
+	raja.rotation.y = _yaw_local(0, 1)
+	await wait(1.5)
+	var gs = raja.gait
+	# --- A. idle: breathing, weight shifting, glances, blinking; then a run of postures
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		_tcam(p + fwd * 2.2 + side * 0.6 + Vector3(0, 1.45, 0), p + Vector3(0, 1.2, 0), 38.0))
+	await wait(3.0)
+	await shot("p01_idle")
+	for pst in ["confident", "nervous", "defensive", "frustrated", "curious", "tired", "relaxed"]:
+		raja.posture = pst
+		await wait(1.6)
+		await shot("p02_posture_" + pst)
+	raja.posture = ""
+	_watch(func():
+		var hp: Vector3 = raja.head.global_position
+		_tcam(hp + fwd * 0.75 + side * 0.25 + Vector3(0, 0.05, 0), hp + Vector3(0, 0.02, 0), 30.0))
+	await wait(1.2)
+	await shot("p03_face")
+	raja.look_target = raja.head.global_position + side * 2.0 + fwd * 1.0
+	await wait(0.9)
+	await shot("p03_face_turn")
+	raja.look_target = null
+	gs.stats = {"slide_max": 0.0, "ground_err_max": 0.0, "samples": 0, "steps": 0, "reach_fail": 0}
+	# --- B. walk: over the kerb, up the ramp, down the stairs (feet filmed side-on)
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		_tcam(p + side * 2.4 + Vector3(0, 0.75, 0) - fwd * 0.4, p + Vector3(0, 0.5, 0) + fwd * 0.3, 44.0))
+	_drive_to(_L(-25, 0, 64.0))
+	var k := 0
+	while _driving:
+		await wait(0.35)
+		await shot("p04_walk_%02d" % k)
+		k += 1
+	_metrics["walk_kerb_ramp_stairs"] = gs.stats.duplicate()
+	# --- C. stop at the chair, turn round, sit down, reach the glass, drink, put it back, stand up
+	_drive_to(_L(-25, 0, 66.55))
+	while _driving: await get_tree().process_frame
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		_tcam(p + side * 2.3 - fwd * 1.1 + Vector3(0, 1.1, 0), p + Vector3(0, 0.75, 0), 42.0))
+	var yaw_sit := _yaw_local(0, -1)
+	var y0: float = raja.rotation.y
+	for i in 24:
+		raja.rotation.y = lerp_angle(y0, yaw_sit, (i + 1) / 24.0)
+		await wait(0.05)
+	await wait(0.8)
+	await shot("p05_turned")
+	raja.sit_on(C.seat, yaw_sit)
+	await wait(0.6)
+	await shot("p06_sitting_down")
+	await wait(1.2)
+	await shot("p07_seated")
+	_metrics["seat_contact_err_m"] = gs.seat_error()
+	var glass: MeshInstance3D = C.glass
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		_tcam(p + side * 1.4 - fwd * 0.4 + Vector3(0, 1.0, 0), glass.global_position.lerp(raja.head.global_position, 0.4), 40.0))
+	# grip the side of the glass nearest the shoulder: palm centre one radius + palm thickness from its axis
+	var gp: Vector3 = glass.global_position
+	var shp: Vector3 = raja.skel.global_transform * raja.skel.get_bone_global_pose(raja.skel.find_bone("upperarm_r")).origin
+	var tw := Vector3(shp.x - gp.x, 0, shp.z - gp.z).normalized()
+	raja.reach_to("r", gp + tw * 0.05)
+	await wait(0.7)
+	await shot("p08_reach")
+	var pr: Vector3 = raja.gait.palm("r")
+	_metrics["glass_grip_palm_err_m"] = pr.distance_to(gp + tw * 0.05)
+	_metrics["glass_palm_axis_gap_m"] = Vector2(pr.x - gp.x, pr.z - gp.z).length() - 0.032
+	_metrics["glass_reach_short_m"] = raja.reach_err.get("r", -1.0)
+	# grip: the glass now travels in the hand
+	var att := BoneAttachment3D.new()
+	att.bone_name = "hand_r"
+	raja.skel.add_child(att)
+	var gx := glass.global_transform
+	glass.reparent(att)
+	glass.global_transform = gx
+	raja.activity = "tea"
+	raja.reach_release("r")
+	await wait(1.6)
+	await shot("p09_drink")
+	raja.activity = ""
+	var _table_spot: Vector3 = (C.glass as Node3D).global_position
+	raja.reach_to("r", _L(-24.12, C.g + 0.72 + 0.045, 66.85))
+	await wait(0.7)
+	var gx2 := glass.global_transform
+	glass.reparent(_stage)
+	glass.global_transform = gx2
+	glass.global_position = _L(-24.12, C.g + 0.72 + 0.045, 66.85)
+	raja.reach_release("r")
+	await wait(0.5)
+	raja.stand_up()
+	await wait(0.7)
+	await shot("p10_standing_up")
+	await wait(1.0)
+	# --- D. along the railing, a hand on it
+	raja.rotation.y = _yaw_local(0, 1)
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		var rp := _L(C.rail_x, C.g + 1.03, 0)
+		var lp: Vector3 = Campus.frame().affine_inverse() * p
+		var rt := _L(C.rail_x + 0.035, C.g + 1.03 + 0.035, lp.z + 0.12)
+		raja.reach_to("l", rt)
+		if raja.reach.has("l") and float(raja.reach.l.w) >= 0.999:
+			_rail_err_max = maxf(_rail_err_max, raja.gait.palm("l").distance_to(rt))
+		_tcam(p + side * 2.2 + fwd * 0.6 + Vector3(0, 1.3, 0), p + Vector3(0, 0.95, 0), 42.0))
+	_drive_to(_L(-25.95, 0, 75.5))
+	k = 0
+	while _driving:
+		await wait(0.45)
+		if k < 6: await shot("p11_rail_%02d" % k)
+		k += 1
+	_watch(Callable())
+	_metrics["palm_to_rail_target_m_max_while_walking"] = _rail_err_max
+	raja.reach_release("l")
+	# --- E. the push: both hands to his chest, he takes catch-steps back
+	var other: Human = C.other
+	_drive_to(_L(-25.0, 0, 79.4))
+	while _driving: await get_tree().process_frame
+	raja.rotation.y = _yaw_local(0, 1)
+	await wait(0.4)
+	var chest := func(dx: float) -> Vector3:
+		var sp: Vector3 = other.skel.global_transform * other.skel.get_bone_global_pose(other.skel.find_bone("spine_03")).origin
+		var to: Vector3 = (pl.global_position - other.global_position)
+		to.y = 0
+		to = to.normalized()
+		return sp + to * 0.13 + to.cross(Vector3.UP) * dx - Vector3(0, 0.05, 0)
+	var pushing := [true]
+	_watch(func():
+		if pushing[0]:
+			raja.reach_to("l", chest.call(0.11))
+			raja.reach_to("r", chest.call(-0.11))
+		var mid: Vector3 = (pl.global_position + other.global_position) * 0.5
+		_tcam(mid + side * 2.6 + Vector3(0, 1.3, 0), mid + Vector3(0, 1.05, 0), 42.0))
+	await wait(0.55)
+	await shot("p12_hands_on")
+	_metrics["push_palms_to_chest_m"] = [raja.gait.palm("l").distance_to(chest.call(0.11)), raja.gait.palm("r").distance_to(chest.call(-0.11))]
+	# shove: he goes back, his feet catching him; Raja follows through a step
+	other.mood = "surprise"
+	var t := 0.0
+	var o0 := other.global_position
+	var r0: Vector3 = pl.global_position
+	while t < 0.9:
+		var dt := get_process_delta_time()
+		t += dt
+		var e := 1.0 - pow(1.0 - minf(t / 0.9, 1.0), 2.5)
+		other.global_position = o0 + fwd * 0.95 * e
+		pl.global_position = r0 + fwd * 0.3 * minf(t / 0.5, 1.0)
+		if t > 0.25:
+			pushing[0] = false
+			raja.reach_release("l"); raja.reach_release("r")
+		await get_tree().process_frame
+	await shot("p13_pushed")
+	await wait(1.2)
+	await shot("p14_recovered")
+	other.mood = "angry"
+	# --- F. run, and stop
+	gs.stats = {"slide_max": 0.0, "ground_err_max": 0.0, "samples": 0, "steps": 0, "reach_fail": 0}
+	raja.rotation.y = _yaw_local(-1, 0)
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		_tcam(p - side * 0.0 + fwd * 3.6 + Vector3(0, 1.0, 0), p + Vector3(0, 0.9, 0), 46.0))
+	_drive_to(_L(-39.0, 0, 79.0), true)
+	k = 0
+	while _driving:
+		await wait(0.3)
+		if k < 8: await shot("p15_run_%02d" % k)
+		k += 1
+	await wait(1.4)
+	await shot("p16_stopped")
+	_metrics["run"] = gs.stats.duplicate()
+	# --- G. turn round on the spot
+	var yt: float = raja.rotation.y
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		_tcam(p + Vector3(0, 1.7, 0) + fwd * 1.3 + side * 1.3, p + Vector3(0, 0.15, 0), 50.0))
+	for i in 30:
+		raja.rotation.y = yt + PI * (i + 1) / 30.0
+		await wait(0.05)
+	await wait(1.4)
+	await shot("p17_turned_round")
+	print("[metrics] ", JSON.stringify(_metrics))

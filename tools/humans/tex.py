@@ -124,6 +124,60 @@ def eye(src, dst):
     im[..., :3] = rgb * (1 - iris) + dark * iris
     Image.fromarray((im * 255).astype(np.uint8), 'RGBA').save(dst)
 
+def hair_cards(out):
+    """Four strand clumps side by side (one per atlas column). Each column: dozens of fine
+    strands that start dense at the root and thin and taper toward the tip."""
+    W, H = 512, 1024; rng = np.random.default_rng(11)
+    a = np.zeros((H, W)); lum = np.zeros((H, W))
+    yy = np.arange(H)
+    for col in range(4):
+        x0c = col * 128
+        for k in range(70):
+            cx = rng.uniform(x0c + 10, x0c + 118)
+            wv = rng.uniform(0.5, 2.0)
+            end = rng.uniform(0.55, 1.0) * H
+            curve = rng.uniform(-14, 14)
+            xs = cx + curve * (yy / H) ** 2 + np.sin(yy / H * rng.uniform(3, 9) + rng.uniform(0, 6)) * rng.uniform(0.5, 2.5)
+            # converge a little toward the clump centre at the tip
+            xs = xs + (x0c + 64 - xs) * (yy / H) * 0.25
+            on = yy < end
+            fade = np.clip((end - yy) / (0.25 * H), 0, 1) * on
+            br = rng.uniform(0.55, 1.15)
+            for dx in range(-3, 4):
+                xi = np.clip(np.floor(xs).astype(int) + dx, x0c, x0c + 127)
+                fall = np.clip(1.0 - np.abs(xs - np.floor(xs) - dx - 0.5) / (wv + 0.3), 0, 1)
+                np.maximum.at(a, (yy, xi), fall * fade)
+                np.maximum.at(lum, (yy, xi), fall * br)
+    root = np.clip(1.0 - yy / (0.06 * H), 0, 1)[:, None]
+    a = np.clip(a * 1.25 + root * 0.35, 0, 1)
+    lum = np.clip(0.45 + lum * 0.55, 0, 1)
+    rgba = np.dstack([(lum * 255).astype(np.uint8)] * 3 + [(a * 255).astype(np.uint8)])
+    Image.fromarray(rgba, 'RGBA').save(os.path.join(out, 'hair_card.png'))
+
+def pores(out):
+    """Tileable skin micro-relief: pores, fine creases and a soft orange-peel bump, as a normal map."""
+    R = 512; rng = np.random.default_rng(21)
+    hgt = np.zeros((R, R))
+    yy, xx = np.mgrid[0:R, 0:R]
+    for k in range(5200):
+        px, py = rng.uniform(0, R, 2); r = rng.uniform(0.8, 2.2)
+        x0, y0 = int(px), int(py)
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                d = np.hypot(dx + x0 - px, dy + y0 - py)
+                if d < r * 1.6:
+                    hgt[(y0 + dy) % R, (x0 + dx) % R] -= np.exp(-(d / r) ** 2) * rng.uniform(0.5, 1.0)
+    for k in range(260):    # fine criss-cross creases
+        ang = rng.uniform(0, np.pi); ox, oy = rng.uniform(0, R, 2); ln = rng.uniform(10, 40)
+        for t in np.linspace(-ln / 2, ln / 2, int(ln * 2)):
+            x = int(ox + np.cos(ang) * t) % R; y = int(oy + np.sin(ang) * t) % R
+            hgt[y, x] -= 0.35
+    blob = np.real(np.fft.ifft2(np.fft.fft2(rng.standard_normal((R, R))) * np.exp(-((np.fft.fftfreq(R)[:, None] ** 2 + np.fft.fftfreq(R)[None, :] ** 2) * (R / 6.0) ** 2))))
+    hgt += blob / (np.abs(blob).max() + 1e-9) * 0.6
+    from PIL import ImageFilter
+    hgt = np.asarray(Image.fromarray(((hgt - hgt.min()) / (np.ptp(hgt) + 1e-9) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6))) / 255.0
+    Image.fromarray(normal_from_height(hgt, 3.0)).save(os.path.join(out, 'skin_pores_n.png'))
+
 def shared(out):
     os.makedirs(out, exist_ok=True)
     R = 512; rng = np.random.default_rng(5)

@@ -299,6 +299,7 @@ func set_rider(h: Human) -> void:
 	h.rotation = Vector3.ZERO
 	h.state = "drive"
 	h.speed = 0.0
+	h.ground_follow = false
 	h.visible = spec.open
 
 func clear_rider() -> void:

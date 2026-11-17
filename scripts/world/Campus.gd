@@ -63,20 +63,32 @@ static func build(_z: Dictionary) -> Node3D:
 	mi.mesh = m
 	root.add_child(mi)
 	Landmarks._finish(ctx)
+	_walkable(root)
 	Landmarks.sound(ctx, "amb_crowd", Vector3(0, 1.5, 28), 60.0, -10.0)
 	return root
 
+## Walkable collision matching the drawn surfaces (heights in metres above the street plane).
+static func _walkable(root: Node3D) -> void:
+	var wb := Ground.new_body()
+	root.add_child(wb)
+	Ground.box_shape(wb, Vector3(0, 0.015, 64), Vector3(156, 0.03, 128))          # base slab, top 0.03
+	Ground.box_shape(wb, Vector3(0, 0.025, 46), Vector3(9.0, 0.05, 92))            # the drive, 0.05
+	for sx: float in [-1.0, 1.0]:
+		Ground.box_shape(wb, Vector3(sx * 30.0, 0.025, 21), Vector3(40, 0.05, 22)) # lawns, 0.05
+	Ground.box_shape(wb, Vector3(0, 0.0275, 63), Vector3(92, 0.055, 46))           # the paved quad, 0.055
+
 static func _ground(ctx: Dictionary) -> void:
-	ctx.con.flat(Vector3(0, 0.11, 64), 156, 128, Rect2(0, 0, 18, 15), Color(0.82, 0.8, 0.76))
+	# surfaces sit just above the street plane, so props and people built from 0 stand on them
+	ctx.con.flat(Vector3(0, 0.03, 64), 156, 128, Rect2(0, 0, 18, 15), Color(0.62, 0.6, 0.56))
 	# the drive, a shade darker, from the gate to the porch
-	ctx.vc.box(Vector3(0, 0.125, 46), Vector3(9.0, 0.02, 92), Color(0.42, 0.41, 0.4))
+	ctx.vc.box(Vector3(0, 0.04, 46), Vector3(9.0, 0.02, 92), Color(0.36, 0.35, 0.34))
 	# lawns either side of the drive, edged with kerb stones
 	for sx: float in [-1.0, 1.0]:
-		ctx.gr.flat(Vector3(sx * 30.0, 0.14, 21), 40, 22, Rect2(0, 0, 6, 3))
-		ctx.vc.box(Vector3(sx * 30.0, 0.16, 9.9), Vector3(40, 0.12, 0.25), Color(0.85, 0.85, 0.82))
-		ctx.vc.box(Vector3(sx * 30.0, 0.16, 32.1), Vector3(40, 0.12, 0.25), Color(0.85, 0.85, 0.82))
+		ctx.gr.flat(Vector3(sx * 30.0, 0.05, 21), 40, 22, Rect2(0, 0, 6, 3))
+		ctx.vc.box(Vector3(sx * 30.0, 0.08, 9.9), Vector3(40, 0.12, 0.25), Color(0.7, 0.69, 0.66))
+		ctx.vc.box(Vector3(sx * 30.0, 0.08, 32.1), Vector3(40, 0.12, 0.25), Color(0.7, 0.69, 0.66))
 	# the quad's paved centre where the unit has set up
-	ctx.vc.box(Vector3(0, 0.13, 63), Vector3(92, 0.02, 46), Color(0.74, 0.7, 0.62))
+	ctx.vc.box(Vector3(0, 0.045, 63), Vector3(92, 0.02, 46), Color(0.55, 0.51, 0.45))
 	for i in 4:      # rain trees on the lawns, clear of the drive and the quad
 		ctx.trees.append([Vector3(-36.0 - (i % 2) * 8.0, 0, 12.5 + i * 5.0), 1.1 + 0.15 * sin(i * 2.1)])
 		ctx.trees.append([Vector3(36.0 + (i % 2) * 8.0, 0, 13.0 + i * 5.0), 1.1 + 0.15 * cos(i * 1.7)])
@@ -361,7 +373,7 @@ static func _notes(ctx: Dictionary, table: Vector3) -> void:
 				p = Vector3(rng.randf_range(-20.0, 24.0), 0.0, rng.randf_range(39.5, 45.0))
 			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3(1, 0, 0), rng.randf_range(-0.12, 0.12)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.1, 0.1))
 			# on top of the paving (its surface is at 0.14 m)
-			mm.set_instance_transform(i, Transform3D(b, p + Vector3(0, 0.148 + rng.randf() * 0.006, 0)))
+			mm.set_instance_transform(i, Transform3D(b, p + Vector3(0, 0.058 + rng.randf() * 0.004, 0)))
 		for i in 12:     # a bundle on the table: notes stacked, slightly fanned
 			var b2 := Basis(Vector3.UP, 0.1 + rng.randf_range(-0.04, 0.04))
 			var off := Vector3(-0.5 if kind[0] == "inr" else -0.05, 0.782 + i * 0.003, -0.22)

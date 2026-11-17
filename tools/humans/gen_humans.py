@@ -42,7 +42,7 @@ HEROES = {
                  'cheek/l-cheek-bones-incr': 0.65, 'cheek/r-cheek-bones-incr': 0.65, 'cheek/l-cheek-volume-decr': 0.45, 'cheek/r-cheek-volume-decr': 0.45,
                  'nose/nose-scale-vert-incr': 0.45, 'nose/nose-hump-incr': 0.25, 'nose/nose-scale-horiz-decr': 0.15,
                  'forehead/forehead-nubian-incr': 0.35, 'eyebrows/eyebrows-angle-down': 0.3, 'mouth/mouth-scale-horiz-decr': 0.1}),
-                 hair=[('thick_side', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.13)], tone=4, age_lines=0.12, brow=0.9,
+                 hair=[('thick_side', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.13)], tone=4, age_lines=0.12, brow=0.9, cards=True,
                  outfit=dict(top=('shirt', 'half', True, [0.6, 0.5, 0.36, 1], 0.25, 5), bottom=[0.09, 0.09, 0.11, 1], feet='shoe', watch=(0.12, 0.1, 0.08), belt=True)),
     # Lal (visual reference: Ambareesh): big and broad, a round full face with a wide jaw and full cheeks,
     # a broad nose, a big crown of wavy hair, a thick moustache; a dark full-sleeve sweatshirt over jeans
@@ -127,9 +127,22 @@ def make(base, core, name, spec, hero):
     c.eyes(core, True)
     dress(c, spec.get('outfit') if hero else None, female, hero)
     if hero:
-        for st, col in spec['hair']: c.hair('hair_' + st, st, 12, col)
         fh_col = spec.get('hair_col') or (spec['hair'][0][1] if spec['hair'] else (0.05, 0.04, 0.04))
-        for reg, ln in spec['face_hair']: c.face_hair(reg, reg, ln, 6, fh_col)
+        if spec.get('cards'):
+            # card hair: a scalp tint under ~1600 strand cards up close, fewer and wider cards at middle
+            # distance, the old shell only far away; card eyebrows, moustache and sideburns
+            for st, col in spec['hair']:
+                c.hair('hair_' + st, st, 1, col, cap_only=True)
+                c.hair_cards('hair_' + st + '_cards', st, col, 1700, levels=(0,), seed=7)
+                c.hair_cards('hair_' + st + '_cards1', st, col, 600, levels=(1,), seed=9, card_w=0.26)
+                far = c.hair('hair_' + st + '_far', st, 3, col)
+                far.levels = {2}
+            # facial hair stays as dense shells: at this scale cards broke up into specks (tested)
+            for reg, ln in spec['face_hair']:
+                c.face_hair(reg, reg, ln, 6, fh_col)
+        else:
+            for st, col in spec['hair']: c.hair('hair_' + st, st, 12, col)
+            for reg, ln in spec['face_hair']: c.face_hair(reg, reg, ln, 6, fh_col)
     else:
         styles = ['bun', 'plait', 'long'] if female else ['short', 'side', 'curly', 'balding', 'bouffant']
         for st in styles: c.hair('hair_' + st, st, 7)
@@ -162,6 +175,8 @@ if __name__ == '__main__':
     mpath = os.path.join(OUT, 'manifest.json')
     man = json.load(open(mpath)) if os.path.exists(mpath) else {}
     tex.shared(os.path.join(OUT, 'tex'))
+    tex.hair_cards(os.path.join(OUT, 'tex'))
+    tex.pores(os.path.join(OUT, 'tex'))
     import shutil
     tex.eye(os.path.join(core, 'eyes/materials/brown_eye.png'), os.path.join(OUT, 'tex', 'eye.png'))
     for name, spec in HEROES.items():

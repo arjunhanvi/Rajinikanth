@@ -778,9 +778,9 @@
  },
  "raja": {
   "tris": {
-   "0": 46019,
-   "1": 15950,
-   "2": 3175
+   "0": 56595,
+   "1": 20024,
+   "2": 2846
   },
   "height": 1.7848951199999996,
   "female": false,
@@ -788,8 +788,11 @@
   "parts": [
    "belt",
    "eyes",
-   "hair_thick_side",
    "hair_thick_side_cap",
+   "hair_thick_side_cards",
+   "hair_thick_side_cards1",
+   "hair_thick_side_far",
+   "hair_thick_side_far_cap",
    "lashes",
    "moustache",
    "shirt",

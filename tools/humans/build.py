@@ -372,7 +372,7 @@ class Char:
         return p
 
     # ------------------------------------------------------------ hair
-    def hair(self, name, style, shells=6, colour=(0.05, 0.04, 0.04)):
+    def hair(self, name, style, shells=6, colour=(0.05, 0.04, 0.04), cap_only=False):
         v = self.v; h = self.h; b = self.b
         idx = b.vgroups['helper-hair']
         head = h['head']; top = v[idx, 1].max()
@@ -444,6 +444,8 @@ class Char:
         cap = self.part(name + '_cap', f, offset=L * 0.25 + 0.02, shift=shift * 0.3, uv='cyl', colour=list(np.array(colour) * 0.6) + [1])
         cap.C[:, 3] = 0.45 + 0.55 * edge_a[cap.src]
         parts.append(cap)
+        if cap_only:
+            return cap
         if extra is not None and len(extra):
             self.part(name + '_tail', extra, offset=np.full(len(v), 0.04), shift=shift, uv='cyl', colour=list(colour) + [1])
         sh = self.part(name, f, offset=L * 0.4, shift=shift, uv='cyl', colour=list(colour) + [1])
@@ -471,6 +473,182 @@ class Char:
             bp = Part(name + '_bun', pts, self.cyl_uv(pts) * 3, None, np.array(T), W=W); bp.C[:] = list(colour) + [1]
             self.parts.append(bp); parts.append(bp)
         return sh
+
+    # ------------------------------------------------------------ hair cards
+    def _scalp_faces(self, recede=0.0):
+        v = self.v; h = self.h; b = self.b
+        ey = self.heads['eye_l'][1]; ez = self.heads['eye_l'][2]
+        hv = v[b.vgroups['body']]; hm = b.W[b.vgroups['body'], b.bones.index('head')] > 0.5
+        zb = hv[hm][:, 2].min()
+        def scalp(c):
+            t = np.clip((ez - 0.25 - c[:, 2]) / (ez - 0.25 - zb), 0, 1)
+            line = ey + 0.66 + recede - 2.05 * t ** 1.35
+            return (c[:, 1] > line) & ~((np.abs(c[:, 0]) > 0.62) & (c[:, 1] < ey + 0.25) & (t < 0.55))
+        return self.faces('body', ['head', 'neck'], scalp)
+
+    def _sample_surface(self, fidx, n, rng):
+        sel = np.isin(self.tri_face, fidx)
+        T = self.tris_all[sel]; v = self.v
+        a, b2, c = v[T[:, 0]], v[T[:, 1]], v[T[:, 2]]
+        area = np.linalg.norm(np.cross(b2 - a, c - a), axis=1) * 0.5
+        pick = rng.choice(len(T), n, p=area / area.sum())
+        r1 = np.sqrt(rng.random(n)); r2 = rng.random(n)
+        w0 = 1 - r1; w1 = r1 * (1 - r2); w2 = r1 * r2
+        P = a[pick] * w0[:, None] + b2[pick] * w1[:, None] + c[pick] * w2[:, None]
+        N = self.VN[T[pick, 0]] * w0[:, None] + self.VN[T[pick, 1]] * w1[:, None] + self.VN[T[pick, 2]] * w2[:, None]
+        N /= np.linalg.norm(N, axis=1)[:, None]
+        return P, N
+
+    def hair_cards(self, name, style, colour, n_cards, levels=(0,), seed=7, card_w=0.16, segs=5):
+        """Hair as cards: strips grown from roots on the scalp along the style's flow, held at the
+        style's height above the skull, each a clump of strands from the card atlas. Vertex alpha
+        carries the sway weight (0 at the root, 1 at the tip) for the hair-motion shader."""
+        rng = np.random.default_rng(seed)
+        v = self.v; head = self.h['head']
+        f = self._scalp_faces()
+        roots, rn = self._sample_surface(f, n_cards, rng)
+        sp, sn = self._sample_surface(f, 6000, np.random.default_rng(seed + 1))
+        tree = cKDTree(sp)
+        top = sp[:, 1].max()
+        ey = self.heads['eye_l'][1]; ez = self.heads['eye_l'][2]
+        def flow_at(q, nrm):
+            rel = q - head
+            up = np.clip((q[1] - head[1]) / (top - head[1]), -1.5, 1.0)
+            back = np.array([0.0, 0.0, -1.0]); down = np.array([0.0, -1.0, 0.0])
+            if style == 'thick_side':
+                part_x = 0.42                                   # parting on his left (generator +x)
+                away = np.array([-1.0 if rel[0] < part_x else 1.0, 0.0, 0.0])
+                d = (away * 0.9 + back * 0.75) * np.clip(up + 0.2, 0, 1) + (down * 0.8 + back * 0.45) * np.clip(0.6 - up, 0, 1)
+                if rel[2] > 0.5 and up > 0.3:                   # the front swept back and up off the forehead
+                    d = d + back * 0.9 + np.array([0, 0.25, 0])
+            elif style == 'puff':
+                d = (back * 0.8 + np.array([np.sign(rel[0]) * 0.25, 0.2, 0])) * np.clip(up + 0.3, 0, 1) + down * np.clip(0.5 - up, 0, 1)
+            elif style == 'side':
+                away = np.array([-1.0 if rel[0] < 0.35 else 1.0, 0, 0])
+                d = (away * 0.8 + back * 0.6) * np.clip(up + 0.2, 0, 1) + (down + back * 0.3) * np.clip(0.6 - up, 0, 1)
+            else:
+                d = back * np.clip(up + 0.4, 0, 1) + down * np.clip(0.6 - up, 0, 1)
+            d = d - nrm * d.dot(nrm)
+            l = np.linalg.norm(d)
+            return d / l if l > 1e-6 else np.cross(nrm, np.array([1.0, 0, 0]))
+        def profile(q):
+            """card length and height above the skull at a root"""
+            up = np.clip((q[1] - head[1]) / (top - head[1]), -1.5, 1.0)
+            frontness = np.clip((q[2] - head[2]) / 0.9, 0, 1)
+            if style == 'thick_side':
+                L = 0.34 + 0.34 * np.clip(up, 0, 1) + 0.12 * frontness * np.clip(up, 0, 1)
+                Hh = 0.07 + 0.22 * np.clip(up, 0, 1) ** 1.2 + 0.08 * frontness
+            elif style == 'puff':
+                L = 0.32 + 0.3 * np.clip(up, 0, 1)
+                Hh = 0.12 + 0.34 * np.clip(up + 0.2, 0, 1)
+            elif style == 'side':
+                L = 0.22 + 0.22 * np.clip(up, 0, 1); Hh = 0.05 + 0.12 * np.clip(up, 0, 1)
+            else:
+                L = 0.16 + 0.12 * np.clip(up, 0, 1); Hh = 0.04 + 0.08 * np.clip(up, 0, 1)
+            return L, Hh
+        Ps = []; Ns = []; UVs = []; Cs = []; Ts = []
+        col = np.array(colour[:3])
+        hl = ey + 0.66
+        for i in range(n_cards):
+            q = roots[i].copy(); nrm = rn[i]
+            L, Hh = profile(q)
+            edge = np.clip((q[1] - hl + 2.05 * 0) / 0.35, 0.25, 1.0) if q[2] > head[2] + 0.4 else 1.0
+            L *= rng.uniform(0.8, 1.15) * (0.6 + 0.4 * edge); Hh *= (0.5 + 0.5 * edge)
+            w = card_w * rng.uniform(0.75, 1.25) * (0.7 + 0.3 * edge)
+            twist = rng.uniform(-0.7, 0.7)
+            seg = L / segs
+            pts = [q + nrm * 0.01]; nrms = [nrm]
+            d = flow_at(q, nrm)
+            for k in range(1, segs + 1):
+                s01 = k / segs
+                nq = pts[-1] + d * seg
+                _, j = tree.query(nq)
+                c0 = sp[j]; n0 = sn[j]
+                hgt = Hh * (1 - np.exp(-s01 * 3.0))
+                nq = nq - n0 * np.dot(nq - c0, n0) + n0 * (hgt + 0.012)
+                pts.append(nq); nrms.append(n0)
+                d = flow_at(nq, n0)
+            base = len(Ps)
+            u0 = rng.integers(0, 4) * 0.25
+            tint = rng.uniform(0.85, 1.12)
+            for k, (pt, n0) in enumerate(zip(pts, nrms)):
+                if k < len(pts) - 1: dk = pts[k + 1] - pt
+                else: dk = pt - pts[k - 1]
+                dk = dk / (np.linalg.norm(dk) + 1e-9)
+                side = np.cross(dk, n0); side /= (np.linalg.norm(side) + 1e-9)
+                # twist the card about its own axis a little for volume
+                side = side * np.cos(twist) + n0 * np.sin(twist) * 0.6
+                side /= (np.linalg.norm(side) + 1e-9)
+                taper = 1.0 - 0.55 * (k / segs)
+                for e in (-0.5, 0.5):
+                    Ps.append(pt + side * w * e * taper)
+                    Ns.append(n0)
+                    UVs.append([u0 + (e + 0.5) * 0.25, k / segs])
+                    root_dark = 0.72 + 0.28 * (k / segs)
+                    Cs.append(list(np.clip(col * root_dark * tint, 0, 1)) + [(k / segs) ** 1.3])
+            for k in range(segs):
+                a0 = base + k * 2
+                Ts.append([a0, a0 + 2, a0 + 1]); Ts.append([a0 + 1, a0 + 2, a0 + 3])
+        P = np.array(Ps); T = np.array(Ts)
+        W = np.zeros((len(P), len(self.names)), np.float32); W[:, self.names.index('head')] = 1
+        p = Part(name, P, np.array(UVs), None, T, C=np.array(Cs), W=W)
+        p.N = np.array(Ns); p.keep = True; p.levels = set(levels)
+        self.parts.append(p)
+        return p
+
+    def face_cards(self, name, region, colour, n, length, seed=3, levels=(0, 1)):
+        """Short cards for eyebrows, moustache, sideburns, beard: roots on the face skin,
+        lying along the growth direction."""
+        rng = np.random.default_rng(seed)
+        lm = self.landmarks(); el = self.heads['eye_l']; er = self.heads['eye_r']
+        def pred(c):
+            x = np.abs(c[:, 0]); y = c[:, 1]; z = c[:, 2]
+            if region == 'brows':
+                ex = abs(el[0]); eyy = el[1]
+                return (x > ex - 0.22) & (x < ex + 0.3) & (y > eyy + 0.13) & (y < eyy + 0.3) & (z > el[2] - 0.05)
+            if region == 'moustache':
+                return (x < lm['mouth_w'] * 1.15) & (y > lm['lip_top'] - 0.0) & (y < lm['nose_base'] + 0.0) & (z > lm['mouth_z'] - 0.35)
+            if region == 'sideburns':
+                return (x > abs(el[0]) + 0.45) & (y > el[1] - 0.5) & (y < el[1] + 0.3) & (z < el[2] - 0.7) & (z > el[2] - 1.1)
+            return np.zeros(len(c), bool)
+        f = self.faces('body', ['head'], pred)
+        if len(f) == 0: return None
+        roots, rn = self._sample_surface(f, n, rng)
+        Ps = []; Ns = []; UVs = []; Cs = []; Ts = []
+        col = np.array(colour[:3])
+        for i in range(n):
+            q = roots[i]; nrm = rn[i]
+            sx = 1.0 if q[0] > 0 else -1.0
+            if region == 'brows':
+                d = np.array([sx * 1.0, 0.25, 0.0])
+            elif region == 'moustache':
+                d = np.array([sx * 0.55, -1.0, 0.15])
+            else:
+                d = np.array([0.0, -1.0, 0.1])
+            d = d - nrm * d.dot(nrm); d /= np.linalg.norm(d) + 1e-9
+            L = length * rng.uniform(0.7, 1.2)
+            w = (0.035 if region == 'brows' else 0.05) * rng.uniform(0.8, 1.2)
+            lift = 0.012 if region == 'moustache' else 0.004
+            pts = [q + nrm * 0.003, q + d * L * 0.5 + nrm * (lift + 0.004), q + d * L + nrm * lift]
+            base = len(Ps); u0 = rng.integers(0, 4) * 0.25
+            side = np.cross(d, nrm); side /= np.linalg.norm(side) + 1e-9
+            for k, pt in enumerate(pts):
+                tp = 1.0 - 0.5 * k / 2
+                for e in (-0.5, 0.5):
+                    Ps.append(pt + side * w * e * tp); Ns.append(nrm); UVs.append([u0 + (e + 0.5) * 0.25, k / 2]); Cs.append(list(col * rng.uniform(0.85, 1.1)) + [0.0])
+            for k in range(2):
+                a0 = base + k * 2
+                Ts.append([a0, a0 + 2, a0 + 1]); Ts.append([a0 + 1, a0 + 2, a0 + 3])
+        P = np.array(Ps)
+        W = np.zeros((len(P), len(self.names)), np.float32); W[:, self.names.index('head')] = 1
+        p = Part(name, P, np.array(UVs), None, np.array(Ts), C=np.array(Cs), W=W)
+        p.N = np.array(Ns); p.keep = True; p.levels = set(levels); p.morph_follow = True
+        # follow the face's expressions: each card vertex borrows the morph offsets of the nearest skin vertex
+        body_idx = self.b.vgroups['body']
+        _, nn = cKDTree(self.v[body_idx]).query(P)
+        p.src = np.asarray(body_idx)[nn]
+        self.parts.append(p)
+        return p
 
     def face_hair(self, name, region, length, shells=3, colour=(0.05, 0.04, 0.04)):
         """shells grown from the face skin itself: moustache / beard"""
@@ -601,12 +779,15 @@ class Char:
         for level, ratio in lods:
             total = 0
             for p in self.parts:
+                if getattr(p, 'levels', None) is not None and level not in p.levels:
+                    continue
                 P, T, UV, C = p.P, p.tris, p.UV, p.C
                 J, W4 = self.finalize(p)
                 morphs = [(n, d) for n, d in p.morph.items()]
                 r = ratio
                 if p.name in ('eyes', 'glasses', 'teeth', 'tongue', 'lashes') and level < 2: r = 1.0
                 if level >= 2 and p.name in ('teeth', 'tongue', 'lashes', 'glasses', 'watch', 'belt'): continue
+                if getattr(p, 'keep', False): r = 1.0
                 if r < 0.999 and len(T) > 40:
                     pts, tris = fast_simplification.simplify(P.astype(np.float32), T.astype(np.int32), target_reduction=1 - r, agg=5)
                     if len(tris) < 4: continue
@@ -615,7 +796,7 @@ class Char:
                     UV, C, J, W4 = UV[nn], C[nn], J[nn], W4[nn]
                     morphs = [(n, d[nn]) for n, d in morphs] if level <= 1 else []
                     P, T = P2, T2
-                N = self.normals(P, T)
+                N = p.N if getattr(p, 'N', None) is not None and len(p.N) == len(P) else self.normals(P, T)
                 N2 = N.copy(); N2[:, 0] *= -1; N2[:, 2] *= -1
                 glb.add_mesh('L%d_%s' % (level, p.name), self.xform(P), N2, UV, J, W4, T, C, [(n, self.dxform(d)) for n, d in morphs])
                 total += len(T)

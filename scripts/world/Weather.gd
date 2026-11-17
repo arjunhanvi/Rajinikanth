@@ -39,20 +39,28 @@ func _ready() -> void:
 	var sk := Sky_res()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sk
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	# ambient light from the sky (brighter from above than from the ground), weaker than before,
+	# so shadowed sides keep their form instead of flattening out
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_sky_contribution = 0.75
 	env.fog_enabled = true
 	env.fog_density = 0.0015
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 0.95
+	env.tonemap_white = 6.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
 	sun.shadow_enabled = Game.gfx("shadows")
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	# two cascades: sharp contact shadows near the camera, coarser further out
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_split_1 = 0.18
+	sun.directional_shadow_blend_splits = true
 	sun.directional_shadow_max_distance = maxf(Game.gfx("shadow_dist"), 10.0)
-	sun.shadow_bias = 0.1
-	sun.shadow_normal_bias = 2.5
-	sun.shadow_blur = 1.6
+	sun.shadow_bias = 0.04
+	sun.shadow_normal_bias = 1.4
+	sun.shadow_blur = 1.0
 	add_child(sun)
 	rain = CPUParticles3D.new()
 	rain.amount = Game.gfx("rain")
@@ -143,7 +151,7 @@ func update(delta: float, t: float, weather: String, cam_pos: Vector3, lamp_posi
 	sun.light_energy = 0.0 if indoors else se
 	sun.shadow_enabled = Game.gfx("shadows") and not night and cloud < 0.6
 	env.ambient_light_color = top.lerp(hor, 0.6).lerp(Color.WHITE, 0.35) if not indoors else Color(1.0, 0.92, 0.8)
-	env.ambient_light_energy = ae if not indoors else 0.75
+	env.ambient_light_energy = ae * 0.8 if not indoors else 0.75
 	env.fog_light_color = hor
 	var mist := clampf(1.0 - absf(t - 6.6) / 1.6, 0.0, 1.0) * 0.004 + clampf(1.0 - absf(t - 13.0) / 3.0, 0.0, 1.0) * 0.0008
 	env.fog_density = lerpf(0.0011 + mist, 0.009, maxf(raining, cloud * 0.3)) + haze

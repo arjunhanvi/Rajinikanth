@@ -2,8 +2,8 @@ class_name Player
 extends CharacterBody3D
 ## The player: third-person on foot, driving, or working the aisle of a bus.
 
-const WALK := 2.6
-const RUN := 5.6
+const WALK := 1.55        # a natural walking pace (m/s)
+const RUN := 4.8
 const CROUCH := 1.3
 
 var human: Human
@@ -24,6 +24,7 @@ var ride: Vehicle = null        # riding pillion: somebody else is driving
 var cam_override := false      # cinematics drive the camera
 var puppet := false            # a cinematic moves the body itself (position, state, activity)
 var _vy := 0.0
+var _hv := Vector3.ZERO        # horizontal velocity: it builds up and falls off, never jumps
 var _step := 0.0
 var _look_idle := 0.0
 var _punch_cd := 0.0
@@ -137,7 +138,9 @@ func _walk(delta: float, mv: Vector2) -> void:
 		var mag := minf(dir.length(), 1.0)
 		dir = dir.normalized()
 		spd *= mag if not sprint else 1.0
-		human.rotation.y = lerp_angle(human.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-12.0 * delta))
+		# the body turns at a human rate (faster when slow, wider arcs when running)
+		var turn_rate := lerpf(9.0, 4.5, clampf(_hv.length() / RUN, 0.0, 1.0))
+		human.rotation.y = lerp_angle(human.rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-turn_rate * delta))
 	else:
 		spd = 0.0
 	var on_floor := global_position.y <= 0.001
@@ -146,7 +149,11 @@ func _walk(delta: float, mv: Vector2) -> void:
 		global_position.y = 0.0
 	else:
 		_vy -= 22.0 * delta
-	velocity = dir * spd + Vector3(0, _vy, 0)
+	# acceleration into a walk or run, quicker deceleration to a stop (momentum, not a switch)
+	var want := dir * spd
+	var rate := (3.2 if want.length() > _hv.length() else 5.5) * (1.6 if sprint else 1.0)
+	_hv = _hv.move_toward(want, rate * delta)
+	velocity = _hv + Vector3(0, _vy, 0)
 	move_and_slide()
 	if global_position.y < 0.0:
 		global_position.y = 0.0

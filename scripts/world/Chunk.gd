@@ -13,6 +13,8 @@ var lamps: Array = []       # Vector3 lamp-head positions (for the dynamic light
 var parking: Array = []     # {pos: Vector3, rot: float}
 var rng := RandomNumberGenerator.new()
 var _boxes: Array = []      # [centre: Vector3, size: Vector3] building collision
+var _walk: Array = []       # [a: Vector3, b: Vector3, width, top] walkable strips (roads, footpaths)
+var _walk_boxes: Array = [] # [centre, size] walkable plates
 var _trees: Array = []      # [pos: Vector3, scale: float]
 var _poles: Array = []      # Transform3D
 var _epoles: Array = []     # electric poles (Vector3)
@@ -57,9 +59,11 @@ func build(chunk: Vector2i) -> void:
 			var gz := oz + j * City.GRID
 			if City.district(Vector2(gx, gz + 25.0)).kind != "rural":
 				g_street.strip(Vector3(gx, 0.04, gz), Vector3(gx, 0.04, gz + City.GRID), City.STREET_W, 8.0)
+				_walk.append([Vector3(gx, 0, gz), Vector3(gx, 0, gz + City.GRID), City.STREET_W, 0.04])
 				_dress_street(Vector2(gx, gz), Vector2(0, 1), g_foot, p_col)
 			if City.district(Vector2(gx + 25.0, gz)).kind != "rural":
 				g_street.strip(Vector3(gx, 0.045, gz), Vector3(gx + City.GRID, 0.045, gz), City.STREET_W, 8.0)
+				_walk.append([Vector3(gx, 0, gz), Vector3(gx + City.GRID, 0, gz), City.STREET_W, 0.045])
 				_dress_street(Vector2(gx, gz), Vector2(1, 0), g_foot, p_col)
 			if City.district(Vector2(gx, gz)).kind != "rural":
 				var lp := Vector3(gx + 4.4, 0, gz + 4.4)
@@ -82,6 +86,9 @@ func build(chunk: Vector2i) -> void:
 			var up := Vector3(0, 0.1, 0)
 			g_foot.strip(a + off + up, b + off + up, 2.5, 2.5)
 			g_foot.strip(a - off + up, b - off + up, 2.5, 2.5)
+			_walk.append([a, b, float(e.w), 0.09])
+			_walk.append([a + off, b + off, 2.5, 0.19])
+			_walk.append([a - off, b - off, 2.5, 0.19])
 			if i % 2 == 0 and i > 0:
 				var s := 1.0 if (i / 2) % 2 == 0 else -1.0
 				var lp2: Vector3 = a + side * s * (float(e.w) * 0.5 + 0.6)
@@ -92,6 +99,7 @@ func build(chunk: Vector2i) -> void:
 		var np2: Vector2 = City.nodes[id].p
 		if City.chunk_of(np2) == c:
 			g_street.flat(Vector3(np2.x, 0.1, np2.y), 22.0, 22.0, Rect2(0, 0, 3, 3))
+			_walk_boxes.append([Vector3(np2.x, 0.05, np2.y), Vector3(22.0, 0.1, 22.0)])
 		var st = City.stops[id]
 		if City.chunk_of(st.pos) == c:
 			_bus_stop(p_col, st, City.nodes[id].name)
@@ -227,6 +235,7 @@ func _dress_street(o: Vector2, d: Vector2, foot: MB, pc: MB) -> void:
 		for s: float in [-1.0, 1.0]:
 			var e0 := a + dv * 4.2 + sv * s * 3.45 + Vector3(0, 0.13, 0)
 			foot.strip(e0, e0 + dv * 41.6, 1.1, 2.2)
+			_walk.append([Vector3(e0.x, 0, e0.z), Vector3(e0.x, 0, e0.z) + dv * 41.6, 1.1, 0.13])
 			pc.box(a + dv * 25.0 + sv * s * 2.82 + Vector3(0, 0.07, 0), Vector3(0.14, 0.14, 41.6), Color(0.3, 0.3, 0.3) if s > 0 else Color(0.62, 0.6, 0.56), Rect2(0, 0, 1, 1), true, basis)
 	# open drain with cover slabs on one side
 	var ds := 1.0 if rng.randf() < 0.5 else -1.0
@@ -746,6 +755,13 @@ func _mm(mesh: Mesh, xforms: Array) -> void:
 	add_child(mi)
 
 func _collision() -> void:
+	if not _walk.is_empty() or not _walk_boxes.is_empty():
+		var wb := Ground.new_body()
+		add_child(wb)
+		for w in _walk:
+			Ground.strip_shape(wb, w[0], w[1], w[2], w[3])
+		for bx in _walk_boxes:
+			Ground.box_shape(wb, bx[0], bx[1])
 	if _boxes.is_empty() and _trees.is_empty():
 		return
 	var body := StaticBody3D.new()
