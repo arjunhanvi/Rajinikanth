@@ -5,7 +5,7 @@ extends Control
 ##  10.0  the frame falls to black.
 ##  12.5  the yellow star (the game's mark) rises.
 ##  23.0  (the swell in the score) BIG BANG LORE lands, letter by letter.
-##  33.5  hand over to the menu, where the BIG BANG LORE theme takes over.
+##  33.5  hand over to the menu; the same music carries on there, looping.
 
 const T_BLACK := 10.0
 const T_STAR := 12.5
@@ -127,7 +127,7 @@ func _ready() -> void:
 	_pres.size = Vector2(800, 30)
 	_pres.modulate.a = 0.0
 	add_child(_pres)
-	_tag = UI.label("BENGALURU   -   1 JANUARY  TO  15 JUNE  2007", 18, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
+	_tag = UI.label("2007", 18, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
 	_tag.size = Vector2(1000, 30)
 	_tag.modulate.a = 0.0
 	add_child(_tag)

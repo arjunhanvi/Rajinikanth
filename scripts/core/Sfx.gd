@@ -20,6 +20,7 @@ var _intro: AudioStreamPlayer
 const THEME_TRACK := "res://assets/audio/user/menu_theme.ogg"
 const WHISTLE_T := 20.47
 var _theme: AudioStreamPlayer
+var _menu_loop := false        # the intro music carries on under the main menu and loops there
 var _theme_tw: Tween
 var _intro_tw: Tween           # slow-motion ducks everything but the cue
 
@@ -42,6 +43,10 @@ func _ready() -> void:
 		_amb[n] = p
 		_amb_target[n] = 0.0
 	_intro = _mk("Music")
+	_intro.finished.connect(func():
+		if _menu_loop:
+			_intro.volume_db = 0.0
+			_intro.play())
 	_theme = _mk("Music")
 	_radio = _mk("Radio")
 	_radio.finished.connect(func():
@@ -66,6 +71,16 @@ func intro_play() -> void:
 	_intro.volume_db = 0.0
 	_intro.play()
 
+## Main menu: the same music as the Hanvi's Original intro. If it is still playing from the
+## intro it simply carries on; at its end it starts again, for as long as the menu is up.
+func menu_music() -> void:
+	_menu_loop = true
+	if _intro_tw != null and _intro_tw.is_running():
+		_intro_tw.kill()
+		_intro.volume_db = 0.0
+	if not _intro.playing:
+		intro_play()
+
 func intro_playing() -> bool:
 	return _intro.playing
 
@@ -74,6 +89,7 @@ func intro_time() -> float:
 
 ## Controlled fade-out; used when gameplay begins.
 func intro_stop(fade := 1.2) -> void:
+	_menu_loop = false
 	if not _intro.playing:
 		return
 	if _intro_tw != null:

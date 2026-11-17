@@ -248,10 +248,11 @@ func s_intro() -> void:
 	for t in [[5.0, "intro_logo"], [10.0, "intro_star"], [12.0, "intro_title"], [4.0, "intro_title_full"], [6.5, "menu"]]:
 		await wait(t[0])
 		await shot(t[1])
-	ok(Sfx._theme.playing, "BIG BANG LORE theme playing on the main menu")
-	var st = Sfx._theme.stream
-	ok(st != null and st.loop, "menu theme loops")
-	ok(str(st.resource_path).ends_with("menu_theme.ogg") or st.resource_path == "", "menu theme is the supplied track")
+	ok(Sfx._intro.playing and Sfx._menu_loop, "the Hanvi's Original intro music plays on under the main menu, set to loop")
+	ok(not Sfx._theme.playing, "the whistle track is not playing on the menu")
+	Sfx._intro.seek(Sfx._intro.stream.get_length() - 0.5)
+	await wait(1.5)
+	ok(Sfx._intro.playing and Sfx._intro.get_playback_position() < 2.0, "menu music starts again after it ends (loop)")
 
 ## Evidence stills: the scattered notes and the medical students, from close.
 func s_props() -> void:

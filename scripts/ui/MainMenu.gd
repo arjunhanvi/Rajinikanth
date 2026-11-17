@@ -55,11 +55,11 @@ func _ready() -> void:
 	ver.offset_top = -40
 	add_child(ver)
 	add_child(UI.grain(0.08, 0.4))
-	# the BIG BANG LORE theme plays, looping, for as long as the menu is up
-	Sfx.intro_stop(0.8)
-	Sfx.theme_loop()
-	if not ResourceLoader.exists(Sfx.THEME_TRACK):
-		var miss := UI.label("Theme not found (assets/audio/user/menu_theme.ogg). Running silent.", 13, Color(0.8, 0.4, 0.3))
+	# the Hanvi's Original intro music carries on under the menu, looping
+	Sfx.theme_stop(0.5)
+	Sfx.menu_music()
+	if not Sfx.intro_available():
+		var miss := UI.label("Intro music not found (assets/audio/user/intro_theme.ogg). Running silent.", 13, Color(0.8, 0.4, 0.3))
 		miss.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 		miss.offset_left = 90
 		miss.offset_top = -62
@@ -133,7 +133,7 @@ func _slots(mode: String) -> void:
 					Game.start_new(i, "story", "Raja", Human.default_look())
 					Game.goto("world")
 				else:
-					Sfx.theme_stop(1.0)
+					Sfx.intro_stop(1.0)
 					Game.goto("creator", {"slot": i, "mode": mode}))
 		vb.add_child(row)
 	_close_row(vb)
