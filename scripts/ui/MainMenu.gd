@@ -140,7 +140,7 @@ func _slots(mode: String) -> void:
 
 func _about() -> void:
 	var vb := _open("BIG BANG LORE")
-	var l := UI.label("A Hanvi's Original production.\n\nBengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth fans, Raja and Lal and what they turn out to mean to each other. The opening sequence is playable; the story continues in later updates.\n\nThis is a work of fiction. Real public figures, institutions and places appear in a fictionalised, alternate-history context; none of their words or actions in this game are real records. The January 2007 shoot at M.S. Ramaiah Institute of Technology is invented for the game.\n\nBuilt with the open-source Godot Engine. Title lettering: Bangers (SIL Open Font License).", 19, Color(0.9, 0.9, 0.88))
+	var l := UI.label("A Hanvi's Original production.\n\nBengaluru, 1 January to 15 June 2007. Two die-hard Rajinikanth fans, Raja and Lal and what they turn out to mean to each other. The opening sequence is playable; the story continues in later updates.\n\nThis is a work of fiction. Real public figures, institutions and places appear in a fictionalised, alternate-history context; none of their words or actions in this game are real records. The January 2007 shoot at M.S. Ramaiah Institute of Technology is invented for the game.\n\nBuilt with the open-source Godot Engine. Title lettering: Bangers (SIL Open Font License).\n\nMap data © OpenStreetMap contributors, available under the Open Database License (ODbL): openstreetmap.org/copyright. Elevation: SRTM (NASA, public domain). Shop and vehicle brands in the game are fictional.", 18, Color(0.9, 0.9, 0.88))
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vb.add_child(l)
 	_close_row(vb)

@@ -53,7 +53,7 @@ func _ready() -> void:
 			parent.add_child(SettingsPanel.new()))
 	g.add_child(rl)
 	g.add_child(UI.label("GAME", 20, UI.YELLOW))
-	_cycle(g, "Steering", "steer", ["Arrow buttons", "Joystick"])
+	_cycle(g, "Steering", "steer", ["Arrow buttons", "Joystick", "Steering pad", "Tilt"])
 	_slider(g, "Intro music volume", "music", 0.0, 1.0)
 	_slider(g, "Vehicle radio volume", "radio", 0.0, 1.0)
 	_cycle(g, "Vehicle radio", "radio_mute", ["On", "Muted"], true)

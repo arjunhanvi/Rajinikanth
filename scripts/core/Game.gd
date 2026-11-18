@@ -15,9 +15,9 @@ const END_DAY := 166
 var settings := {
 	"gfx": 1, "sens": 1.0, "btn_scale": 1.0, "btn_alpha": 0.75, "lefty": false,
 	"music": 0.8, "sfx": 1.0, "subtitles": true, "grain": true, "fps60": false,
-	"invert_y": false, "steer": 0, "intro_seen": false, "radio": 0.8, "radio_mute": false, "radio_track": 0,
+	"invert_y": false, "steer": 2, "intro_seen": false, "radio": 0.8, "radio_mute": false, "radio_track": 0,
 	# controls overhaul: vertical camera sensitivity, stick size, RUN LOCK hold time, haptics, touch trace (test builds)
-	"sens_y": 1.0, "stick_scale": 1.0, "runlock_hold": 0.6, "haptics": true, "touch_trace": false,
+	"sens_y": 1.0, "stick_scale": 1.0, "runlock_hold": 0.6, "haptics": true, "touch_trace": false, "steer_v2": true,
 }
 const CONTROL_DEFAULTS := {"sens": 1.0, "sens_y": 1.0, "btn_scale": 1.0, "btn_alpha": 0.75, "stick_scale": 1.0, "lefty": false, "runlock_hold": 0.6, "haptics": true, "invert_y": false}
 var slot := -1
@@ -54,6 +54,11 @@ func load_settings() -> void:
 	if d is Dictionary:
 		for k in d:
 			settings[k] = d[k]
+		if not d.has("steer_v2"):
+			# one-time move to the new steering pad (the old default was arrow buttons)
+			if int(settings.get("steer", 0)) == 0:
+				settings["steer"] = 2
+			settings["steer_v2"] = true
 	apply_settings()
 
 func save_settings() -> void:

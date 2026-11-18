@@ -184,11 +184,14 @@ func _process(delta: float) -> void:
 				pad.cancel_run_lock("blocked")
 		pl.input_move = pad.stick
 		pl.input_sprint = pad.running()
-		pl.input_throttle = (1.0 if pad.held("accel") else 0.0) - (1.0 if pad.held("brake") else 0.0)
-		pl.input_steer = (1.0 if pad.held("right") else 0.0) - (1.0 if pad.held("left") else 0.0)
-		if pl.in_vehicle() and int(Game.settings.steer) == 1:
-			pl.input_steer = pad.stick.x
-			pl.input_move = Vector2.ZERO
+		pl.input_throttle = pad.throttle_value
+		pl.input_brake = pad.brake_value
+		pl.input_steer = pad.steer_value
+		if pl.in_vehicle():
+			if pad.steer_mode() == 1:
+				pl.input_move = Vector2.ZERO
+			pad.speed_kmh = absf(pl.vehicle.v) * 3.6
+			pad.gear_text = "R" if pl.vehicle.reverse else ("N" if absf(pl.vehicle.v) < 0.2 and pad.throttle_value <= 0.0 else str(pl.vehicle.gear))
 		pl.input_handbrake = pad.held("hbrake")
 		pl.look_input(pad.take_look())
 		for a in ["interact", "jump", "crouch", "punch", "phone", "map", "cam", "pause", "horn"]:
@@ -200,6 +203,7 @@ func _process(delta: float) -> void:
 		pl.input_move = Vector2.ZERO
 		pl.input_sprint = false
 		pl.input_throttle = 0.0
+		pl.input_brake = 0.0
 		pl.input_steer = 0.0
 		pad.take_look()
 	if _typing > 0.0 and _dlg.visible:

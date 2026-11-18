@@ -42,6 +42,16 @@ var _look_raw := Vector2.ZERO    # pixels this frame
 var _look_vel := Vector2.ZERO    # filtered pixels per second
 var _look_out := Vector2.ZERO
 
+# ---- driving: analogue pedals and steering (0..1, -1..1)
+var throttle_value := 0.0
+var brake_value := 0.0
+var steer_value := 0.0
+var _steer_x0 := 0.0
+var _steer_raw := 0.0
+var _tilt_zero := 0.0
+var speed_kmh := 0.0          # set by the HUD for the gauge
+var gear_text := ""
+
 # ---- touch trace (test builds): recent touch points, drawn as fading dots
 var trace: Array = []
 
@@ -51,17 +61,15 @@ const BTN := {
 	"jump": ["br", -112, -118, 46, "Jump", ["foot"], "jump"],
 	"crouch": ["br", -232, -96, 38, "Crouch", ["foot"], "crouch"],
 	"punch": ["br", -228, -206, 34, "Hit", ["foot"], "hit"],
-	"accel": ["br", -110, -120, 72, "GAS", ["drive"], ""],
-	"brake": ["br", -275, -95, 56, "BRAKE", ["drive"], ""],
-	"hbrake": ["br", -262, -228, 42, "H-BRK", ["drive"], ""],
-	"horn": ["br", -80, -285, 44, "HORN", ["drive"], ""],
-	"exit": ["br", -195, -355, 40, "EXIT", ["drive"], ""],
+	"hbrake": ["br", -300, -330, 36, "", ["drive"], "hbrake"],
+	"horn": ["br", -112, -380, 46, "", ["drive"], "horn"],
+	"exit": ["tr", -44, 400, 26, "", ["drive"], "exit"],
 	"left": ["bl", 105, -115, 64, "<", ["drive"], ""],
 	"right": ["bl", 262, -115, 64, ">", ["drive"], ""],
 	"whistle": ["br", -110, -110, 60, "RIGHT!", ["bus"], ""],
 	"bell": ["br", -255, -100, 46, "BELL", ["bus"], ""],
 	"pause": ["tr", -44, 44, 26, "", ["foot", "drive", "bus", "ride"], "pause"],
-	"radio": ["br", -330, -340, 38, "RADIO", ["drive"], ""],
+	"radio": ["tr", -44, 462, 26, "", ["drive"], "radio"],
 	"phone": ["tr", -44, 190, 26, "", ["foot", "drive"], "phone"],
 	"map": ["tr", -44, 252, 26, "", ["foot", "drive", "bus"], "map"],
 	"cam": ["tr", -44, 314, 26, "", ["foot", "drive", "ride"], "cam"],
@@ -85,7 +93,34 @@ func reset() -> void:
 	queue_redraw()
 
 func uses_stick() -> bool:
-	return mode in ["foot", "bus"] or (mode == "drive" and int(Game.settings.steer) == 1)
+	return mode in ["foot", "bus"] or (mode == "drive" and steer_mode() == 1)
+
+## 0 arrow buttons, 1 joystick, 2 steering pad (default), 3 tilt
+func steer_mode() -> int:
+	return int(Game.settings.steer)
+
+func steer_rect() -> Rect2:
+	var safe := _safe()
+	var w := size.x * 0.34
+	var h := size.y * 0.36
+	var x := safe.x + 24.0 if not Game.settings.lefty else size.x - safe.z - 24.0 - w
+	return Rect2(x, size.y - safe.w - 24.0 - h, w, h)
+
+func gas_rect() -> Rect2:
+	var sc: float = float(Game.settings.btn_scale)
+	var safe := _safe()
+	var w := 112.0 * sc
+	var h := 236.0 * sc
+	var x := size.x - safe.z - 36.0 - w if not Game.settings.lefty else safe.x + 36.0
+	return Rect2(x, size.y - safe.w - 30.0 - h, w, h)
+
+func brake_rect() -> Rect2:
+	var sc: float = float(Game.settings.btn_scale)
+	var g := gas_rect()
+	var w := 104.0 * sc
+	var h := 160.0 * sc
+	var x := g.position.x - 26.0 * sc - w if not Game.settings.lefty else g.end.x + 26.0 * sc
+	return Rect2(x, g.end.y - h, w, h)
 
 func stick_held() -> bool:
 	return _touch.values().has("stick")
@@ -130,7 +165,7 @@ func _visible_btn(id: String) -> bool:
 		return false
 	if id == "interact" and interact_text == "":
 		return false
-	if id in ["left", "right"] and int(Game.settings.steer) == 1:
+	if id in ["left", "right"] and steer_mode() != 0:
 		return false
 	if id == "radio" and (Game.world == null or not Game.world.radio_ok()):
 		return false
@@ -208,6 +243,19 @@ func _input(ev: InputEvent) -> void:
 				else:
 					cancel_run_lock("chip")
 				return
+			if mode == "drive":
+				if gas_rect().grow(10).has_point(ev.position):
+					_touch[ev.index] = "gas"
+					_held["accel"] = true
+					throttle_value = _pedal(gas_rect(), ev.position, 0.45)
+					queue_redraw()
+					return
+				if brake_rect().grow(10).has_point(ev.position):
+					_touch[ev.index] = "brake"
+					_held["brake"] = true
+					brake_value = _pedal(brake_rect(), ev.position, 0.5)
+					queue_redraw()
+					return
 			for id in BTN:
 				if _visible_btn(id) and ev.position.distance_to(btn_pos(id)) <= btn_radius(id) * 1.15:
 					_touch[ev.index] = id
@@ -216,7 +264,11 @@ func _input(ev: InputEvent) -> void:
 					_buzz(8)
 					queue_redraw()
 					return
-			if uses_stick() and _stick_side(ev.position) and not stick_held():
+			if mode == "drive" and steer_mode() == 2 and steer_rect().grow(20).has_point(ev.position) and not _touch.values().has("steer"):
+				_touch[ev.index] = "steer"
+				_steer_x0 = ev.position.x
+				_steer_raw = 0.0
+			elif uses_stick() and _stick_side(ev.position) and not stick_held():
 				_touch[ev.index] = "stick"
 				_stick_origin = ev.position
 				_stick_pos = ev.position
@@ -232,6 +284,14 @@ func _input(ev: InputEvent) -> void:
 					_engage()
 				_raw = Vector2.ZERO
 				_chip_hover = false
+			elif role == "gas":
+				throttle_value = 0.0
+				_held["accel"] = false
+			elif role == "brake":
+				brake_value = 0.0
+				_held["brake"] = false
+			elif role == "steer":
+				_steer_raw = 0.0
 			elif role not in ["look", "chip", ""]:
 				_held[role] = false
 		queue_redraw()
@@ -258,6 +318,17 @@ func _input(ev: InputEvent) -> void:
 			queue_redraw()
 		elif role == "look":
 			_look_raw += ev.relative
+		elif role == "gas":
+			throttle_value = _pedal(gas_rect(), ev.position, 0.45)
+		elif role == "brake":
+			brake_value = _pedal(brake_rect(), ev.position, 0.5)
+		elif role == "steer":
+			# thumb offset from where it landed: a third of the pad width is full lock
+			var span := steer_rect().size.x * 0.33
+			_steer_raw = clampf((ev.position.x - _steer_x0) / span, -1.0, 1.0)
+			if absf(ev.position.x - _steer_x0) > span:
+				_steer_x0 = ev.position.x - signf(ev.position.x - _steer_x0) * span   # the centre follows the thumb past full lock
+			queue_redraw()
 
 ## Camera drag for this frame, smoothed and with gentle acceleration for fast swipes.
 func take_look() -> Vector2:
@@ -269,6 +340,7 @@ func _process(delta: float) -> void:
 	if delta <= 0.0:
 		return
 	_update_look(delta)
+	_update_drive(delta)
 	_update_stick(delta)
 	_update_lock(delta)
 	if _flash > 0.0:
@@ -277,8 +349,39 @@ func _process(delta: float) -> void:
 		t[1] -= delta * 0.8
 	while trace.size() > 0 and float(trace[0][1]) <= 0.0:
 		trace.pop_front()
-	if lock_state != Lock.NONE or _flash > 0.0 or trace.size() > 0 or stick_held():
+	if lock_state != Lock.NONE or _flash > 0.0 or trace.size() > 0 or stick_held() or mode == "drive":
 		queue_redraw()
+
+## Pedal travel from the touch height: the lower part of the pedal is a light press, the top is full.
+func _pedal(r: Rect2, p: Vector2, lo: float) -> float:
+	var t := clampf(1.0 - (p.y - r.position.y) / r.size.y, 0.0, 1.0)
+	return lerpf(lo, 1.0, clampf(t * 1.25, 0.0, 1.0))
+
+func _update_drive(delta: float) -> void:
+	if mode != "drive":
+		throttle_value = 0.0
+		brake_value = 0.0
+		steer_value = 0.0
+		return
+	var target := 0.0
+	match steer_mode():
+		0:
+			target = (1.0 if held("right") else 0.0) - (1.0 if held("left") else 0.0)
+		1:
+			target = stick.x
+		2:
+			var m := absf(_steer_raw)
+			target = 0.0 if m < 0.06 else signf(_steer_raw) * pow((m - 0.06) / 0.94, 1.3)
+		3:
+			# tilt: the device's roll in landscape, relative to how it was held when the drive began
+			var a := Input.get_accelerometer()
+			var roll := atan2(a.y, absf(a.x) + 0.001)
+			target = clampf((roll - _tilt_zero) / 0.45, -1.0, 1.0)
+	steer_value = move_toward(steer_value, target, delta * 8.0)
+
+func calibrate_tilt() -> void:
+	var a := Input.get_accelerometer()
+	_tilt_zero = atan2(a.y, absf(a.x) + 0.001)
 
 func _update_look(delta: float) -> void:
 	var v := _look_raw / delta
@@ -362,6 +465,8 @@ func _draw() -> void:
 		_draw_btn(id, al, font)
 	if uses_stick():
 		_draw_stick(al, font)
+	if mode == "drive":
+		_draw_drive(al, font)
 	for t in trace:
 		draw_circle(t[0], 10.0, Color(0.2, 1.0, 0.4, float(t[1]) * 0.7) if t[2] else Color(1, 0.3, 0.2, float(t[1])))
 
@@ -434,6 +539,21 @@ func _icon(kind: String, p: Vector2, s: float, c: Color) -> void:
 		"lock":
 			draw_rect(Rect2(p + Vector2(-s * 0.45, -s * 0.05), Vector2(s * 0.9, s * 0.7)), c, true)
 			draw_arc(p + Vector2(0, -s * 0.05), s * 0.3, PI, TAU, 14, c, w, true)
+		"horn":
+			draw_polygon(PackedVector2Array([p + Vector2(-s * 0.7, -s * 0.25), p + Vector2(-s * 0.3, -s * 0.25), p + Vector2(s * 0.35, -s * 0.7), p + Vector2(s * 0.35, s * 0.7), p + Vector2(-s * 0.3, s * 0.25), p + Vector2(-s * 0.7, s * 0.25)]), PackedColorArray([c]))
+			draw_arc(p + Vector2(s * 0.35, 0), s * 0.45, -0.7, 0.7, 10, c, w * 0.8, true)
+			draw_arc(p + Vector2(s * 0.35, 0), s * 0.75, -0.6, 0.6, 10, c, w * 0.8, true)
+		"hbrake":
+			draw_arc(p, s * 0.75, 0, TAU, 28, c, w, true)
+			draw_string(ThemeDB.fallback_font, p + Vector2(-s * 0.32, s * 0.36), "P", HORIZONTAL_ALIGNMENT_LEFT, -1, int(s * 1.1), c)
+		"exit":
+			draw_rect(Rect2(p + Vector2(-s * 0.7, -s * 0.75), Vector2(s * 0.8, s * 1.5)), c, false, w)
+			draw_line(p + Vector2(-s * 0.1, 0), p + Vector2(s * 0.8, 0), c, w, true)
+			draw_polyline(PackedVector2Array([p + Vector2(s * 0.5, -s * 0.3), p + Vector2(s * 0.8, 0), p + Vector2(s * 0.5, s * 0.3)]), c, w, true)
+		"radio":
+			draw_rect(Rect2(p + Vector2(-s * 0.8, -s * 0.4), Vector2(s * 1.6, s * 1.0)), c, false, w)
+			draw_arc(p + Vector2(-s * 0.3, s * 0.1), s * 0.25, 0, TAU, 14, c, w * 0.8, true)
+			draw_line(p + Vector2(-s * 0.5, -s * 0.4), p + Vector2(s * 0.4, -s * 0.85), c, w * 0.8, true)
 		"x":
 			draw_line(p + Vector2(-s * 0.4, -s * 0.4), p + Vector2(s * 0.4, s * 0.4), c, w, true)
 			draw_line(p + Vector2(-s * 0.4, s * 0.4), p + Vector2(s * 0.4, -s * 0.4), c, w, true)
@@ -476,6 +596,50 @@ func _draw_stick(al: float, font: Font) -> void:
 			_label(font, "RUN LOCK ON", cp + Vector2(0, -cr - 10), 13, Color(1, 0.85, 0.4))
 	if _flash > 0.0:
 		draw_arc(chip_pos(), chip_radius() * (1.0 + (1.0 - _flash) * 0.9), 0, TAU, 44, Color(1, 0.85, 0.4, _flash), 3.0, true)
+
+func _draw_drive(al: float, font: Font) -> void:
+	# pedals: tall rounded plates with a fill showing how far each is pressed
+	for which in ["brake", "gas"]:
+		var r := gas_rect() if which == "gas" else brake_rect()
+		var val := throttle_value if which == "gas" else brake_value
+		var on := val > 0.0
+		draw_rect(r, Color(0.04, 0.04, 0.05, al * 0.45), true)
+		if on:
+			var fh := r.size.y * val
+			draw_rect(Rect2(r.position.x, r.end.y - fh, r.size.x, fh), Color(1, 0.76, 0.1, 0.35) if which == "gas" else Color(1, 0.3, 0.25, 0.35), true)
+		draw_rect(r, Color(1, 1, 1, al * (0.95 if on else 0.55)), false, 1.6)
+		for k in 5:     # tread lines
+			var y := r.position.y + r.size.y * (0.2 + k * 0.15)
+			draw_line(Vector2(r.position.x + 14, y), Vector2(r.end.x - 14, y), Color(1, 1, 1, al * 0.25), 2.0)
+		var lbl := "ACCELERATE" if which == "gas" else ("REVERSE" if gear_text == "R" else "BRAKE")
+		_label(font, lbl, Vector2(r.get_center().x, r.position.y - 8), 12, Color(1, 1, 1, al * 0.85))
+	# steering pad: a track with a knob that shows the steering input
+	if steer_mode() == 2:
+		var sr := steer_rect()
+		var cy := sr.position.y + sr.size.y * 0.62
+		var cx := _steer_x0 if _touch.values().has("steer") else sr.get_center().x
+		var half := sr.size.x * 0.33
+		draw_line(Vector2(cx - half, cy), Vector2(cx + half, cy), Color(1, 1, 1, al * 0.4), 3.0, true)
+		for e: float in [-1.0, 1.0]:
+			_chev(Vector2(cx + e * (half + 22), cy), e, 12.0, Color(1, 1, 1, al * 0.55))
+		var kx := cx + steer_value * half
+		draw_circle(Vector2(kx, cy), 30.0, Color(1, 1, 1, al * (0.85 if _touch.values().has("steer") else 0.45)))
+		_label(font, "STEER", Vector2(cx, cy + 58), 12, Color(1, 1, 1, al * 0.7))
+	elif steer_mode() == 3:
+		var sr2 := steer_rect()
+		_label(font, "TILT TO STEER", Vector2(sr2.get_center().x, sr2.end.y - 20), 14, Color(1, 1, 1, al * 0.7))
+	# gauge: speed and gear, bottom centre
+	var gp := Vector2(size.x * 0.5, size.y - 60.0 - _safe().w)
+	draw_circle(gp, 46, Color(0.04, 0.04, 0.05, al * 0.5))
+	draw_arc(gp, 46, PI * 0.75, PI * 0.75 + PI * 1.5 * clampf(speed_kmh / 100.0, 0.0, 1.0), 40, Color(1, 0.76, 0.1, 0.9), 4.0, true)
+	var st := "%d" % int(round(speed_kmh))
+	var tw := font.get_string_size(st, HORIZONTAL_ALIGNMENT_CENTER, -1, 28).x
+	draw_string(font, gp + Vector2(-tw * 0.5, 6), st, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1, 1, 1, 0.95))
+	_label(font, "km/h", gp + Vector2(0, 24), 11, Color(1, 1, 1, 0.7))
+	_label(font, gear_text, gp + Vector2(0, -22), 15, Color(1, 0.3, 0.25) if gear_text == "R" else Color(1, 0.85, 0.4))
+
+func _chev(p: Vector2, dir: float, s: float, c: Color) -> void:
+	draw_polyline(PackedVector2Array([p + Vector2(-dir * s * 0.5, -s), p + Vector2(dir * s * 0.5, 0), p + Vector2(-dir * s * 0.5, s)]), c, 3.0, true)
 
 func _label(font: Font, t: String, p: Vector2, fs: int, c: Color) -> void:
 	var tw := font.get_string_size(t, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x

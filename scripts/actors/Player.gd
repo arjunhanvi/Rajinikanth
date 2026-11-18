@@ -24,13 +24,15 @@ var ride: Vehicle = null        # riding pillion: somebody else is driving
 var cam_override := false      # cinematics drive the camera
 var puppet := false            # a cinematic moves the body itself (position, state, activity)
 var _vy := 0.0
+var _cam_ahead := Vector3.ZERO
 var _hv := Vector3.ZERO        # horizontal velocity: it builds up and falls off, never jumps
 var _step := 0.0
 var _look_idle := 0.0
 var _punch_cd := 0.0
 var input_move := Vector2.ZERO  # from HUD stick (x right, y forward)
 var input_sprint := false
-var input_throttle := 0.0
+var input_throttle := 0.0         # 0..1 accelerator
+var input_brake := 0.0            # 0..1 brake (held at a standstill: reverse)
 var input_steer := 0.0
 var input_handbrake := false
 var run_blocked := false        # running into something solid (the HUD ends RUN LOCK on it)
@@ -228,6 +230,8 @@ func exit_vehicle() -> void:
 	human.state = "idle"
 	human.visible = true
 	veh.player_driven = false
+	veh.hvel = Vector3.ZERO
+	veh.reverse = false
 	veh.stop_engine()
 	vehicle = null
 	global_position = Vector3(out.x, 0, out.z)
@@ -239,15 +243,19 @@ func exit_vehicle() -> void:
 
 func _drive(delta: float, mv: Vector2) -> void:
 	var th := input_throttle
+	var br := input_brake
 	var st := input_steer
-	if absf(mv.y) > 0.1 and absf(th) < 0.05:
-		th = mv.y
+	# keyboard / joystick fallback: forward is the accelerator, back is the brake
+	if absf(mv.y) > 0.1 and th < 0.05 and br < 0.05:
+		th = maxf(mv.y, 0.0)
+		br = maxf(-mv.y, 0.0)
 	if absf(mv.x) > 0.1 and absf(st) < 0.05:
 		st = mv.x
 	if locked:
 		th = 0.0
+		br = 0.0
 		st = 0.0
-	vehicle.drive(delta, th, st, input_handbrake or Input.is_action_pressed("handbrake") or locked)
+	vehicle.drive2(delta, th, br, st, input_handbrake or Input.is_action_pressed("handbrake") or locked)
 	global_position = vehicle.global_position
 	Game.s.stats.km = float(Game.s.stats.km) + absf(vehicle.v) * delta / 1000.0
 	if _look_idle > 1.2 and absf(vehicle.v) > 1.0:
@@ -301,9 +309,21 @@ func _camera(delta: float) -> void:
 		dist = 4.4 * cam_zoom
 		target = ride.global_position + Vector3(0, 1.45, 0)
 	if vehicle != null:
-		dist = (5.5 + float(vehicle.spec.l) * 0.75) * cam_zoom
-		target = vehicle.global_position + Vector3(0, float(vehicle.spec.h) * 0.75 + 0.5, 0)
-	elif bus != null:
+		# chase camera per vehicle class: further back and wider as speed builds, looking ahead into the turn
+		var two := vehicle.type in ["bike", "scooter"]
+		var vmax: float = float(vehicle.spec.max)
+		var sp := clampf(absf(vehicle.v) / vmax, 0.0, 1.0)
+		dist = ((3.2 if two else 5.5 + float(vehicle.spec.l) * 0.75) * (1.0 + 0.22 * sp)) * cam_zoom
+		var fwdv := -vehicle.global_transform.basis.z
+		var rgt := vehicle.global_transform.basis.x
+		var ahead := fwdv * clampf(absf(vehicle.v) * 0.18, 0.0, 3.5) * signf(vehicle.v) + rgt * vehicle.steer * clampf(absf(vehicle.v) * 0.12, 0.0, 1.6)
+		_cam_ahead = _cam_ahead.lerp(ahead, 1.0 - exp(-3.0 * delta))
+		target = vehicle.global_position + Vector3(0, (float(vehicle.spec.h) * 0.75 + 0.5) if not two else 1.25, 0) + _cam_ahead + Vector3(0, vehicle.susp.x, 0)
+		cam.fov = lerpf(cam.fov, 62.0 + 9.0 * sp, 1.0 - exp(-2.0 * delta))
+	else:
+		_cam_ahead = Vector3.ZERO
+		cam.fov = lerpf(cam.fov, 62.0, 1.0 - exp(-3.0 * delta))
+	if bus != null:
 		dist = 1.7
 		target = global_position + Vector3(0, 1.6, 0)
 	var rot := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)
@@ -318,11 +338,18 @@ func _camera(delta: float) -> void:
 		human.visible = true
 	var want := target + back * dist
 	if bus == null:
+		# a sphere, not a ray, so the camera does not clip walls at the edge of the view
 		var space := get_world_3d().direct_space_state
-		var q := PhysicsRayQueryParameters3D.create(target, want, 1)
-		var hit := space.intersect_ray(q)
-		if not hit.is_empty():
-			want = hit.position - back * 0.25
+		var sq := PhysicsShapeQueryParameters3D.new()
+		var sph := SphereShape3D.new()
+		sph.radius = 0.22
+		sq.shape = sph
+		sq.transform = Transform3D(Basis(), target)
+		sq.motion = want - target
+		sq.collision_mask = 1
+		var frac := space.cast_motion(sq)
+		if frac.size() > 0 and frac[0] < 1.0:
+			want = target + (want - target) * frac[0]
 	if bus != null:
 		# keep the camera inside the bus shell
 		var inv := bus.global_transform.affine_inverse()

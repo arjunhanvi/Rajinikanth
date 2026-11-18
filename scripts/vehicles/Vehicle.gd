@@ -35,6 +35,18 @@ var _ind_dir := 0
 var _blink := 0.0
 var _spot: SpotLight3D = null
 var _prev_v := 0.0
+# handling and suspension state (see Handling.gd)
+var hvel := Vector3.ZERO      # horizontal velocity (the body can slide sideways)
+var lat_acc := 0.0            # lateral acceleration, + when turning right
+var reverse := false
+var rev_hold := 0.0
+var gear := 1
+var shift_t := 0.0
+var susp := Vector3.ZERO      # body height, pitch, roll
+var susp_v := Vector3.ZERO
+var _acc_f := 0.0
+var wheel_pts: Array = []
+var _prev_yaw := 0.0
 
 static func create(t: String, colour_i := -1, with_rider := false) -> Vehicle:
 	var veh := Vehicle.new()
@@ -51,6 +63,7 @@ func _build(with_rider: bool) -> void:
 	var L: float = spec.l
 	var W: float = spec.w
 	var H: float = spec.h
+	wheel_pts = Handling.wheels(type, L, W)
 	var cs := CollisionShape3D.new()
 	var sh := BoxShape3D.new()
 	sh.size = Vector3(W, H, L)
@@ -253,14 +266,15 @@ func _process(delta: float) -> void:
 		# model +X is the right-hand side
 		_ind[_ind_dir].visible = on
 		_ind[-_ind_dir].visible = false
-	# body movement on the springs: dive under braking, squat on throttle, roll in corners
-	var acc := (v - _prev_v) / maxf(delta, 0.001)
-	_prev_v = v
-	if not type in ["bike", "scooter"]:
-		var soft := 0.012 if type in ["bus", "pbus", "truck"] else 0.02
-		_lean.rotation.x = lerpf(_lean.rotation.x, clampf(acc * soft, -0.06, 0.06), 1.0 - exp(-5.0 * delta))
-		_lean.rotation.z = lerpf(_lean.rotation.z, clampf(steer * absf(v) * 0.006, -0.05, 0.05), 1.0 - exp(-4.0 * delta))
-		_lean.position.y = sin(Time.get_ticks_msec() * 0.02 + global_position.x) * 0.006 * minf(absf(v), 4.0)
+	# the body rides on its springs over the real road: per-wheel ground contact near the camera,
+	# one sample under the middle further away
+	if not player_driven and delta > 0.0:
+		# traffic and cinematics move us directly: read the turn back from the heading change
+		var yr := -wrapf(rotation.y - _prev_yaw, -PI, PI) / delta
+		lat_acc = lerpf(lat_acc, v * yr, 1.0 - exp(-6.0 * delta))
+	_prev_yaw = rotation.y
+	var near := global_position.distance_squared_to(Human.cam_pos) < 45.0 * 45.0
+	Handling.suspend(self, delta, near)
 
 static func _paint_mat() -> StandardMaterial3D:
 	var m := Mats._std("vpaint", "", 0.35, false, true)
@@ -310,36 +324,29 @@ func exit_point() -> Vector3:
 	return global_position + global_transform.basis.x * -(float(spec.w) * 0.5 + 0.8)
 
 # ------------------------------------------------------------------ player driving
+## Compatibility: one signed pedal (+ accelerate, - brake/reverse), as the keyboard and old callers use.
 func drive(delta: float, throttle: float, steer_in: float, handbrake: bool) -> void:
-	var vmax: float = spec.max
-	var acc: float = spec.acc
-	if handbrake:
-		v = move_toward(v, 0.0, 14.0 * delta)
-	elif throttle > 0.05:
-		v += (acc if v >= 0.0 else 12.0) * throttle * delta
-	elif throttle < -0.05:
-		v += (-10.0 if v > 0.3 else -acc * 0.7) * -throttle * delta
-	else:
-		v = move_toward(v, 0.0, 1.6 * delta)
-	v = clampf(v, -vmax * 0.3, vmax)
-	steer = move_toward(steer, steer_in, delta * 3.5)
-	var grip := clampf(absf(v) / 4.0, 0.0, 1.0) * lerpf(1.0, 0.55, clampf(absf(v) / vmax, 0.0, 1.0))
-	rotation.y -= steer * float(spec.turn) * grip * delta * signf(v)
-	velocity = -global_transform.basis.z * v
+	drive2(delta, maxf(throttle, 0.0), maxf(-throttle, 0.0), steer_in, handbrake)
+
+## Analogue driving: throttle and brake 0..1, steer -1..1 (see Handling.gd).
+func drive2(delta: float, throttle: float, brake: float, steer_in: float, handbrake: bool) -> void:
+	if hvel == Vector3.ZERO and absf(v) > 0.01:
+		hvel = -global_transform.basis.z * v       # taking over a moving vehicle
+	Handling.drive(self, delta, throttle, brake, steer_in, handbrake)
+	velocity = hvel
 	var before := global_position
 	move_and_slide()
 	global_position.y = 0.0
 	var moved := global_position.distance_to(before) / maxf(delta, 0.001)
-	if get_slide_collision_count() > 0 and moved < absf(v) * 0.6:
+	if get_slide_collision_count() > 0 and moved < hvel.length() * 0.6:
 		if absf(v) > 6.0:
 			Sfx.play("crash", clampf(absf(v) / 15.0, 0.3, 1.0))
 			if Game.world != null:
 				Game.world.on_crash(self, absf(v))
 		v *= 0.35
-	if type in ["bike", "scooter"]:
-		_lean.rotation.z = lerpf(_lean.rotation.z, -steer * 0.35 * grip, delta * 6.0)
+		hvel = velocity * 0.5
 	_engine_sound(true)
-	set_brake(throttle < -0.05 or handbrake)
+	set_brake((brake > 0.05 and not reverse) or (throttle > 0.05 and reverse) or handbrake)
 	if _spot == null:
 		_spot = SpotLight3D.new()
 		_spot.position = Vector3(0, 0.9, -float(spec.l) * 0.5)

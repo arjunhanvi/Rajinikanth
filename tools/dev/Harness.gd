@@ -884,3 +884,179 @@ func s_controls() -> void:
 	var dy: float = wrapf(pl.yaw - yaw0, -PI, PI)
 	ok(absf(dy) > 0.4 and absf(dy) < 2.5, "a 240 px camera drag turns the camera %.2f rad" % dy)
 	print("[controls] done")
+
+# ------------------------------------------------------------------ driving overhaul: handling tests per vehicle class
+func _road_start() -> Dictionary:
+	var best := {}
+	var bl := 0.0
+	for e in City.edges:
+		if float(e.len) > bl and float(e.w) >= 14.0:
+			bl = float(e.len)
+			best = e
+	var d: Vector2 = best.dir
+	var p: Vector2 = (best.pa as Vector2) + d * 60.0
+	return {"pos": Vector3(p.x, 0, p.y), "dir": Vector3(d.x, 0, d.y), "yaw": atan2(-d.x, -d.y), "name": best.name}
+
+func _speed_bump(at: Vector3, dir: Vector3, width: float) -> Node3D:
+	var b := Ground.new_body()
+	var yaw := atan2(-dir.x, -dir.z)
+	Ground.box_shape(b, Vector3.ZERO, Vector3(width, 0.16, 0.55), 0.0)
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(width, 0.16, 0.55)
+	mi.mesh = bm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.85, 0.75, 0.2)
+	mi.material_override = m
+	b.add_child(mi)
+	world().add_child(b)
+	b.global_position = at + Vector3(0, 0.09, 0)
+	b.rotation.y = yaw
+	return b
+
+func s_driving() -> void:
+	var w = world()
+	await wait(2.0)
+	var pl = w.player
+	var pad: TouchPad = w.hud.pad
+	var rs := _road_start()
+	print("[drive] test road: ", rs.name)
+	var results := {}
+	var types := ["car", "hatch", "auto", "bike", "scooter", "bus", "truck"]
+	for ti in types.size():
+		var t: String = types[ti]
+		if pl.vehicle != null:
+			pl.exit_vehicle()
+			await _hold(0.3)
+		var start: Vector3 = rs.pos + rs.dir * (ti * 0.0)
+		await tp(start + Vector3(0, 0, 0), rs.yaw)
+		var veh := Vehicle.create(t, 2)
+		w.add_child(veh)
+		veh.global_position = start
+		veh.rotation.y = rs.yaw
+		await _hold(0.2)
+		pl.enter_vehicle(veh)
+		await _hold(0.5)
+		var r := {}
+		# 1. full throttle from rest (the car is driven through real touches on the pedal)
+		if t == "car":
+			var g := pad.gas_rect()
+			_tch(5, Vector2(g.get_center().x, g.position.y + 12), true)
+		else:
+			pad.throttle_value = 1.0
+		var tt := 0.0
+		var t40 := -1.0
+		while tt < 8.0:
+			await get_tree().process_frame
+			tt += get_process_delta_time()
+			if t40 < 0.0 and veh.v >= 40.0 / 3.6:
+				t40 = tt
+			if tt > 1.2 and tt < 1.25 and t in ["car", "bike", "bus"]:
+				await shot("d_%s_accel" % t)
+		r.t_0_40kmh = t40
+		r.speed_8s_kmh = veh.v * 3.6
+		ok(veh.v > 0.5, "%s: accelerates (%.0f km/h after 8 s, 0-40 in %.1f s)" % [t, veh.v * 3.6, t40])
+		# 2. ease to 25 km/h, then full right lock: measure the turning circle at that speed
+		if t == "car":
+			_tch(5, pad.gas_rect().get_center(), false)
+		pad.throttle_value = 0.0
+		pad.brake_value = 0.6
+		while veh.v > 25.0 / 3.6:
+			await get_tree().process_frame
+		pad.brake_value = 0.0
+		var hold_v := 25.0 / 3.6
+		var sr := pad.steer_rect()
+		var sx0 := sr.get_center().x
+		if t == "car":
+			_tch(6, Vector2(sx0, sr.get_center().y), true)
+			await _slide(6, Vector2(sx0, sr.get_center().y), Vector2(sx0 + sr.size.x * 0.4, sr.get_center().y), 0.2)
+		else:
+			pad._steer_raw = 1.0
+		var y0: float = veh.rotation.y
+		tt = 0.0
+		var yaw_acc := 0.0
+		var prev: float = veh.rotation.y
+		var vs := 0.0
+		while tt < 2.5:
+			pad.throttle_value = clampf((hold_v - veh.v) * 0.8, 0.0, 1.0)
+			await get_tree().process_frame
+			var dt := get_process_delta_time()
+			tt += dt
+			if tt > 1.0:
+				yaw_acc += absf(wrapf(veh.rotation.y - prev, -PI, PI))
+				vs += absf(veh.v) * dt
+			prev = veh.rotation.y
+			if tt > 1.4 and tt < 1.45 and t in ["car", "bike", "auto", "bus"]:
+				await shot("d_%s_turn" % t)
+		var radius := vs / maxf(yaw_acc, 0.001)
+		r.turn_radius_m_at_25kmh = radius
+		r.body_roll_deg = rad_to_deg(veh.susp.z)
+		ok(radius > 1.5 and radius < 40.0, "%s: turning radius at 25 km/h %.1f m, body %s %.1f deg" % [t, radius, "lean" if t in ["bike", "scooter"] else "roll", rad_to_deg(veh.susp.z)])
+		if t == "car":
+			_tch(6, Vector2(sx0 + sr.size.x * 0.4, sr.get_center().y), false)
+		pad._steer_raw = 0.0
+		pad.throttle_value = 0.0
+		await _hold(1.5)
+		# 3. straighten, get to 40 km/h (or top), full brake: stopping distance
+		pad.throttle_value = 1.0
+		tt = 0.0
+		var vt: float = minf(40.0 / 3.6, float(veh.spec.max) * 0.9)
+		while veh.v < vt and tt < 10.0:
+			await get_tree().process_frame
+			tt += get_process_delta_time()
+		pad.throttle_value = 0.0
+		var b0: Vector3 = veh.global_position
+		var v0: float = veh.v
+		if t == "car":
+			var br := pad.brake_rect()
+			_tch(7, Vector2(br.get_center().x, br.position.y + 10), true)
+		else:
+			pad.brake_value = 1.0
+		while veh.v > 0.05:
+			await get_tree().process_frame
+		var sd: float = Vector2(veh.global_position.x - b0.x, veh.global_position.z - b0.z).length()
+		r.brake_from_kmh = v0 * 3.6
+		r.stopping_distance_m = sd
+		ok(sd > 1.0 and sd < 40.0, "%s: stops from %.0f km/h in %.1f m" % [t, v0 * 3.6, sd])
+		# 4. keep holding the brake at a standstill: reverse engages and backs the vehicle up
+		await _hold(1.6)
+		r.reverse_engaged = veh.reverse
+		r.reverse_speed_kmh = veh.v * 3.6
+		ok(veh.reverse and veh.v < -0.3, "%s: holding brake at rest engages reverse (%.1f km/h)" % [t, veh.v * 3.6])
+		if t == "car":
+			await shot("d_car_reverse")
+			_tch(7, pad.brake_rect().get_center(), false)
+		pad.brake_value = 0.0
+		pad.throttle_value = 0.6
+		await _hold(1.0)
+		ok(not veh.reverse, "%s: the accelerator returns to drive" % t)
+		pad.throttle_value = 0.0
+		# 5. speed breaker at about 15 km/h: the body must rise over it and settle (wheels never sink)
+		var fwd := -veh.global_transform.basis.z
+		var bump := _speed_bump(veh.global_position + fwd * 14.0, fwd, 10.0)
+		await _hold(0.2)
+		var base_h: float = veh.susp.x
+		var maxh := -1.0
+		tt = 0.0
+		while tt < 5.0:
+			pad.throttle_value = clampf((15.0 / 3.6 - veh.v) * 0.8, 0.0, 1.0)
+			await get_tree().process_frame
+			tt += get_process_delta_time()
+			maxh = maxf(maxh, veh.susp.x - base_h)
+			if t == "car" and absf(veh.susp.x - base_h) > 0.06 and not results.has("shot_bump"):
+				results["shot_bump"] = true
+				await shot("d_car_speedbreaker")
+		r.bump_rise_m = maxh
+		ok(maxh > 0.03 and maxh < 0.3, "%s: rides up over a 16 cm speed breaker (body +%.2f m) and settles" % [t, maxh])
+		bump.queue_free()
+		pad.throttle_value = 0.0
+		pad.brake_value = 1.0
+		await _hold(1.0)
+		pad.brake_value = 0.0
+		results[t] = r
+		veh_cleanup.append(veh)
+	print("[drive] results ", JSON.stringify(results))
+	if pl.vehicle != null:
+		pl.exit_vehicle()
+
+var veh_cleanup: Array = []
