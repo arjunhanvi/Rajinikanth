@@ -134,9 +134,24 @@ def _seg(P, a, b):
     return np.linalg.norm(P - (a + t[:, None] * ab), axis=1), t
 
 
+def surf(P, origin, direction, reach=0.5):
+    """The skin point outward from a joint: of the vertices within `reach` of the ray, the farthest along it."""
+    dvec = np.asarray(direction, float); dvec = dvec / np.linalg.norm(dvec)
+    rel = P - origin
+    along = rel @ dvec
+    perp = np.linalg.norm(rel - along[:, None] * dvec, axis=1)
+    m = (perp < reach) & (along > 0)
+    if not m.any():
+        return origin
+    i = np.where(m)[0][np.argmax(along[m])]
+    return P[i]
+
+
 def _g(d, r):
     return np.exp(-(d / r) ** 2)
 
+
+RELIEF = 3.2       # the first pass (1.0) gave 1-3 mm of relief, invisible in raking light
 
 def body_fields(c, P, N):
     """Displacement (dm, along the normal) for anatomical forms at positions P with normals N."""
@@ -178,13 +193,13 @@ def body_fields(c, P, N):
         D -= side * 0.012 * _g(dpg, 0.05) * fr                                             # deltopectoral groove
         # --- deltoid
         dc = sh + np.array([sx * 0.12, -0.18, 0.0])
-        D += side * 0.028 * _g(np.linalg.norm(P - dc, axis=1), 0.32) * np.clip(o + up * 0.5, 0, 1)
+        D += side * 0.04 * _g(np.linalg.norm(P - dc, axis=1), 0.3) * np.clip(o + up * 0.5 + fr * 0.4 + bk * 0.4, 0, 1)
         # --- back: scapulae and the spine
         md_top = np.array([sx * 0.33, sp3[1] + 0.25, -0.0]); md_bot = np.array([sx * 0.42, sp2[1] - 0.15, 0.0])
         dm_, _ = _seg(P * np.array([1, 1, 0]), md_top, md_bot)
-        D += side * 0.014 * _g(dm_, 0.06) * bk                                             # medial border of the scapula
+        D += side * 0.008 * _g(dm_, 0.12) * bk                                             # medial border of the scapula
         dss, _ = _seg(P * np.array([1, 1, 0]), md_top, np.array([acro[0], acro[1] - 0.06, 0]))
-        D += side * 0.013 * _g(dss, 0.06) * bk                                             # spine of the scapula
+        D += side * 0.007 * _g(dss, 0.11) * bk                                             # spine of the scapula
         D += side * 0.012 * _g(np.linalg.norm((P - np.array([sx * 0.45, sp2[1] - 0.2, 0])) * np.array([1, 1, 0]), axis=1), 0.12) * bk   # inferior angle
         er = np.clip((P[:, 1] - pel[1]) / 0.3, 0, 1) * np.clip((sp2[1] - P[:, 1]) / 0.3, 0, 1)
         D += side * 0.016 * _g(np.abs(P[:, 0]) - 0.24, 0.1) * bk * er                      # erector spinae (lower back)
@@ -202,8 +217,10 @@ def body_fields(c, P, N):
         arm = (dua < 0.6) & side
         D += arm * 0.018 * _g(tua - 0.6, 0.22) * fr                                        # biceps
         D += arm * 0.016 * _g(tua - 0.45, 0.25) * bk                                       # triceps
-        D += side * 0.022 * _g(np.linalg.norm(P - (el + np.array([0, 0, -0.06])), axis=1), 0.07) * bk     # olecranon
-        D -= side * 0.012 * _g(np.linalg.norm(P - (el + np.array([0, 0, 0.06])), axis=1), 0.08) * fr      # inside of the elbow
+        ol = surf(c._anat_surface, el, np.array([0, 0, -1.0]), 0.3)
+        cf = surf(c._anat_surface, el, np.array([0, 0, 1.0]), 0.3)
+        D += side * 0.016 * _g(np.linalg.norm(P - ol, axis=1), 0.2) * bk                                  # olecranon (elbow point)
+        D -= side * 0.010 * _g(np.linalg.norm(P - cf, axis=1), 0.28) * fr                                 # inside of the elbow
         D += side * 0.010 * _g(np.linalg.norm(P - (el + np.array([0, -0.06, 0])), axis=1), 0.05)          # epicondyle
         dfa, tfa = _seg(P, el, wr)
         fa = (dfa < 0.5) & side
@@ -216,21 +233,28 @@ def body_fields(c, P, N):
         D += leg * 0.016 * _g(tth - 0.45, 0.3) * fr                                        # quadriceps
         D += leg * 0.014 * _g(tth - 0.45, 0.3) * bk                                        # hamstrings
         D -= leg * 0.010 * _g(tth - 0.6, 0.3) * o * (np.abs(N[:, 2]) < 0.6)                # iliotibial band groove
-        vm = kn + np.array([-sx * 0.1, 0.22, 0.08])
-        D += side * 0.026 * _g(np.linalg.norm(P - vm, axis=1), 0.12) * np.clip(fr + inn, 0, 1)            # vastus medialis
-        pat = kn + np.array([0, 0.04, 0.12])
-        D += side * 0.03 * _g(np.linalg.norm((P - pat) * np.array([1.0, 0.75, 1.0]), axis=1), 0.075) * fr  # patella
+        SP = c._anat_surface        # the whole body's vertices, for finding skin landmarks
+        vm = surf(SP, kn + np.array([0, 0.75, 0]), np.array([-sx * 0.8, 0, 0.6]))
+        D += side * 0.022 * _g(np.linalg.norm(P - vm, axis=1), 0.42) * np.clip(fr + inn, 0, 1)            # vastus medialis
+        pat = surf(SP, kn + np.array([0, 0.08, 0]), np.array([0, 0, 1.0]), 0.3)
+        D += side * 0.026 * _g(np.linalg.norm((P - pat) * np.array([1.0, 0.75, 1.0]), axis=1), 0.3) * fr   # patella
         for e in (-1.0, 1.0):
-            D -= side * 0.016 * _g(np.linalg.norm(P - (kn + np.array([e * 0.07, -0.07, 0.1])), axis=1), 0.05) * fr   # hollows beside the patellar tendon
-        D -= side * 0.016 * _g(np.linalg.norm(P - (kn + np.array([0, 0.02, -0.1])), axis=1), 0.09) * bk   # back of the knee
-        D += side * 0.03 * _g(np.linalg.norm(P - (kn + np.array([-sx * 0.06, -0.3, -0.12])), axis=1), 0.16) * np.clip(bk + inn * 0.5, 0, 1)   # gastrocnemius, inner head (lower)
-        D += side * 0.022 * _g(np.linalg.norm(P - (kn + np.array([sx * 0.07, -0.24, -0.12])), axis=1), 0.14) * np.clip(bk + o * 0.5, 0, 1)    # outer head (higher)
+            ho = surf(SP, kn + np.array([e * 0.22, -0.35, 0]), np.array([e * 0.3, 0, 1.0]), 0.3)
+            D -= side * 0.012 * _g(np.linalg.norm(P - ho, axis=1), 0.17) * fr                              # hollows beside the patellar tendon
+        pop = surf(SP, kn, np.array([0, 0, -1.0]), 0.35)
+        D -= side * 0.012 * _g(np.linalg.norm(P - pop, axis=1), 0.3) * bk                                  # back of the knee
+        gm = surf(SP, kn + np.array([0, -1.0, 0]), np.array([-sx * 0.5, 0, -1.0]))
+        D += side * 0.024 * _g(np.linalg.norm((P - gm) * np.array([1.0, 0.6, 1.0]), axis=1), 0.5) * np.clip(bk + inn * 0.5, 0, 1)   # gastrocnemius, inner head (lower)
+        gl = surf(SP, kn + np.array([0, -0.8, 0]), np.array([sx * 0.5, 0, -1.0]))
+        D += side * 0.017 * _g(np.linalg.norm((P - gl) * np.array([1.0, 0.6, 1.0]), axis=1), 0.42) * np.clip(bk + o * 0.5, 0, 1)    # outer head (higher)
         dtb, ttb = _seg(P, kn + np.array([0, -0.1, 0.1]), an + np.array([0, 0.15, 0.08]))
         D += side * 0.006 * _g(dtb, 0.03) * fr                                             # shin (tibial crest)
         ach = an + np.array([0, 0.25, -0.1])
         D -= side * 0.012 * _g(np.linalg.norm((P - ach) * np.array([1.0, 0.5, 1.0]), axis=1), 0.08) * np.clip(o + inn, 0, 1) * (P[:, 2] < an[2])   # beside the Achilles tendon
-        D += side * 0.026 * _g(np.linalg.norm(P - (an + np.array([-sx * 0.07, 0.02, 0.0])), axis=1), 0.045) * inn   # medial malleolus (higher)
-        D += side * 0.024 * _g(np.linalg.norm(P - (an + np.array([sx * 0.07, -0.02, -0.01])), axis=1), 0.045) * o   # lateral malleolus (lower)
+        mm = surf(c._anat_surface, an + np.array([0, 0.06, 0]), np.array([-sx, 0, 0.0]), 0.2)
+        lm_ = surf(c._anat_surface, an + np.array([0, -0.04, -0.03]), np.array([sx, 0, 0.0]), 0.2)
+        D += side * 0.018 * _g(np.linalg.norm(P - mm, axis=1), 0.16) * inn                                # medial malleolus (higher)
+        D += side * 0.018 * _g(np.linalg.norm(P - lm_, axis=1), 0.16) * o                                 # lateral malleolus (lower)
         arch = (an + ba) * 0.5 + np.array([-sx * 0.06, -0.04, 0])
         D -= side * 0.03 * _g(np.linalg.norm(P - arch, axis=1), 0.12) * dn                  # the arch
         # --- hand (palm down in the rest pose)
@@ -250,13 +274,13 @@ def body_fields(c, P, N):
     cl = h['clavicle_l']
     notch = np.array([0.0, cl[1] + 0.06, cl[2] + 0.38])
     D -= 0.026 * _g(np.linalg.norm(P - notch, axis=1), 0.07) * fr
-    mid = _g(P[:, 0], 0.07)
-    D -= 0.010 * mid * fr * (P[:, 1] < notch[1] - 0.1) * (P[:, 1] > sp2[1] - 0.25)        # sternal groove
-    D -= 0.006 * mid * fr * (P[:, 1] < sp2[1] - 0.25) * (P[:, 1] > pel[1] + 0.05)         # linea alba (faint)
-    D -= 0.022 * _g(P[:, 0], 0.09) * bk * (P[:, 1] > pel[1] - 0.1) * (P[:, 1] < nk[1] + 0.1)   # spinal groove
+    mid = _g(P[:, 0], 0.14)
+    D -= 0.006 * mid * fr * (P[:, 1] < notch[1] - 0.1) * (P[:, 1] > sp2[1] - 0.25)        # sternal groove
+    D -= 0.003 * mid * fr * (P[:, 1] < sp2[1] - 0.25) * (P[:, 1] > pel[1] + 0.05)         # linea alba (faint)
+    D -= 0.012 * _g(P[:, 0], 0.16) * bk * (P[:, 1] > pel[1] - 0.1) * (P[:, 1] < nk[1] + 0.1)   # spinal groove
     adam = np.array([0.0, (nk[1] + hd[1]) * 0.5 - 0.05, nk[2] + 0.42])
     D += 0.018 * _g(np.linalg.norm((P - adam) * np.array([1.0, 0.6, 1.0]), axis=1), 0.05) * fr
-    return D
+    return D * RELIEF
 
 
 def sculpt(c, parts, smooth_iters=1):
@@ -273,6 +297,7 @@ def sculpt(c, parts, smooth_iters=1):
         keys.append(k)
         for kk, n in zip(k, N):
             acc[kk] = acc.get(kk, 0) + n
+    c._anat_surface = np.vstack([p.P for p in parts])
     for p, k in zip(parts, keys):
         N = np.array([acc[kk] for kk in k])
         N /= np.linalg.norm(N, axis=1)[:, None] + 1e-9
@@ -286,5 +311,17 @@ def sculpt(c, parts, smooth_iters=1):
             axis_c = el + (wr - el) * t[:, None]
             p.P[:, 1] -= (p.P[:, 1] - axis_c[:, 1]) * 0.14 * k
         p.P = p.P + N * D[:, None]
-        p.N = None
+    # final normals, welded across all body parts by position: the parts are separate meshes that meet
+    # exactly, and without this each computes its own border normals and shows a shading ring
+    acc2 = {}
+    keys2 = []
+    for p in parts:
+        Nn = c.normals(p.P, p.tris)
+        k = [tuple(x) for x in np.round(p.P, 4)]
+        keys2.append(k)
+        for kk, n in zip(k, Nn):
+            acc2[kk] = acc2.get(kk, 0) + n
+    for p, k in zip(parts, keys2):
+        Nn = np.array([acc2[kk] for kk in k])
+        p.N = Nn / (np.linalg.norm(Nn, axis=1)[:, None] + 1e-9)
     return parts

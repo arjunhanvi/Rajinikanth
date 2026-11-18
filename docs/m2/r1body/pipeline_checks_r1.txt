@@ -1,0 +1,12 @@
+==  assets/humans/raja.glb
+L0_skin_a      verts  14988 tris  27860 | UV in [0,1]: True  degenerate-UV tris: 0  UV-flipped tris: 0 | weight sums 1.000-1.000 NaN False | morphs 27
+L0_skin_torso  verts   5453 tris  10376 | UV in [0,1]: True  degenerate-UV tris: 0  UV-flipped tris: 0 | weight sums 1.000-1.000 NaN False | morphs 0
+L0_skin_legs   verts   4807 tris   9200 | UV in [0,1]: True  degenerate-UV tris: 0  UV-flipped tris: 0 | weight sums 1.000-1.000 NaN False | morphs 0
+L0_skin_feet   verts   5358 tris   9704 | UV in [0,1]: True  degenerate-UV tris: 0  UV-flipped tris: 0 | weight sums 1.000-1.000 NaN False | morphs 0
+-- borders between parts
+L0_skin_a      open-border verts   616, shared exactly with another part   248 (others are the eye/mouth openings or the region's own edge); normal agreement at shared verts: min dot 1.0000, below 0.999: 0
+L0_skin_torso  open-border verts   340, shared exactly with another part   340 (others are the eye/mouth openings or the region's own edge); normal agreement at shared verts: min dot 1.0000, below 0.999: 0
+L0_skin_legs   open-border verts   172, shared exactly with another part   172 (others are the eye/mouth openings or the region's own edge); normal agreement at shared verts: min dot 1.0000, below 0.999: 0
+L0_skin_feet   open-border verts   264, shared exactly with another part    80 (others are the eye/mouth openings or the region's own edge); normal agreement at shared verts: min dot 1.0000, below 0.999: 0
+L1 skin triangles: 17138
+L2 skin triangles: 3998

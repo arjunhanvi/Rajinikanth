@@ -122,6 +122,10 @@ func preset(name: String) -> void:
 		"side":        # hard side light
 			_amb(Color(0.5, 0.52, 0.56), 0.12)
 			_dir(Vector3(-15, 90, 0), Color(1, 0.97, 0.92), 1.3)
+		"raking":      # form inspection: a key at about 55 degrees to the side and above, a dim fill opposite
+			_amb(Color(0.55, 0.57, 0.6), 0.16)
+			_dir(Vector3(-28, 125, 0), Color(1, 0.98, 0.95), 1.25)
+			_dir(Vector3(-10, -60, 0), Color(0.85, 0.9, 1.0), 0.22, false)
 		"back":        # light from behind, face in shadow
 			_amb(Color(0.55, 0.58, 0.64), 0.3)
 			_dir(Vector3(-25, 0, 0), Color(1, 0.96, 0.9), 1.5)
@@ -208,16 +212,16 @@ func _clay() -> void:
 func _body() -> void:
 	_clay()
 	await _settle(10)
-	for lp in ["studio", "side"]:
+	for lp in ["studio", "raking"]:
 		preset(lp)
-		var t := "_" + lp
+		var t: String = "_" + lp
 		await shot("b01_front" + t, Vector3(0, 0.95, -4.2), Vector3(0, 0.92, 0), 30, 24)
 		await shot("b02_back" + t, Vector3(0, 0.95, 4.2), Vector3(0, 0.92, 0), 30)
 		await shot("b03_left" + t, Vector3(4.2, 0.95, 0), Vector3(0, 0.92, 0), 30)
 		await shot("b04_right" + t, Vector3(-4.2, 0.95, 0), Vector3(0, 0.92, 0), 30)
 		await shot("b05_34l" + t, Vector3(3.0, 1.0, -3.0), Vector3(0, 0.92, 0), 30)
 		await shot("b06_34r" + t, Vector3(-3.0, 1.0, -3.0), Vector3(0, 0.92, 0), 30)
-	preset("side")
+	preset("raking")
 	await shot("c01_shoulders_front", Vector3(-0.5, 1.5, -1.05), Vector3(0, 1.38, 0), 34)
 	await shot("c02_collarbones", Vector3(0.15, 1.52, -0.75), Vector3(0, 1.42, 0), 30)
 	await shot("c03_chest", Vector3(-0.45, 1.3, -1.0), Vector3(0, 1.25, 0), 34)
