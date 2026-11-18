@@ -914,6 +914,17 @@ func _speed_bump(at: Vector3, dir: Vector3, width: float) -> Node3D:
 	b.rotation.y = yaw
 	return b
 
+## Put a test vehicle back at the start of the test road, stopped, pointing along it.
+func _place(veh, rs: Dictionary) -> void:
+	veh.global_position = rs.pos
+	veh.rotation.y = rs.yaw
+	veh.hvel = Vector3.ZERO
+	veh.v = 0.0
+	veh.steer = 0.0
+	veh.reverse = false
+	world().player.global_position = rs.pos
+	await _hold(0.4)
+
 func s_driving() -> void:
 	var w = world()
 	await wait(2.0)
@@ -928,6 +939,10 @@ func s_driving() -> void:
 		if pl.vehicle != null:
 			pl.exit_vehicle()
 			await _hold(0.3)
+		for old in veh_cleanup:
+			if is_instance_valid(old):
+				old.queue_free()
+		veh_cleanup.clear()
 		var start: Vector3 = rs.pos + rs.dir * (ti * 0.0)
 		await tp(start + Vector3(0, 0, 0), rs.yaw)
 		var veh := Vehicle.create(t, 2)
@@ -956,6 +971,10 @@ func s_driving() -> void:
 		r.t_0_40kmh = t40
 		r.speed_8s_kmh = veh.v * 3.6
 		ok(veh.v > 0.5, "%s: accelerates (%.0f km/h after 8 s, 0-40 in %.1f s)" % [t, veh.v * 3.6, t40])
+		await _place(veh, rs)
+		pad.throttle_value = 1.0
+		while veh.v < 26.0 / 3.6:
+			await get_tree().process_frame
 		# 2. ease to 25 km/h, then full right lock: measure the turning circle at that speed
 		if t == "car":
 			_tch(5, pad.gas_rect().get_center(), false)
@@ -996,7 +1015,8 @@ func s_driving() -> void:
 			_tch(6, Vector2(sx0 + sr.size.x * 0.4, sr.get_center().y), false)
 		pad._steer_raw = 0.0
 		pad.throttle_value = 0.0
-		await _hold(1.5)
+		await _hold(1.0)
+		await _place(veh, rs)
 		# 3. straighten, get to 40 km/h (or top), full brake: stopping distance
 		pad.throttle_value = 1.0
 		tt = 0.0
@@ -1032,6 +1052,7 @@ func s_driving() -> void:
 		ok(not veh.reverse, "%s: the accelerator returns to drive" % t)
 		pad.throttle_value = 0.0
 		# 5. speed breaker at about 15 km/h: the body must rise over it and settle (wheels never sink)
+		await _place(veh, rs)
 		var fwd := -veh.global_transform.basis.z
 		var bump := _speed_bump(veh.global_position + fwd * 14.0, fwd, 10.0)
 		await _hold(0.2)
