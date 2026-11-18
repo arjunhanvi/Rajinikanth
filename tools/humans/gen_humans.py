@@ -72,7 +72,7 @@ HEROES = {
                  'asym/asym-brown-1-l': 0.3, 'asym/asym-eye-2-r': 0.25, 'asym/asym-cheek-1-l': 0.2, 'asym/asym-nose-2-r': 0.25,
                  'asym/asym-mouth-1-l': 0.2, 'asym/asym-jaw-1-r': 0.2, 'asym/asym-ear-2-l': 0.3, 'asym/asym-temple-1-r': 0.2}),
                  hair=[('thick_side', (0.055, 0.045, 0.04))], face_hair=[('moustache', 0.13)], tone=4, age_lines=0.12, brow=0.9, cards=True,
-                 outfit=dict(top=('shirt', 'half', True, [0.6, 0.5, 0.36, 1], 0.25, 5), bottom=[0.09, 0.09, 0.11, 1], feet='shoe', watch=(0.12, 0.1, 0.08), belt=True)),
+                 outfit=dict(top=('shirt', 'half', True, [0.6, 0.5, 0.36, 1], 0.4, 5), bottom=[0.09, 0.09, 0.11, 1], feet='shoe', watch=(0.12, 0.1, 0.08), belt=True, tailored=True)),
     # Lal (visual reference: Ambareesh): big and broad, a round full face with a wide jaw and full cheeks,
     # a broad nose, a big crown of wavy hair, a thick moustache; a dark full-sleeve sweatshirt over jeans
     'lal': dict(p=P(1, 0.52, 0.74, 0.62, 0.55, race=INDIAN, extra={'head/head-round': 0.6, 'head/head-fat-incr': 0.55, 'chin/chin-width-incr': 0.45,
@@ -109,7 +109,11 @@ def dress(c, outfit, female, hero):
     """every garment this body can wear; the game shows the ones the look asks for"""
     if hero and isinstance(outfit, dict):
         name, sl, tucked, col, loose, btn = outfit['top']
-        s = c.top(name, sl, tucked=tucked, loose=loose, colour=col, collar=outfit.get('collar', True))
+        tail = bool(outfit.get('tailored', False))
+        s = c.top(name, sl, tucked=tucked, loose=loose, colour=col, collar=outfit.get('collar', True), tailored=tail)
+        if tail:
+            c.hem_bands(s)
+            c.collar_band(s, col)
         if btn: c.details(s, btn, True, colour=(0.85, 0.85, 0.82))
         if outfit.get('coat'):
             c.top('coat', 'full', tucked=False, open_front=True, offset=0.26, loose=0.6, hem=c.h['calf_l'][1] + 0.6, colour=outfit['coat'])

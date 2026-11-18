@@ -221,7 +221,7 @@ class Char:
         v = self.v
         return amp * np.sin(v[:, 1] * fy + 3.0 * np.sin(v[:, 0] * 2.3) + v[:, 2] * 2.0)
 
-    def top(self, name, sleeves='half', tucked=True, open_front=False, offset=0.11, hem=None, collar=True, loose=0.0, colour=None):
+    def top(self, name, sleeves='half', tucked=True, open_front=False, offset=0.11, hem=None, collar=True, loose=0.0, colour=None, tailored=False):
         h = self.h; fc = self.face_c
         waist = h['spine_01'][1]; pel = h['pelvis'][1]; crotch = h['thigh_l'][1] - 0.9
         if hem is None: hem = (waist - 0.35) if tucked else (crotch + 0.55)
@@ -261,11 +261,80 @@ class Char:
         off += np.clip((v[:, 1] - h['neck_01'][1] + 0.1) / 0.4, 0, 1) * 0.06     # collar stands off the neck
         arm = np.abs(v[:, 0]) > sh[0] * 1.02
         off[arm] += 0.05 + loose * 0.08
+        if tailored:
+            # real folds, where a worn shirt makes them: blousing over the belt (vertical folds that
+            # die out upward), drag folds fanning from the armpits across chest and back, and a few
+            # slack ripples on the sleeve
+            ang = np.arctan2(v[:, 0], v[:, 2])
+            band = np.clip(1 - (v[:, 1] - (hem + 0.05)) / 0.7, 0, 1) * (v[:, 1] > hem)
+            off += band * (0.05 + 0.03 * np.sin(ang * 13.0 + 0.7) + 0.018 * np.sin(ang * 29.0 + 2.1))
+            for sx in (1.0, -1.0):
+                ap = np.array([sx * sh[0] * 0.92, sh[1] - 0.35, sh[2]])
+                d = np.linalg.norm(v - ap, axis=1)
+                torso = np.abs(v[:, 0]) < sh[0] * 0.95
+                off += torso * np.exp(-d / 0.9) * (0.018 * np.sin(d * 19.0) + 0.012)
+            sleeve = arm & (v[:, 1] < sh[1] + 0.2)
+            off[sleeve] += 0.02 * np.sin((sh[1] - v[sleeve, 1]) * 16.0 + v[sleeve, 2] * 9.0) * 0.6
         p = self.part(name, f, offset=off, shift=shift, uv='cyl', colour=colour)
         if not collar:
             self._clean_neckline(p, h)
         self._hems(p, 0.72)
         return p
+
+    def hem_bands(self, p, depth=0.035):
+        """Fabric thickness at the open edges: every boundary edge gets a narrow turned-in band, so a
+        sleeve or hem shows a folded edge instead of a paper-thin cut."""
+        from collections import Counter
+        ec = Counter()
+        for t in p.tris:
+            for a, b in ((t[0], t[1]), (t[1], t[2]), (t[2], t[0])):
+                ec[(min(a, b), max(a, b))] += 1
+        edges = [e for e, n in ec.items() if n == 1]
+        if not edges: return
+        N = self.normals(p.P, p.tris)
+        P = list(p.P); UV = list(p.UV); C = list(p.C); S = list(p.src); T = list(p.tris)
+        new = {}
+        def inner(i):
+            if i not in new:
+                new[i] = len(P)
+                P.append(p.P[i] - N[i] * depth); UV.append(p.UV[i]); C.append(p.C[i] * np.array([0.82, 0.82, 0.82, 1])); S.append(p.src[i])
+            return new[i]
+        for a, b in edges:
+            ia, ib = inner(a), inner(b)
+            T.append([a, ib, b]); T.append([a, ia, ib])
+        p.P = np.array(P); p.UV = np.array(UV); p.C = np.array(C); p.src = np.array(S); p.tris = np.array(T)
+
+    def collar_band(self, p, colour, height=0.32, spread=0.16):
+        """A shirt collar: a band standing round the neck that turns down into two points at the front."""
+        h = self.h; v = self.v
+        ny = h['neck_01'][1] - 0.05
+        nv = self.b.vgroups['body']
+        bi = self.b.bones.index('neck_01') if 'neck_01' in self.b.bones else self.b.bones.index('neck')
+        ring = np.array([i for i in nv if abs(v[i, 1] - ny) < 0.08 and self.b.W[i, bi] > 0.3])
+        if len(ring) < 8: return None
+        cen = v[ring].mean(0)
+        angs = np.linspace(-np.pi * 0.92, np.pi * 0.92, 40)      # leaves the throat open at the front
+        rr = np.max(np.linalg.norm((v[ring] - cen)[:, [0, 2]], axis=1)) + 0.07
+        Ps = []; UVs = []
+        for k, a in enumerate(angs):
+            dx, dz = -np.sin(a), -np.cos(a)                        # a = 0 at the back of the neck; the opening (a = +-pi) at the front
+            front = np.clip((abs(a) - np.pi * 0.62) / (np.pi * 0.3), 0, 1)   # 0 at the back, 1 at the collar points
+            base = cen + np.array([dx * rr, 0.0, dz * rr])
+            top = base + np.array([dx * 0.05, height * (1 - 0.35 * front), dz * 0.05])
+            fold = top + np.array([dx * (spread + 0.12 * front), -height * (0.75 + 0.9 * front), dz * (spread + 0.12 * front)])
+            Ps += [base, top, fold]; UVs += [[k / 39, 0], [k / 39, 0.5], [k / 39, 1]]
+        T = []
+        for k in range(len(angs) - 1):
+            for r in range(2):
+                a0 = k * 3 + r; b0 = (k + 1) * 3 + r
+                T.append([a0, b0, a0 + 1]); T.append([a0 + 1, b0, b0 + 1])
+        P = np.array(Ps)
+        W = np.zeros((len(P), len(self.names)), np.float32)
+        W[:, self.names.index('neck_01')] = 0.6; W[:, self.names.index('spine_03')] = 0.4
+        cp = Part('collar', P, np.array(UVs), None, np.array(T), C=np.tile(list(colour[:3]) + [1], (len(P), 1)), W=W)
+        cp.keep = True
+        self.parts.append(cp)
+        return cp
 
     def _clean_neckline(self, p, h):
         """a collarless neck opening cut from faces has a saw-tooth edge; pull the open edge
