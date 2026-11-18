@@ -1155,7 +1155,8 @@ func s_r1() -> void:
 	var C := _build_course()
 	w.busy = true
 	Game.s.time = 9.5
-	for n in w.crowd.npcs:          # an empty test ground: nobody walks into the shots
+	w.crowd.process_mode = Node.PROCESS_MODE_DISABLED     # an empty test ground: nobody walks into the shots
+	for n in w.crowd.npcs:
 		if is_instance_valid(n): n.visible = false
 	var F := Campus.frame()
 	var fwd: Vector3 = F.basis * Vector3(0, 0, 1)
@@ -1190,9 +1191,9 @@ func s_r1() -> void:
 		await wait(1.6)
 	_seg_end("start_stop", gs)
 	# running
-	await tp(_L(-19, 0, 40), _yaw_local(0, 1))
+	await tp(_L(-19, 0, 28), _yaw_local(0, 1))
 	await wait(1.0)
-	await _walk_seg("7. running towards the camera", gs, _L(-19, 0, 53), _L(-19, 1.2, 58), true)
+	await _walk_seg("7. running towards the camera", gs, _L(-19, 0, 41), _L(-19, 1.2, 46), true)
 	await tp(_L(-19, 0, 30), _yaw_local(0, 1))
 	await wait(1.0)
 	await _walk_seg("8. side-view running (accelerate, run, decelerate)", gs, _L(-19, 0, 48), _L(-11.5, 1.0, 39), true)
@@ -1244,8 +1245,7 @@ func s_r1() -> void:
 	await wait(0.8)
 	var gx2 := glass.global_transform
 	glass.reparent(_stage)
-	glass.global_transform = gx2
-	glass.global_position = gp
+	glass.global_transform = Transform3D(Basis(), gp)      # set down upright where it stood
 	raja.reach_release("r")
 	await wait(0.6)
 	_caption("14. standing up")
@@ -1284,6 +1284,7 @@ func s_r1() -> void:
 	# push
 	_caption("16. pushing another person")
 	var other: Human = C.other
+	_watch(func(): _tcam(pl.global_position + side * 2.6 + fwd * 0.6 + Vector3(0, 1.3, 0), pl.global_position + Vector3(0, 1.0, 0), 42.0))
 	_drive_to(_L(-25.0, 0, 79.4))
 	while _driving: await get_tree().process_frame
 	raja.rotation.y = _yaw_local(0, 1)

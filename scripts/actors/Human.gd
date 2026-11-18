@@ -752,7 +752,7 @@ func reach_to(side: String, target: Vector3, grip := "", palm_dir := Vector3.ZER
 	reach[side] = r
 
 ## Finger curl for one hand: the hand opens on the way in and closes round the object at contact.
-const GRIPS := {"cylinder": [0.62, 0.55], "bar": [0.9, 0.75], "flat": [0.05, 0.12]}
+const GRIPS := {"cylinder": [0.62, 1.05], "bar": [0.9, 1.1], "flat": [0.05, 0.15]}      # [fingers, thumb]: the thumb opposes round the object
 var held_grip := {}     # side -> grip kind while something is held (e.g. the glass after it is picked up)
 func _hand_curl(s: String, base: float) -> Vector2:
 	var g: String = held_grip.get(s, "")
