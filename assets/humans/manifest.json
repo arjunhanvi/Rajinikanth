@@ -778,25 +778,33 @@
  },
  "raja": {
   "tris": {
-   "0": 75595,
-   "1": 20024,
-   "2": 2846
+   "0": 105427,
+   "1": 21031,
+   "2": 2787
   },
   "height": 1.7848951199999996,
   "female": false,
   "hero": true,
   "parts": [
    "belt",
+   "brows_fib",
+   "cornea_l",
+   "cornea_r",
+   "eyeocc_l",
+   "eyeocc_r",
    "eyes",
    "hair_thick_side_cap",
    "hair_thick_side_cards",
    "hair_thick_side_cards1",
    "hair_thick_side_far",
    "hair_thick_side_far_cap",
+   "hairline_fib",
    "lashes",
-   "moustache",
+   "lashes_fib",
+   "moustache_fib",
    "shirt",
    "shoes",
+   "sideburns_fib",
    "skin_a",
    "skin_feet",
    "skin_legs",
@@ -806,7 +814,7 @@
    "trousers",
    "watch"
   ],
-  "eye_y": 1.6545355270000002,
+  "eye_y": 1.655085527,
   "arm_dir": [
    1.7025925736,
    -1.9469669527999995,

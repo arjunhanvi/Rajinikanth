@@ -46,7 +46,7 @@ def normal_from_height(h, strength):
     n /= np.linalg.norm(n, axis=2, keepdims=True)
     return ((n * 0.5 + 0.5) * 255).astype(np.uint8)
 
-def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stubble=0.0, seed=1, R=1024, grey=0.0, hero=False, moustache=0.0):
+def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stubble=0.0, seed=1, R=1024, grey=0.0, hero=False, moustache=0.0, brow_k=0.92):
     b = c.b; lm = c.landmarks(); pos, hit = raster(c, R)
     X, Y, Z = pos[..., 0], pos[..., 1], pos[..., 2]
     def mask(n): return np.asarray(Image.open(b.data + '/textures/mpfb_%s.jpg' % n).convert('L').resize((R, R), Image.BILINEAR)) / 255.0
@@ -66,8 +66,13 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     col[..., 0] *= 1 + red * 0.1; col[..., 1] *= 1 - red * 0.07; col[..., 2] *= 1 - red * 0.06
     # darker, thinner skin around the eyes; lighter palms and soles
     orbit = np.exp(-(((np.abs(X) - exl) / 0.34) ** 2 + ((Y - ey) / 0.24) ** 2)) * headm
-    col *= (1 - orbit[..., None] * (0.16 + age * 0.12))
-    col *= (1 - lids[..., None] * 0.1)
+    if hero:
+        lids_s = np.asarray(Image.fromarray((lids * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 260))) / 255.0
+        col *= (1 - orbit[..., None] * (0.07 + age * 0.06))
+        col *= (1 - lids_s[..., None] * 0.05)
+    else:
+        col *= (1 - orbit[..., None] * (0.16 + age * 0.12))
+        col *= (1 - lids[..., None] * 0.1)
     low = hit & (Y < c.ground + 0.25)
     col[low] = col[low] * 0.5 + np.array(TONES[max(0, tone - 2)]) * 0.5
     # lips, nails
@@ -88,11 +93,16 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     browm = np.clip(1 - np.abs(Y - arch) / ((0.032 if female else 0.05) * (1.2 - 0.6 * np.clip(dx, 0, 1))), 0, 1) * (dx > -0.52) * (dx < 0.85) * headm * (Z > ez - 0.3)
     browm = np.clip(browm * (0.75 + strands * 0.7), 0, 1) ** 0.8
     bc = np.array(brow) * (1 - grey) + np.array([0.6, 0.6, 0.6]) * grey
-    col = col * (1 - browm[..., None] * 0.92) + bc * browm[..., None] * 0.92
+    col = col * (1 - browm[..., None] * brow_k) + bc * browm[..., None] * brow_k
     # stubble: the shadow of a beard on the jaw and upper lip
     if stubble > 0:
         dots = (noise(R, 2.5, seed + 5, 1) > 0.55).astype(float)
-        area = headm * (Y < lm['lip_top'] + 0.22) * (Y > lm['chin'] - 0.25) * (Z > lm['mouth_z'] - 1.3) * (1 - lips)
+        if hero:
+            zf = np.clip((Z - (lm['mouth_z'] - 1.7)) / 0.7, 0, 1)            # fades toward the ears instead of a cut
+            yf = np.clip((lm['lip_top'] + 0.25 - Y) / 0.15, 0, 1) * np.clip((Y - (lm['chin'] - 0.3)) / 0.15, 0, 1)
+            area = headm * zf * yf * (1 - lips)
+        else:
+            area = headm * (Y < lm['lip_top'] + 0.22) * (Y > lm['chin'] - 0.25) * (Z > lm['mouth_z'] - 1.3) * (1 - lips)
         area = np.asarray(Image.fromarray((np.clip(area, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 200))) / 255.0
         if hero:
             # shaved beard: dark follicles under the skin give a cool grey-blue cast, not a brown smudge
@@ -107,7 +117,7 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     if moustache > 0:
         ax = np.abs(X)
         mw = lm['mouth_w'] * 1.18
-        top = lm['nose_base'] + 0.02 - ax * 0.12
+        top = lm['nose_tip'][1] - 0.075 - ax * 0.12
         bot = lm['lip_top'] - 0.03 - np.clip(ax - lm['mouth_w'] * 0.7, 0, 1) * 0.5
         reg = headm * (ax < mw) * (Y < top) * (Y > bot) * (Z > lm['mouth_z'] - 0.45) * (1 - lips * 0.9)
         reg = np.asarray(Image.fromarray((np.clip(reg, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 900))) / 255.0
@@ -147,6 +157,16 @@ def skin(c, out, name, tone, age=0.3, female=False, brow=(0.04, 0.03, 0.03), stu
     fill = ~hit
     img[fill] = base * 0.9
     os.makedirs(out, exist_ok=True)
+    if hero:
+        # region roughness: oily T-zone (forehead, nose) and lips smoother, cheeks and jaw drier
+        tz = headm * (np.exp(-((X / 0.35) ** 2) - ((Y - (ey + 0.7)) / 0.5) ** 2) + nose * 1.2)
+        rough = 0.62 + 0.08 * cheek - 0.14 * np.clip(tz, 0, 1) - 0.18 * lips + (pore - 0.5) * 0.05
+        rough[~hit] = 0.62
+        hb = np.asarray(Image.fromarray(((height * 60 + 128).clip(0, 255)).astype(np.uint8)).filter(ImageFilter.GaussianBlur(R / 200))) / 255.0
+        cav = np.clip(1.0 + ((height * 60 + 128) / 255.0 - hb) * 3.0, 0.6, 1.0)        # creases and pores slightly darker
+        cav[~hit] = 1.0
+        rc = np.dstack([np.clip(rough, 0, 1), cav, np.zeros_like(cav)])
+        Image.fromarray((rc * 255).astype(np.uint8)).save(os.path.join(out, name + '_skin_rc.jpg'), quality=92)
     Image.fromarray((img * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.5)).save(os.path.join(out, name + '_skin.jpg'), quality=92)
     Image.fromarray(normal_from_height(np.asarray(Image.fromarray((height * 60 + 128).clip(0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6))) / 255.0, 3.2)).save(os.path.join(out, name + '_skin_n.jpg'), quality=93)
 
@@ -187,6 +207,32 @@ def hair_cards(out):
     lum = np.clip(0.45 + lum * 0.55, 0, 1)
     rgba = np.dstack([(lum * 255).astype(np.uint8)] * 3 + [(a * 255).astype(np.uint8)])
     Image.fromarray(rgba, 'RGBA').save(os.path.join(out, 'hair_card.png'))
+
+def hair_fiber(out):
+    """Fibre atlas for brows, moustache, sideburns and hairline: 8 columns, each holding one to three
+    fine tapered strands (dark roots, soft tips) so a 1 mm fibre card reads as a few real hairs."""
+    W, H = 512, 256
+    a = np.zeros((H, W)); lum = np.zeros((H, W))
+    rng = np.random.default_rng(5)
+    yy = np.arange(H)[:, None] * np.ones((1, W))
+    xx = np.ones((H, 1)) * np.arange(W)[None, :]
+    cw = W // 8
+    for col in range(8):
+        ns = [1, 2, 3, 2, 1, 3, 2, 2][col]
+        for k in range(ns):
+            x0 = col * cw + cw * (0.5 + rng.uniform(-0.22, 0.22) if ns > 1 else 0.5)
+            bend = rng.uniform(-0.12, 0.12) * cw
+            wroot = cw * rng.uniform(0.07, 0.11)
+            t = yy / H
+            xc = x0 + bend * t ** 2
+            wid = wroot * (1.0 - 0.85 * t)
+            prof = np.clip(1.0 - np.abs(xx - xc) / np.maximum(wid, 0.4), 0, 1)
+            prof *= (xx >= col * cw) & (xx < (col + 1) * cw)
+            tip = np.clip((1.0 - t) / 0.25, 0, 1)
+            a = np.maximum(a, prof * tip)
+            lum = np.maximum(lum, prof * (0.55 + 0.45 * t))
+    img = np.dstack([np.clip(lum, 0, 1)] * 3 + [np.clip(a * 1.3, 0, 1)])
+    Image.fromarray((img * 255).astype(np.uint8), 'RGBA').save(os.path.join(out, 'hair_fiber.png'))
 
 def pores(out):
     """Tileable skin micro-relief: pores, fine creases and a soft orange-peel bump, as a normal map."""

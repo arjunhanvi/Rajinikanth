@@ -268,6 +268,43 @@ static func facial_hair_mat() -> Material:
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		return m)
 
+static func fiber_mat() -> Material:
+	return _mat("fiber", func():
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/hair_fiber.gdshader")
+		m.set_shader_parameter("strands", _tex("hair_fiber.png"))
+		m.render_priority = 2
+		return m)
+
+static func cap_blend_mat() -> Material:
+	return _mat("cap_blend", func():
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.albedo_texture = _tex("hair.png")
+		m.uv1_scale = Vector3(3.0, 0.5, 1)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = 0.75
+		m.metallic_specular = 0.2
+		m.render_priority = 1
+		return m)
+
+static func cornea_mat() -> Material:
+	return _mat("cornea", func():
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1, 1, 1, 0.04)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = 0.03
+		m.metallic_specular = 1.0
+		m.render_priority = 3
+		return m)
+
+static func eye_occ_mat() -> Material:
+	return _mat("eyeocc", func():
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/eye_occlusion.gdshader")
+		m.render_priority = 2
+		return m)
+
 static func plain_mat(key: String, c: Color, rough: float, metal := 0.0, vcol := true) -> Material:
 	return _mat("pl_%s_%s" % [key, c.to_html()], func():
 		var m := StandardMaterial3D.new()
@@ -286,6 +323,10 @@ static func skin_shader_mat(model_name: String) -> Material:
 		m.set_shader_parameter("albedo_tex", _tex(model_name + "_skin.jpg"))
 		m.set_shader_parameter("normal_tex", _tex(model_name + "_skin_n.jpg"))
 		m.set_shader_parameter("pores_tex", _tex("skin_pores_n.png"))
+		var rc := _tex(model_name + "_skin_rc.jpg")
+		if rc != null:
+			m.set_shader_parameter("rc_tex", rc)
+			m.set_shader_parameter("use_rc", true)
 		return m)
 
 func _card_mat(fine: bool, facial := false) -> Material:
@@ -409,6 +450,12 @@ func _show(part: String, mat: Material = null) -> void:
 			if mat != null:
 				mi.material_override = mat
 
+func _no_shadow(part: String) -> void:
+	for lvl in 3:
+		var mi: MeshInstance3D = body.find_child("L%d_%s" % [lvl, part], true, false)
+		if mi != null:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
 func _dress(info: Dictionary, hero: bool) -> void:
 	var has_l0 := false
 	for mi in body.find_children("L0_*", "MeshInstance3D", true, false):
@@ -451,9 +498,10 @@ func _dress(info: Dictionary, hero: bool) -> void:
 	_show("skin_torso", skin)
 	_show("skin_legs", skin)
 	_show("eyes", eye_mat())
-	_show("teeth", plain_mat("teeth", Color.WHITE, 0.3))
+	_show("teeth", plain_mat("teeth", Color.WHITE, 0.55))
 	_show("tongue", plain_mat("tongue", Color.WHITE, 0.4))
-	_show("lashes", plain_mat("lash", Color(1, 1, 1, 0.5), 0.8))
+	if not model in PROTO:
+		_show("lashes", plain_mat("lash", Color(1, 1, 1, 0.5), 0.8))   # the prototype has fibre lashes instead
 	var top_i := int(look.top)
 	var bot_i := int(look.bottom)
 	var tc: Color = CLOTH[int(look.top_col) % CLOTH.size()]
@@ -465,11 +513,23 @@ func _dress(info: Dictionary, hero: bool) -> void:
 			var p := String(part)
 			if p.begins_with("skin") or p in ["eyes", "teeth", "tongue", "lashes"]:
 				continue
+			if p.ends_with("_fib"):
+				_show(p, fiber_mat())
+				_no_shadow(p)            # fine fibres would only add noisy speckled shadows
+				continue
+			if p.begins_with("cornea_"):
+				_show(p, cornea_mat())
+				continue
+			if p.begins_with("eyeocc_"):
+				_show(p, eye_occ_mat())
+				continue
 			if p.ends_with("_cards") or p.ends_with("_cards1"):
 				var facial := p.begins_with("brows") or p.begins_with("moustache") or p.begins_with("sideburn") or p.begins_with("beard")
 				_show(p, _card_mat(not p.ends_with("_cards1"), facial))
 			elif p.begins_with("hair_"):
-				_show(p, hair_mat(Color.WHITE, p.ends_with("_cap")))
+				_show(p, cap_blend_mat() if (model in PROTO and p.ends_with("_cap") and not p.contains("_far")) else hair_mat(Color.WHITE, p.ends_with("_cap")))
+				if model in PROTO and p.ends_with("_cap"):
+					_no_shadow(p)
 			elif p in ["moustache", "beard", "goatee"]:
 				_show(p, facial_hair_mat() if model in PROTO else hair_mat(Color.WHITE, false, 0.28))
 			elif p == "glasses":

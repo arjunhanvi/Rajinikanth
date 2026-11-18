@@ -156,6 +156,53 @@ class Char:
         p = Part('eyes', PP, np.stack([VT[uvi, 0], 1 - VT[uvi, 1]], 1), None, invi.reshape(-1, 3), W=W)
         self.parts.append(p)
 
+    def eye_extras(self):
+        """Cornea shells (glossy, they follow the eye) and eye-occlusion shells (fixed to the head:
+        the lids and corners shade the eyeball wherever it looks)."""
+        eyes = [p for p in self.parts if p.name == 'eyes'][0]
+        P = eyes.P; T = eyes.tris; nb = len(self.names)
+        for side in ('l', 'r'):
+            m = (P[:, 0] > 0) if side == 'l' else (P[:, 0] <= 0)
+            idx = np.where(m)[0]
+            lo = P[idx].min(0); hi = P[idx].max(0)
+            c = (lo + hi) * 0.5; r = float((hi - lo)[0]) * 0.5
+            rel = (P - c) / r
+            # cornea: the front cap, slightly proud of the eyeball
+            front = m & (rel[:, 2] > 0.72)
+            tri = T[front[T].all(1)]
+            print('  cornea', side, 'tris', len(tri))
+            if len(tri):
+                used = np.unique(tri); remap = -np.ones(len(P), int); remap[used] = np.arange(len(used))
+                Pc = c + (P[used] - c) * 1.012
+                W = np.zeros((len(Pc), nb), np.float32); W[:, self.names.index('eye_' + side)] = 1
+                pc = Part('cornea_' + side, Pc, np.zeros((len(Pc), 2)), None, remap[tri], C=np.tile([1, 1, 1, 1.0], (len(Pc), 1)), W=W)
+                pc.keep = True; pc.levels = {0, 1}
+                self.parts.append(pc)
+            # occlusion: the front hemisphere, a little larger, dark under the upper lid and in the corners
+            fh = m & (rel[:, 2] > 0.3)
+            tri2 = T[fh[T].all(1)]
+            used2 = np.unique(tri2); remap2 = -np.ones(len(P), int); remap2[used2] = np.arange(len(used2))
+            Po = c + (P[used2] - c) * 1.006
+            ro = rel[used2]
+            dark = np.clip((ro[:, 1] - 0.05) / 0.6, 0, 1) * 0.8 + np.clip((np.abs(ro[:, 0]) - 0.5) / 0.4, 0, 1) * 0.45 + np.clip((-ro[:, 1] - 0.45) / 0.4, 0, 1) * 0.25
+            Wo = np.zeros((len(Po), nb), np.float32); Wo[:, self.names.index('head')] = 1
+            Co = np.zeros((len(Po), 4)); Co[:, 3] = np.clip(dark, 0, 0.85)
+            po = Part('eyeocc_' + side, Po, np.zeros((len(Po), 2)), None, remap2[tri2], C=Co, W=Wo)
+            po.keep = True; po.levels = {0, 1}
+            self.parts.append(po)
+
+    def mouth_occlusion(self):
+        """Teeth set slightly back and darkening toward the inside of the mouth, so a closed or
+        barely parted mouth never shows a bright line of teeth."""
+        for p in self.parts:
+            if p.name == 'teeth':
+                z = p.P[:, 2]
+                p.P = p.P - np.array([0, 0, 0.022])
+                k = np.clip((z - z.min()) / max(1e-6, z.max() - z.min()), 0, 1)
+                C = np.array(p.C, float)
+                C[:, :3] = C[:, :3] * (0.22 + 0.42 * k ** 2)[:, None]
+                p.C = C
+
     # ------------------------------------------------------------ clothing
     def _fold(self, amp, fy=7.0):
         v = self.v
@@ -442,7 +489,10 @@ class Char:
             extra = self.faces('helper-hair', None, lambda c: (c[:, 2] < head[2] - 0.55) & (c[:, 1] < head[1] + 0.2) & (c[:, 1] > head[1] - (4.2 if style == 'plait' else 2.6)))
         parts = []
         cap = self.part(name + '_cap', f, offset=L * 0.25 + 0.02, shift=shift * 0.3, uv='cyl', colour=list(np.array(colour) * 0.6) + [1])
-        cap.C[:, 3] = 0.45 + 0.55 * edge_a[cap.src]
+        if cap_only:
+            cap.C[:, 3] = np.clip(edge_a[cap.src] * 1.4, 0, 1) ** 1.6   # card hair: 0 at the hairline, an alpha-blended density ramp
+        else:
+            cap.C[:, 3] = 0.45 + 0.55 * edge_a[cap.src]
         parts.append(cap)
         if cap_only:
             return cap
@@ -506,7 +556,18 @@ class Char:
         rng = np.random.default_rng(seed)
         v = self.v; head = self.h['head']
         f = self._scalp_faces()
-        roots, rn = self._sample_surface(f, n_cards, rng)
+        roots, rn = self._sample_surface(f, n_cards * 2, rng)
+        # density thins toward the hairline (no hard staircase edge): keep a root with a probability
+        # that rises from 0 at the hairline to 1 about 2.5 cm inside it
+        hv = v[self.b.vgroups['body']]; hm = self.b.W[self.b.vgroups['body'], self.b.bones.index('head')] > 0.5
+        zb0 = hv[hm][:, 2].min(); ey0 = self.heads['eye_l'][1]; ez0 = self.heads['eye_l'][2]
+        tt = np.clip((ez0 - 0.25 - roots[:, 2]) / (ez0 - 0.25 - zb0), 0, 1)
+        e = roots[:, 1] - (ey0 + 0.66 - 2.05 * tt ** 1.35)
+        pk = np.clip(e / 0.18, 0, 1) ** 1.3
+        keep = rng.random(len(roots)) < pk
+        roots = roots[keep][:n_cards]; rn = rn[keep][:n_cards]
+        edge_e = np.clip(e[keep][:n_cards] / 0.4, 0.3, 1.0)
+        n_cards = len(roots)
         sp, sn = self._sample_surface(f, 6000, np.random.default_rng(seed + 1))
         tree = cKDTree(sp)
         top = sp[:, 1].max()
@@ -553,8 +614,9 @@ class Char:
             q = roots[i].copy(); nrm = rn[i]
             L, Hh = profile(q)
             edge = np.clip((q[1] - hl + 2.05 * 0) / 0.35, 0.25, 1.0) if q[2] > head[2] + 0.4 else 1.0
+            edge = min(edge, edge_e[i])
             L *= rng.uniform(0.8, 1.15) * (0.6 + 0.4 * edge); Hh *= (0.5 + 0.5 * edge)
-            w = card_w * rng.uniform(0.75, 1.25) * (0.7 + 0.3 * edge)
+            w = card_w * rng.uniform(0.75, 1.25) * (0.55 + 0.45 * edge)
             twist = rng.uniform(-0.7, 0.7)
             seg = L / segs
             pts = [q + nrm * 0.01]; nrms = [nrm]
@@ -644,6 +706,126 @@ class Char:
         p = Part(name, P, np.array(UVs), None, np.array(Ts), C=np.array(Cs), W=W)
         p.N = np.array(Ns); p.keep = True; p.levels = set(levels); p.morph_follow = True
         # follow the face's expressions: each card vertex borrows the morph offsets of the nearest skin vertex
+        body_idx = self.b.vgroups['body']
+        _, nn = cKDTree(self.v[body_idx]).query(P)
+        p.src = np.asarray(body_idx)[nn]
+        self.parts.append(p)
+        return p
+
+    def fibers(self, name, region, colour, n, seed=11, levels=(0,)):
+        """Groomed hair fibres for eyebrows, moustache, sideburns and the scalp hairline.
+        Each fibre is a thin curved strip (about 1 mm wide) carrying one to three strands from the
+        fibre atlas, rooted on the skin by a density map (so edges thin out naturally), grown along
+        the region's groom direction and lying close to the skin. Fibres borrow the morph offsets of
+        the nearest skin vertex, so they move with every expression."""
+        rng = np.random.default_rng(seed)
+        lm = self.landmarks(); el = self.heads['eye_l']; head = self.h['head']
+        ex = abs(el[0]); ey = el[1]; ez = el[2]
+        v = self.v; b = self.b
+        hv = v[b.vgroups['body']]; hm = b.W[b.vgroups['body'], b.bones.index('head')] > 0.5
+        zb = hv[hm][:, 2].min()
+        def hairline_y(c):
+            t = np.clip((ez - 0.25 - c[:, 2]) / (ez - 0.25 - zb), 0, 1)
+            return ey + 0.66 - 2.05 * t ** 1.35
+        def arch(x):
+            dx = (np.abs(x) - ex) / 0.4
+            return dx, ey + 0.2 + 0.05 * (1 - dx ** 2) + np.clip(dx, 0, 1) * -0.06
+        def density(c):
+            x = np.abs(c[:, 0]); y = c[:, 1]; z = c[:, 2]
+            if region == 'brows':
+                dx, ay = arch(c[:, 0])
+                hw = 0.055 * (1.25 - 0.65 * np.clip(dx, 0, 1))          # full at the head of the brow, thin tail
+                d = np.clip(1 - np.abs(y - ay) / hw, 0, 1) ** 0.7
+                d *= np.clip((dx + 0.55) / 0.12, 0, 1) * np.clip((0.88 - dx) / 0.25, 0, 1) * (z > ez - 0.3)
+                return d
+            if region == 'moustache':
+                mw = lm['mouth_w'] * 1.22
+                sub = lm['nose_tip'][1] - 0.065                  # the base of the nose (subnasale)
+                top = sub - 0.01 - x * 0.12
+                bot = lm['lip_top'] - 0.005
+                d = np.clip((top - y) / 0.05, 0, 1) * np.clip((y - bot) / 0.03 + 0.4, 0, 1)
+                d *= np.clip((mw - x) / 0.12, 0, 1) * (z > lm['mouth_z'] - 0.42)
+                d *= 1.0 - 0.35 * np.exp(-(x / 0.05) ** 2)               # the philtrum is a little thinner
+                return d
+            if region == 'sideburns':
+                hl = hairline_y(c)
+                band = (x > ex + 0.5) & (z < ez - 0.55) & (z > ez - 1.15)
+                return band * np.clip((hl + 0.02 - y) / 0.08, 0, 1) * np.clip((y - (ey - 0.42)) / 0.25, 0, 1)
+            if region == 'hairline':
+                e = y - hairline_y(c)
+                return np.clip(1 - np.abs(e - 0.06) / 0.12, 0, 1) * (y > ey + 0.1)
+            return np.zeros(len(c))
+        if region == 'lashes':
+            # roots along the lid margin: the eyelash helper strips' edge nearest each eyeball
+            f = np.concatenate([self.faces(g) for g in ['helper-l-eyelashes-1', 'helper-l-eyelashes-2', 'helper-r-eyelashes-1', 'helper-r-eyelashes-2']])
+            cand, cn = self._sample_surface(f, n * 3, rng)
+            ec = np.where(cand[:, 0:1] > 0, self.heads['eye_l'], self.heads['eye_r'])
+            dist = np.linalg.norm(cand - ec, axis=1)
+            near = dist < np.percentile(dist, 45)
+            roots = cand[near][:n]; rn = cn[near][:n]
+            eyc = ec[near][:n]
+        else:
+            f = self.faces('body', ['head'], lambda c: density(c) > 0.02)
+            print('  fibers', region, 'faces', len(f))
+            if len(f) == 0: return None
+            cand, cn = self._sample_surface(f, n * 4, rng)
+            keep = rng.random(len(cand)) < density(cand)
+            roots = cand[keep][:n]; rn = cn[keep][:n]
+        Ps = []; Ns = []; UVs = []; Cs = []; Ts = []
+        col = np.array(colour[:3])
+        for i in range(len(roots)):
+            q = roots[i]; nrm = rn[i]
+            sx = 1.0 if q[0] > 0 else -1.0
+            if region == 'brows':
+                dx = (abs(q[0]) - ex) / 0.4
+                th = np.radians(np.interp(dx, [-0.55, -0.25, 0.3, 0.9], [72, 35, 8, -18]) + rng.normal(0, 7))
+                d = np.array([sx * np.cos(th), np.sin(th), 0.0])
+                L = rng.uniform(0.06, 0.1); w = rng.uniform(0.009, 0.013); lift = (0.002, 0.004, 0.003)
+            elif region == 'moustache':
+                fx = abs(q[0]) / (lm['mouth_w'] * 1.2)
+                th = np.radians(np.interp(fx, [0, 0.4, 1.0], [-90, -72, -55]) + rng.normal(0, 6))
+                d = np.array([sx * np.cos(th), np.sin(th), 0.18])
+                L = rng.uniform(0.09, 0.15); w = rng.uniform(0.01, 0.014); lift = (0.003, 0.014, 0.008)
+            elif region == 'lashes':
+                out = q - eyc[i]; out /= np.linalg.norm(out) + 1e-9
+                upper = q[1] > eyc[i][1]
+                d = out + np.array([0.0, 0.55 if upper else -0.25, 0.45])
+                nrm = out
+                L = rng.uniform(0.06, 0.09) if upper else rng.uniform(0.025, 0.04)
+                w = rng.uniform(0.006, 0.008); lift = (0.0, 0.006 if upper else 0.002, 0.016 if upper else 0.004)
+            elif region == 'sideburns':
+                d = np.array([0.0, -1.0, 0.12]) + rng.normal(0, 0.12, 3)
+                L = rng.uniform(0.05, 0.09); w = rng.uniform(0.01, 0.014); lift = (0.003, 0.006, 0.004)
+            else:   # hairline: swept back and up at the front, down and back at the temples and nape
+                rel = q - head
+                if rel[2] > 0.35:
+                    d = np.array([-0.25 * sx, 0.35, -1.0])
+                elif rel[1] > 0.2:
+                    d = np.array([0.0, -0.4, -1.0])
+                else:
+                    d = np.array([0.0, -1.0, -0.35])
+                d = d + rng.normal(0, 0.15, 3)
+                L = rng.uniform(0.08, 0.16); w = rng.uniform(0.01, 0.014); lift = (0.003, 0.012, 0.02)
+            d = d - nrm * d.dot(nrm); d /= np.linalg.norm(d) + 1e-9
+            side = np.cross(d, nrm); side /= np.linalg.norm(side) + 1e-9
+            curl = rng.normal(0, 0.15)
+            pts = [q + nrm * lift[0], q + (d + side * curl * 0.5) * L * 0.5 + nrm * lift[1], q + (d + side * curl) * L + nrm * lift[2]]
+            base = len(Ps)
+            u0 = rng.integers(0, 8) * 0.125
+            tint = rng.uniform(0.75, 1.2)
+            for k, pt in enumerate(pts):
+                tp = 1.0 - 0.6 * k / 2
+                for e in (-0.5, 0.5):
+                    Ps.append(pt + side * w * e * tp); Ns.append(nrm)
+                    UVs.append([u0 + (e + 0.5) * 0.125, k / 2])
+                    Cs.append(list(np.clip(col * tint, 0, 1)) + [k / 2])
+            for k in range(2):
+                a0 = base + k * 2
+                Ts.append([a0, a0 + 2, a0 + 1]); Ts.append([a0 + 1, a0 + 2, a0 + 3])
+        P = np.array(Ps)
+        W = np.zeros((len(P), len(self.names)), np.float32); W[:, self.names.index('head')] = 1
+        p = Part(name, P, np.array(UVs), None, np.array(Ts), C=np.array(Cs), W=W)
+        p.N = np.array(Ns); p.keep = True; p.levels = set(levels); p.morph_follow = True
         body_idx = self.b.vgroups['body']
         _, nn = cKDTree(self.v[body_idx]).query(P)
         p.src = np.asarray(body_idx)[nn]

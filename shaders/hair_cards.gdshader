@@ -9,7 +9,7 @@ uniform sampler2D strands : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec3 tint : source_color = vec3(1.0);
 uniform vec3 sway = vec3(0.0);          // model-space offset of the hair mass (spring lag + wind)
 uniform float cut = 0.42;
-uniform float spec_strength = 0.22;
+uniform float spec_strength = 0.36;
 
 varying float tipw;
 
@@ -21,7 +21,8 @@ void vertex() {
 void fragment() {
 	vec4 t = texture(strands, UV);
 	ALBEDO = COLOR.rgb * tint * mix(0.75, 1.15, t.r);
-	ALPHA = t.a;
+	// roots fade in (no square-cut card ends along the hairline); the scalp ramp shows beneath
+	ALPHA = t.a * smoothstep(0.0, 0.1, tipw);
 	ALPHA_SCISSOR_THRESHOLD = cut;
 	ROUGHNESS = 0.6;
 	SPECULAR = 0.25;
@@ -34,6 +35,10 @@ void light() {
 	float d = clamp((ndl + 0.55) / 1.55, 0.0, 1.0);
 	DIFFUSE_LIGHT += d * ATTENUATION * LIGHT_COLOR / PI;
 	vec3 H = normalize(LIGHT + VIEW);
-	float s = pow(clamp(dot(NORMAL, H), 0.0, 1.0), 22.0) * spec_strength;
-	SPECULAR_LIGHT += s * clamp(ndl + 0.3, 0.0, 1.0) * ATTENUATION * LIGHT_COLOR / PI;
+	float nh = clamp(dot(NORMAL, H), 0.0, 1.0);
+	// two lobes, as real hair has: a broad, slightly tinted sheen and a tight white highlight
+	float s = (pow(nh, 7.0) * 0.35 + pow(nh, 40.0)) * spec_strength;
+	// light scattered through the edges of the mass (it reads as volume, not a helmet)
+	float rim = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 4.0) * 0.08;
+	SPECULAR_LIGHT += (s + rim * clamp(ndl + 0.6, 0.0, 1.0)) * ATTENUATION * LIGHT_COLOR / PI;
 }

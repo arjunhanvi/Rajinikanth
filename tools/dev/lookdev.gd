@@ -44,6 +44,11 @@ func _ready() -> void:
 	h.ground_follow = false
 	if Human.manifest.has(model):
 		ey = float(Human.manifest[model].eye_y)
+	# optional 4th argument: comma-separated parts to hide (for diagnosing a visual defect)
+	if a.size() > 3:
+		for part in String(a[3]).split(","):
+			for mi in h.find_children("L*_" + part, "MeshInstance3D", true, false):
+				mi.visible = false
 	await _settle(30)
 	if which in ["all", "anatomy"]:
 		await _anatomy()

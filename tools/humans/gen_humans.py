@@ -41,8 +41,12 @@ HEROES = {
     'raja': dict(p=P(1, 0.46, 0.34, 0.58, 0.55, race=INDIAN, extra={'head/head-oval': 0.7, 'chin/chin-height-incr': 0.35, 'chin/chin-prominent-incr': 0.35,
                  'cheek/l-cheek-bones-incr': 0.65, 'cheek/r-cheek-bones-incr': 0.65, 'cheek/l-cheek-volume-decr': 0.45, 'cheek/r-cheek-volume-decr': 0.45,
                  'nose/nose-scale-vert-incr': 0.45, 'nose/nose-hump-incr': 0.25, 'nose/nose-scale-horiz-decr': 0.15,
-                 'forehead/forehead-nubian-incr': 0.35, 'eyebrows/eyebrows-angle-down': 0.3, 'mouth/mouth-scale-horiz-decr': 0.1}),
-                 hair=[('thick_side', (0.03, 0.025, 0.025))], face_hair=[('moustache', 0.13)], tone=4, age_lines=0.12, brow=0.9, cards=True,
+                 'forehead/forehead-nubian-incr': 0.35, 'eyebrows/eyebrows-angle-down': 0.3, 'mouth/mouth-scale-horiz-decr': 0.1,
+                 'expression/units/asian/mouth-compression': 0.3,          # the lips meet at rest (no gap showing the teeth)
+                 # a real face is not symmetrical: small, deliberate left/right differences
+                 'asym/asym-brown-1-l': 0.3, 'asym/asym-eye-2-r': 0.25, 'asym/asym-cheek-1-l': 0.2, 'asym/asym-nose-2-r': 0.25,
+                 'asym/asym-mouth-1-l': 0.2, 'asym/asym-jaw-1-r': 0.2, 'asym/asym-ear-2-l': 0.3, 'asym/asym-temple-1-r': 0.2}),
+                 hair=[('thick_side', (0.055, 0.045, 0.04))], face_hair=[('moustache', 0.13)], tone=4, age_lines=0.12, brow=0.9, cards=True,
                  outfit=dict(top=('shirt', 'half', True, [0.6, 0.5, 0.36, 1], 0.25, 5), bottom=[0.09, 0.09, 0.11, 1], feet='shoe', watch=(0.12, 0.1, 0.08), belt=True)),
     # Lal (visual reference: Ambareesh): big and broad, a round full face with a wide jaw and full cheeks,
     # a broad nose, a big crown of wavy hair, a thick moustache; a dark full-sleeve sweatshirt over jeans
@@ -137,9 +141,22 @@ def make(base, core, name, spec, hero):
                 c.hair_cards('hair_' + st + '_cards1', st, col, 600, levels=(1,), seed=9, card_w=0.26)
                 far = c.hair('hair_' + st + '_far', st, 3, col)
                 far.levels = {2}
-            # facial hair stays as dense shells: at this scale cards broke up into specks (tested)
+                for fp in c.parts:          # its scalp cap is for the distant level only (it has a hard edge)
+                    if fp.name == 'hair_' + st + '_far_cap':
+                        fp.levels = {2}
+            # groomed fibres (about 1 mm wide, 1-3 strands each) for the brows, moustache, sideburns and a
+            # soft hairline; the earlier 3.5 mm hard-cut cards broke up into specks, these are alpha-blended
+            c.fibers('brows_fib', 'brows', fh_col, 1300, seed=21)
+            c.fibers('hairline_fib', 'hairline', fh_col, 2600, seed=22)
+            c.fibers('sideburns_fib', 'sideburns', fh_col, 500, seed=23)
+            c.fibers('lashes_fib', 'lashes', (0.02, 0.016, 0.014), 360, seed=25)
             for reg, ln in spec['face_hair']:
-                c.face_hair(reg, reg, ln, 6, fh_col)
+                if reg == 'moustache':
+                    c.fibers('moustache_fib', 'moustache', fh_col, 2600, seed=24)
+                else:
+                    c.face_hair(reg, reg, ln, 6, fh_col)
+            c.eye_extras()
+            c.mouth_occlusion()
         else:
             for st, col in spec['hair']: c.hair('hair_' + st, st, 12, col)
             for reg, ln in spec['face_hair']: c.face_hair(reg, reg, ln, 6, fh_col)
@@ -158,7 +175,7 @@ def make(base, core, name, spec, hero):
     g.save(os.path.join(OUT, name + '.glb'))
     if hero:
         proto = bool(spec.get('cards'))      # the quality prototype gets a finer, 2048 skin
-        tex.skin(c, os.path.join(OUT, 'tex'), name, spec['tone'], spec['age_lines'], female, stubble=0.0 if female else (0.3 if proto else 0.5), seed=hash(name) % 1000, grey=0.8 if name in ('devaraj', 'rajini') else 0.0, R=2048 if proto else 1024, hero=proto, moustache=1.0 if (proto and any(r == 'moustache' for r, _ in spec['face_hair'])) else 0.0)
+        tex.skin(c, os.path.join(OUT, 'tex'), name, spec['tone'], spec['age_lines'], female, stubble=0.0 if female else (0.3 if proto else 0.5), seed=hash(name) % 1000, grey=0.8 if name in ('devaraj', 'rajini') else 0.0, R=2048 if proto else 1024, hero=proto, moustache=0.55 if (proto and any(r == 'moustache' for r, _ in spec['face_hair'])) else 0.0, brow_k=0.4 if proto else 0.92)
     if not hero:
         tex.skin(c, os.path.join(OUT, 'tex'), name, 0, float(np.clip((p['age'] - 0.45) * 1.6, 0.05, 0.9)), female, stubble=0.0 if (female or p['age'] < 0.3) else 0.35, seed=hash(name) % 1000, R=512)
     lm = c.landmarks()
@@ -178,6 +195,7 @@ if __name__ == '__main__':
     tex.shared(os.path.join(OUT, 'tex'))
     tex.hair_cards(os.path.join(OUT, 'tex'))
     tex.pores(os.path.join(OUT, 'tex'))
+    tex.hair_fiber(os.path.join(OUT, 'tex'))
     import shutil
     tex.eye(os.path.join(core, 'eyes/materials/brown_eye.png'), os.path.join(OUT, 'tex', 'eye.png'))
     for name, spec in HEROES.items():
