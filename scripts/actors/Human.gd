@@ -742,11 +742,13 @@ func _posture_pose(delta: float) -> Dictionary:
 
 ## Reach with a hand: blend toward the target over ~0.4 s, hold, release by calling reach_release.
 ## grip: "" (relaxed), "cylinder" (a glass, a bottle), "bar" (a railing, a handle), "flat" (a table, a chest)
-func reach_to(side: String, target: Vector3, grip := "") -> void:
+## palm_dir: the world direction the palm should face (down onto a rail, toward a glass); zero = straight wrist
+func reach_to(side: String, target: Vector3, grip := "", palm_dir := Vector3.ZERO) -> void:
 	var r: Dictionary = reach.get(side, {"w": 0.0})
 	r["target"] = target
 	r["want"] = 1.0
 	r["grip"] = grip
+	r["palm"] = palm_dir
 	reach[side] = r
 
 ## Finger curl for one hand: the hand opens on the way in and closes round the object at contact.
@@ -775,7 +777,7 @@ func _reach_ik(delta: float) -> void:
 		var r: Dictionary = reach[side]
 		r.w = move_toward(float(r.w), float(r.get("want", 0.0)), delta / 0.45)
 		var ws := float(r.w) * float(r.w) * (3.0 - 2.0 * float(r.w))
-		reach_err[side] = gait.solve_arm(side, r.target, ws)
+		reach_err[side] = gait.solve_arm(side, r.target, ws, r.get("palm", Vector3.ZERO))
 		if float(r.w) <= 0.0 and float(r.get("want", 0.0)) <= 0.0:
 			reach.erase(side)
 	# seated: hands come to rest on the thighs, just behind the knee
@@ -792,7 +794,7 @@ func _reach_ik(delta: float) -> void:
 			var kn: Vector3 = skel.global_transform * skel.get_bone_global_pose(_bone["calf_" + side]).origin
 			var out := global_transform.basis.x * (-1.0 if side == "l" else 1.0)
 			# top of the thigh: the bone runs through its middle, the surface is ~7 cm above it
-			gait.solve_arm(side, th.lerp(kn, 0.62) + Vector3(0, 0.075, 0) + out * 0.02, w)
+			gait.solve_arm(side, th.lerp(kn, 0.62) + Vector3(0, 0.075, 0) + out * 0.02, w, Vector3.DOWN)
 
 ## Sit on a seat surface (world point at the centre of the seat), facing yaw.
 func sit_on(seat_pos: Vector3, yaw: float) -> void:

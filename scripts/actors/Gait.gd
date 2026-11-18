@@ -224,7 +224,7 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 		_run_cycle = 0.5 if feet.l.planted else 0.0
 	if run_mode:
 		var T := clampf(0.74 - 0.035 * spd, 0.56, 0.68)
-		var duty := lerpf(0.34, 0.27, clampf((spd - 2.5) / 2.0, 0.0, 1.0))
+		var duty := lerpf(0.32, 0.24, clampf((spd - 2.5) / 2.0, 0.0, 1.0))
 		_run_cycle += delta / T
 		for s in feet:
 			var f: Dictionary = feet[s]
@@ -414,7 +414,7 @@ func apply(delta: float) -> void:
 		off.y = 0.01                                     # flight: the body rides its momentum
 	elif spd > 0.2:
 		var bob := lerpf(0.022, 0.035, running)
-		off.y = -lerpf(0.012, 0.045, running) + bob * (sin(PI * t_sw) - 0.5) * (1.0 if _swing_side != "" else -1.0)
+		off.y = -lerpf(0.012, 0.075, running) + bob * (sin(PI * t_sw) - 0.5) * (1.0 if _swing_side != "" else -1.0)   # a runner carries the hips lower, knees bent
 		off.x = stance_sign * lerpf(0.022, 0.01, running)
 	else:
 		# standing: a slow shift of weight from foot to foot (quick and small when nervous, long and deep when relaxed)
@@ -565,6 +565,27 @@ func _palm_rest(s: String) -> Vector3:
 	var k: Vector3 = (rest["middle_01_" + s] * 2.0 + rest["index_01_" + s] + rest["pinky_01_" + s]) / 4.0
 	return (k - Wr) * 0.6
 
+## Rest-space palm normal (the side the fingers close toward).
+func _palm_normal_rest(s: String) -> Vector3:
+	var Wr: Vector3 = rest["hand_" + s]
+	var a: Vector3 = rest["index_01_" + s]
+	var b: Vector3 = rest["pinky_01_" + s]
+	var n := (a - Wr).cross(b - Wr).normalized()
+	return n if n.y < 0.0 else -n          # the model is authored with the palms facing down
+
+## The wrist turn (a rotation applied on top of the forearm) that makes the palm face palm_dir
+## (world), limited to what a wrist can do (about 70 degrees of combined bend and roll).
+func _palm_turn(s: String, g2: Quaternion, palm_dir: Vector3, inv: Transform3D) -> Quaternion:
+	if palm_dir.length() < 0.01:
+		return Quaternion.IDENTITY
+	var want := (inv.basis * palm_dir).normalized()
+	var cur := (g2 * _palm_normal_rest(s)).normalized()
+	var axis := cur.cross(want)
+	if axis.length() < 1e-4:
+		return Quaternion.IDENTITY
+	var ang := minf(cur.angle_to(want), deg_to_rad(70.0))
+	return Quaternion(axis.normalized(), ang)
+
 ## World position of the centre of the palm, from the posed skeleton.
 func palm(s: String) -> Vector3:
 	var gp := sk.get_bone_global_pose(bi["hand_" + s])
@@ -572,7 +593,7 @@ func palm(s: String) -> Vector3:
 
 ## Two-bone arm IK that lands the centre of the palm on the target (the wrist is kept straight
 ## while reaching). Returns how far the palm is short of the target (0 when it is reached).
-func solve_arm(s: String, target: Vector3, w: float) -> float:
+func solve_arm(s: String, target: Vector3, w: float, palm_dir := Vector3.ZERO) -> float:
 	if w <= 0.001:
 		return 0.0
 	var xf := _xf()
@@ -599,6 +620,7 @@ func solve_arm(s: String, target: Vector3, w: float) -> float:
 	var g2 := Quaternion.IDENTITY
 	var elbow := S
 	var reach_w := S
+	var hq := Quaternion.IDENTITY
 	for it in 2:
 		var d := wrist - S
 		var dist := clampf(d.length(), absf(la - lb) + 0.02, la + lb - 0.003)
@@ -617,16 +639,17 @@ func solve_arm(s: String, target: Vector3, w: float) -> float:
 			hinge = Vector3(0, 0, 1)
 		g1 = (_frame(u, hinge) * _frame(r1, r1.cross(rest_pole)).inverse()).get_rotation_quaternion()
 		g2 = (_frame(v, hinge) * _frame(r2, r2.cross(rest_pole)).inverse()).get_rotation_quaternion()
-		# where the palm ends up with a straight wrist; move the wrist target by the miss
-		var palm_at := reach_w + g2 * pr
+		hq = _palm_turn(s, g2, palm_dir, inv)
+		# where the palm ends up; move the wrist target by the miss
+		var palm_at := reach_w + (hq * g2) * pr
 		wrist += T - palm_at
 	var pc := sk.get_bone_global_pose(ci).basis.get_rotation_quaternion()
 	var lu := pc.inverse() * g1
 	var ll := g1.inverse() * g2
 	sk.set_bone_pose_rotation(ui, sk.get_bone_pose_rotation(ui).slerp(lu, w))
 	sk.set_bone_pose_rotation(li, sk.get_bone_pose_rotation(li).slerp(ll, w))
-	sk.set_bone_pose_rotation(hi, sk.get_bone_pose_rotation(hi).slerp(Quaternion.IDENTITY, w))
-	var palm_end := reach_w + g2 * pr
+	sk.set_bone_pose_rotation(hi, sk.get_bone_pose_rotation(hi).slerp(g2.inverse() * hq * g2, w))
+	var palm_end := reach_w + (hq * g2) * pr
 	arm_dbg[s] = {"S": xf * S, "elbow": xf * elbow, "wrist": xf * reach_w, "palm": xf * palm_end}
 	return (xf * palm_end).distance_to(target)
 

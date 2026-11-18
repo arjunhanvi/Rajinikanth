@@ -1155,6 +1155,8 @@ func s_r1() -> void:
 	var C := _build_course()
 	w.busy = true
 	Game.s.time = 9.5
+	for n in w.crowd.npcs:          # an empty test ground: nobody walks into the shots
+		if is_instance_valid(n): n.visible = false
 	var F := Campus.frame()
 	var fwd: Vector3 = F.basis * Vector3(0, 0, 1)
 	var side: Vector3 = F.basis * Vector3(1, 0, 0)
@@ -1191,9 +1193,9 @@ func s_r1() -> void:
 	await tp(_L(-19, 0, 40), _yaw_local(0, 1))
 	await wait(1.0)
 	await _walk_seg("7. running towards the camera", gs, _L(-19, 0, 53), _L(-19, 1.2, 58), true)
-	await tp(_L(-12, 0, 40), _yaw_local(0, 1))
+	await tp(_L(-19, 0, 30), _yaw_local(0, 1))
 	await wait(1.0)
-	await _walk_seg("8. side-view running (accelerate, run, decelerate)", gs, _L(-12, 0, 58), _L(-5.5, 1.0, 49), true)
+	await _walk_seg("8. side-view running (accelerate, run, decelerate)", gs, _L(-19, 0, 48), _L(-11.5, 1.0, 39), true)
 	# kerb and stairs (the course)
 	await tp(_L(-25, 0, 47.5), _yaw_local(0, 1))
 	await wait(1.0)
@@ -1220,8 +1222,9 @@ func s_r1() -> void:
 	var gp: Vector3 = glass.global_position
 	var shp: Vector3 = raja.skel.global_transform * raja.skel.get_bone_global_pose(raja.skel.find_bone("upperarm_r")).origin
 	var tw := Vector3(shp.x - gp.x, 0, shp.z - gp.z).normalized()
-	raja.reach_to("r", gp + tw * 0.05, "cylinder")
-	await wait(0.9)
+	raja.reach_to("r", gp + tw * 0.05, "cylinder", -tw)
+	_watch(func(): _tcam(gp + tw * 0.35 + Vector3(0.25, 0.22, 0) + side * 0.2, gp + Vector3(0, 0.02, 0), 34.0))
+	await wait(1.4)
 	_r1["glass_palm_err_m"] = raja.gait.palm("r").distance_to(gp + tw * 0.05)
 	var att := BoneAttachment3D.new()
 	att.bone_name = "hand_r"
@@ -1260,10 +1263,17 @@ func s_r1() -> void:
 		var p: Vector3 = pl.global_position
 		var lp: Vector3 = Campus.frame().affine_inverse() * p
 		var rt := _L(C.rail_x + 0.01, C.g + 1.03 + 0.04, lp.z + 0.12)
-		raja.reach_to("r", rt, "flat")
+		raja.reach_to("r", rt, "bar", Vector3.DOWN)
 		if raja.reach.has("r") and float(raja.reach.r.w) >= 0.999:
 			rail_err[0] = maxf(rail_err[0], raja.gait.palm("r").distance_to(rt))
 		_tcam(p - side * 1.9 + fwd * 1.6 + Vector3(0, 1.5, 0), p + Vector3(0, 0.95, 0), 44.0))
+	_drive_to(_L(-25.95, 0, 73.2))
+	while _driving: await get_tree().process_frame
+	var cam_fn := _cam_fn2
+	_watch(func():
+		cam_fn.call()
+		var hp: Vector3 = raja.gait.palm("r")
+		_tcam(hp - side * 0.55 + fwd * 0.45 + Vector3(0, 0.25, 0), hp, 36.0))
 	_drive_to(_L(-25.95, 0, 75.5))
 	while _driving: await get_tree().process_frame
 	_watch(Callable())
@@ -1288,8 +1298,9 @@ func s_r1() -> void:
 		return sp + to * 0.13 + to.cross(Vector3.UP) * dx - Vector3(0, 0.05, 0)
 	_watch(func():
 		if pushing[0]:
-			raja.reach_to("l", chest.call(0.11), "flat")
-			raja.reach_to("r", chest.call(-0.11), "flat")
+			var pd: Vector3 = (other.global_position - pl.global_position).normalized()
+			raja.reach_to("l", chest.call(0.11), "flat", pd)
+			raja.reach_to("r", chest.call(-0.11), "flat", pd)
 		var mid: Vector3 = (pl.global_position + other.global_position) * 0.5
 		_tcam(mid + side * 2.6 + Vector3(0, 1.3, 0), mid + Vector3(0, 1.05, 0), 42.0))
 	await wait(0.6)
