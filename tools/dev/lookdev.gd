@@ -208,6 +208,11 @@ func _clay() -> void:
 			mi.material_override = clay
 		elif not (part.begins_with("eye") or part.begins_with("hair") or part.ends_with("_fib") or part in ["teeth", "tongue", "lashes", "moustache"] or part.begins_with("cornea")):
 			mi.visible = false
+	# props the game attaches to bones (the belt pouch was the dark rectangle at the hip) and the
+	# soft ground blob: not part of the body, hidden for inspection
+	for mi in h.find_children("*", "MeshInstance3D", true, false):
+		if not String(mi.name).begins_with("L"):
+			mi.visible = false
 
 func _body() -> void:
 	_clay()
