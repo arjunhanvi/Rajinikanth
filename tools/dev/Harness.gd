@@ -700,3 +700,187 @@ func s_proto() -> void:
 	await wait(1.4)
 	await shot("p17_turned_round")
 	print("[metrics] ", JSON.stringify(_metrics))
+
+# ------------------------------------------------------------------ controls overhaul: injected-touch tests
+func _tch(i: int, p: Vector2, down: bool) -> void:
+	var e := InputEventScreenTouch.new()
+	e.index = i
+	e.position = p
+	e.pressed = down
+	Input.parse_input_event(e)
+
+func _drg(i: int, p: Vector2, rel: Vector2) -> void:
+	var e := InputEventScreenDrag.new()
+	e.index = i
+	e.position = p
+	e.relative = rel
+	Input.parse_input_event(e)
+
+## Slide a touch from a to b over t seconds (several drag events per frame step).
+func _slide(i: int, a: Vector2, b: Vector2, t: float) -> void:
+	var n := maxi(2, int(t * 30.0))
+	var prev := a
+	for k in n:
+		var p := a.lerp(b, float(k + 1) / n)
+		_drg(i, p, p - prev)
+		prev = p
+		await get_tree().process_frame
+
+func _hold(t: float) -> void:
+	var e := 0.0
+	while e < t:
+		await get_tree().process_frame
+		e += get_process_delta_time()
+
+## Face the player down the longest clear line (so a run test does not start against a wall).
+func _face_open(pl) -> void:
+	var space: PhysicsDirectSpaceState3D = pl.get_world_3d().direct_space_state
+	var best := 0.0
+	var best_yaw := 0.0
+	for k in 24:
+		var a := TAU * k / 24.0
+		var d := Vector3(-sin(a), 0, -cos(a))
+		var from: Vector3 = pl.global_position + Vector3(0, 1.0, 0)
+		var q := PhysicsRayQueryParameters3D.create(from, from + d * 40.0, 1 | 2)
+		var hit := space.intersect_ray(q)
+		var dist := 40.0 if hit.is_empty() else from.distance_to(hit.position)
+		if dist > best:
+			best = dist
+			best_yaw = a
+	pl.yaw = best_yaw
+	pl.human.rotation.y = best_yaw
+	await _hold(0.3)
+
+func s_controls() -> void:
+	var w = world()
+	await wait(2.0)
+	var pad: TouchPad = w.hud.pad
+	var pl = w.player
+	Game.settings.touch_trace = true
+	var R := pad.stick_radius()
+	var o := Vector2(pad.size.x * 0.16, pad.size.y * 0.72)
+	await shot("c01_hud_idle")
+	# 1. half push: walking, not running
+	_tch(0, o, true)
+	await _slide(0, o, o + Vector2(0, -R * 0.5), 0.2)
+	await _hold(1.2)
+	ok(not pad.running() and pl._hv.length() > 0.4 and pl._hv.length() < Player.WALK + 0.05, "half push walks (speed %.2f)" % pl._hv.length())
+	await shot("c02_walk")
+	# 2. full push: running; a short flick never offers the lock
+	await _slide(0, o + Vector2(0, -R * 0.5), o + Vector2(0, -R * 1.0), 0.1)
+	await _hold(0.3)
+	ok(pad.running(), "full push runs")
+	ok(pad.lock_state != TouchPad.Lock.OFFERED and pad.lock_state != TouchPad.Lock.LOCKED, "0.3 s at full push does not offer RUN LOCK")
+	await _slide(0, o + Vector2(0, -R), o, 0.05)
+	_tch(0, o, false)
+	var offered_by_flicks := false
+	for k in 8:
+		_tch(0, o, true)
+		await _slide(0, o, o + Vector2(0, -R), 0.08)
+		await _hold(0.25)
+		offered_by_flicks = offered_by_flicks or pad.lock_state in [TouchPad.Lock.OFFERED, TouchPad.Lock.LOCKED]
+		_tch(0, o + Vector2(0, -R), false)
+		await _hold(0.15)
+	ok(not offered_by_flicks, "8 quick upward flicks never offer RUN LOCK")
+	await _hold(0.8)
+	# 3. hold full forward: the chip appears; a sideways full push does not count
+	await _face_open(pl)
+	_tch(0, o, true)
+	await _slide(0, o, o + Vector2(R, 0), 0.1)
+	await _hold(1.0)
+	ok(pad.lock_state == TouchPad.Lock.NONE, "full push sideways does not offer RUN LOCK")
+	await _slide(0, o + Vector2(R, 0), o + Vector2(0, -R), 0.1)
+	await _hold(0.35)
+	await shot("c03_lock_arming")
+	await _hold(0.45)
+	ok(pad.lock_state == TouchPad.Lock.OFFERED, "holding forward 0.8 s offers RUN LOCK")
+	await shot("c04_lock_offered")
+	# 4. slide onto the chip and let go: locked, and he keeps running with the thumb lifted
+	await _slide(0, o + Vector2(0, -R), pad.chip_pos(), 0.2)
+	ok(pad._chip_hover, "thumb over the chip")
+	_tch(0, pad.chip_pos(), false)
+	await _hold(0.1)
+	ok(pad.run_locked(), "slide-and-release on the chip engages RUN LOCK")
+	await _hold(1.5)
+	ok(pl._hv.length() > Player.RUN * 0.85, "keeps running with no thumb on the stick (speed %.2f)" % pl._hv.length())
+	await shot("c05_lock_active")
+	# 5. steer while locked
+	var y0: float = pl.human.rotation.y
+	_tch(0, o, true)
+	await _slide(0, o, o + Vector2(R * 0.9, -R * 0.3), 0.15)
+	await _hold(1.0)
+	ok(pad.run_locked() and absf(wrapf(pl.human.rotation.y - y0, -PI, PI)) > 0.6, "steering right keeps the lock and turns him (%.2f rad)" % wrapf(pl.human.rotation.y - y0, -PI, PI))
+	await shot("c06_lock_steer")
+	# 6. pull back: cancelled
+	await _slide(0, o + Vector2(R * 0.9, -R * 0.3), o + Vector2(0, R * 0.9), 0.15)
+	await _hold(0.2)
+	ok(not pad.run_locked() and pad.last_cancel == "pulled back", "pulling the stick back cancels (%s)" % pad.last_cancel)
+	_tch(0, o + Vector2(0, R * 0.9), false)
+	await _hold(1.2)
+	await shot("c07_cancelled_stopped")
+	ok(pl._hv.length() < 0.3, "after cancelling and letting go he stops (speed %.2f)" % pl._hv.length())
+	await _face_open(pl)
+	# 7. engage by tapping the chip (after letting go, within 2 s), cancel by tapping it again
+	_tch(0, o, true)
+	await _slide(0, o, o + Vector2(0, -R), 0.1)
+	await _hold(0.8)
+	_tch(0, o + Vector2(0, -R), false)
+	await _hold(0.5)
+	ok(pad.lock_state == TouchPad.Lock.OFFERED, "chip stays offered briefly after letting go")
+	_tch(1, pad.chip_pos(), true)
+	_tch(1, pad.chip_pos(), false)
+	await _hold(0.3)
+	ok(pad.run_locked(), "tapping the offered chip engages RUN LOCK")
+	_tch(1, pad.chip_pos(), true)
+	_tch(1, pad.chip_pos(), false)
+	await _hold(0.2)
+	ok(not pad.run_locked() and pad.last_cancel == "chip", "tapping the chip again cancels (%s)" % pad.last_cancel)
+	await _hold(1.0)
+	# 8. context: dialogue/cutscene lock ends it
+	await _face_open(pl)
+	_tch(0, o, true)
+	await _slide(0, o, o + Vector2(0, -R), 0.1)
+	await _hold(0.8)
+	await _slide(0, o + Vector2(0, -R), pad.chip_pos(), 0.2)
+	_tch(0, pad.chip_pos(), false)
+	await _hold(0.3)
+	pl.locked = true
+	await _hold(0.2)
+	ok(not pad.run_locked() and pad.last_cancel == "context", "a dialogue lock ends RUN LOCK (%s)" % pad.last_cancel)
+	pl.locked = false
+	await _hold(1.0)
+	# 9. a wall: running into it ends the lock
+	var fwd := Vector3(-sin(pl.yaw), 0, -cos(pl.yaw))
+	var wall := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = Vector3(8, 3, 0.4)
+	cs.shape = bx
+	wall.add_child(cs)
+	var wm := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = bx.size
+	wm.mesh = bm
+	wall.add_child(wm)
+	w.add_child(wall)
+	wall.global_position = pl.global_position + fwd * 4.0 + Vector3(0, 1.5, 0)
+	wall.look_at(pl.global_position + Vector3(0, 1.5, 0), Vector3.UP)
+	_tch(0, o, true)
+	await _slide(0, o, o + Vector2(0, -R), 0.1)
+	await _hold(0.8)
+	await _slide(0, o + Vector2(0, -R), pad.chip_pos(), 0.2)
+	_tch(0, pad.chip_pos(), false)
+	await _hold(2.5)
+	ok(not pad.run_locked() and pad.last_cancel == "blocked", "running into a wall ends RUN LOCK (%s)" % pad.last_cancel)
+	await shot("c08_wall_stop")
+	wall.queue_free()
+	# 10. camera drag: smooth and proportional
+	var yaw0: float = pl.yaw
+	var c := Vector2(pad.size.x * 0.7, pad.size.y * 0.45)
+	_tch(2, c, true)
+	await _slide(2, c, c + Vector2(240, 0), 0.4)
+	_tch(2, c + Vector2(240, 0), false)
+	await _hold(0.4)
+	var dy: float = wrapf(pl.yaw - yaw0, -PI, PI)
+	ok(absf(dy) > 0.4 and absf(dy) < 2.5, "a 240 px camera drag turns the camera %.2f rad" % dy)
+	print("[controls] done")

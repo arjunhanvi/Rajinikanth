@@ -175,8 +175,15 @@ func _process(delta: float) -> void:
 		pad.enabled = en
 		pad.queue_redraw()
 	if pad.enabled and not get_tree().paused:
+		# RUN LOCK ends whenever running no longer makes sense: dialogue or a cutscene, a vehicle,
+		# a run blocked by a wall (the player reports it), or the player is held in place
+		if pad.run_locked():
+			if pl.locked or pl.in_vehicle() or pl.bus != null or pl.ride != null or pl.puppet:
+				pad.cancel_run_lock("context")
+			elif pl.run_blocked:
+				pad.cancel_run_lock("blocked")
 		pl.input_move = pad.stick
-		pl.input_sprint = pad.held("sprint")
+		pl.input_sprint = pad.running()
 		pl.input_throttle = (1.0 if pad.held("accel") else 0.0) - (1.0 if pad.held("brake") else 0.0)
 		pl.input_steer = (1.0 if pad.held("right") else 0.0) - (1.0 if pad.held("left") else 0.0)
 		if pl.in_vehicle() and int(Game.settings.steer) == 1:
@@ -188,6 +195,8 @@ func _process(delta: float) -> void:
 			if Input.is_action_just_pressed(a):
 				_on_pad(a if a != "handbrake" else "hbrake")
 	else:
+		if pad.run_locked():
+			pad.cancel_run_lock("paused")
 		pl.input_move = Vector2.ZERO
 		pl.input_sprint = false
 		pl.input_throttle = 0.0

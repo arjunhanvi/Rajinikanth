@@ -33,6 +33,8 @@ var input_sprint := false
 var input_throttle := 0.0
 var input_steer := 0.0
 var input_handbrake := false
+var run_blocked := false        # running into something solid (the HUD ends RUN LOCK on it)
+var _block_t := 0.0
 
 func _ready() -> void:
 	collision_layer = 4
@@ -154,10 +156,19 @@ func _walk(delta: float, mv: Vector2) -> void:
 	var rate := (3.2 if want.length() > _hv.length() else 5.5) * (1.6 if sprint else 1.0)
 	_hv = _hv.move_toward(want, rate * delta)
 	velocity = _hv + Vector3(0, _vy, 0)
+	var before := global_position
 	move_and_slide()
 	if global_position.y < 0.0:
 		global_position.y = 0.0
 	var hs := Vector2(velocity.x, velocity.z).length()
+	# blocked: we want to run but hardly move, for a moment
+	var moved := Vector2(global_position.x - before.x, global_position.z - before.z).length() / maxf(delta, 0.0001)
+	var trying := Vector2(_hv.x, _hv.z).length()      # the speed we are actually trying to move at (not the target)
+	if trying > 2.0 and moved < trying * 0.3:
+		_block_t += delta
+	else:
+		_block_t = 0.0
+	run_blocked = _block_t > 0.3
 	human.speed = hs
 	human.state = "air" if not on_floor else ("crouch" if crouching else "idle")
 	if pose != "":
