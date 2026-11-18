@@ -778,9 +778,9 @@
  },
  "raja": {
   "tris": {
-   "0": 104395,
-   "1": 21310,
-   "2": 2972
+   "0": 134779,
+   "1": 30423,
+   "2": 5096
   },
   "height": 1.7848951199999996,
   "female": false,
@@ -1060,6 +1060,53 @@
    "watch"
   ],
   "eye_y": 1.6545355270000002,
+  "arm_dir": [
+   1.7025925736,
+   -1.9469669527999995,
+   -0.0038630679999999973
+  ],
+  "tone": 4
+ },
+ "raja_preR1": {
+  "tris": {
+   "0": 134779,
+   "1": 30423,
+   "2": 5096
+  },
+  "height": 1.7848951199999996,
+  "female": false,
+  "hero": true,
+  "parts": [
+   "belt",
+   "brows_fib",
+   "collar",
+   "cornea_l",
+   "cornea_r",
+   "eyeocc_l",
+   "eyeocc_r",
+   "eyes",
+   "hair_thick_side_cap",
+   "hair_thick_side_cards",
+   "hair_thick_side_cards1",
+   "hair_thick_side_far",
+   "hair_thick_side_far_cap",
+   "hairline_fib",
+   "lashes",
+   "lashes_fib",
+   "moustache_fib",
+   "shirt",
+   "shoes",
+   "sideburns_fib",
+   "skin_a",
+   "skin_feet",
+   "skin_legs",
+   "skin_torso",
+   "teeth",
+   "tongue",
+   "trousers",
+   "watch"
+  ],
+  "eye_y": 1.655085527,
   "arm_dir": [
    1.7025925736,
    -1.9469669527999995,

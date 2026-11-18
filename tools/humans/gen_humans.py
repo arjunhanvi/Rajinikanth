@@ -201,6 +201,17 @@ def make(base, core, name, spec, hero):
         import faceunits
         units = sorted({u for comp in FACS.values() for u in comp})
         c.add_pose_morphs(FACS, faceunits.bake(core, v, units))
+        # R1 body reconstruction: subdivide the torso, neck, arms, palms, pelvis and legs (head, fingers
+        # and toes excluded) and build the anatomical forms into that geometry
+        import anatomy
+        skip = ('head', 'thumb', 'index', 'middle', 'ring', 'pinky', 'ball')
+        ok = lambda fid: not str(c.face_bone[fid]).startswith(skip)
+        skin = [pp for pp in c.parts if pp.name.startswith('skin_')]
+        before = {pp.name: (len(pp.P), len(pp.tris)) for pp in skin}
+        for pp in skin:
+            anatomy.subdivide(c, pp, ok)
+        anatomy.sculpt(c, skin)
+        print('  R1 body:', {pp.name: (before[pp.name], (len(pp.P), len(pp.tris))) for pp in skin})
     else:
         c.add_morphs(build.EXPRESSIONS)
     if not hero:

@@ -50,6 +50,8 @@ func _ready() -> void:
 			for mi in h.find_children("L*_" + part, "MeshInstance3D", true, false):
 				mi.visible = false
 	await _settle(30)
+	if which == "body":
+		await _body()
 	if which in ["all", "anatomy"]:
 		await _anatomy()
 	if which in ["all", "face"]:
@@ -188,3 +190,50 @@ func _lighting() -> void:
 		preset(p)
 		await shot("l_" + p + "_face34", Vector3(-0.44, ey + 0.02, -0.46), f, 30, 14)
 		await shot("l_" + p + "_body", Vector3(-1.6, 1.25, -2.4), Vector3(0, 1.05, 0), 30, 8)
+
+
+# ------------------------------------------------------------------ R1 body inspection (clothes off, neutral clay)
+func _clay() -> void:
+	var clay := StandardMaterial3D.new()
+	clay.albedo_color = Color(0.62, 0.6, 0.58)
+	clay.roughness = 0.55
+	for mi in h.find_children("L*_*", "MeshInstance3D", true, false):
+		var n := String(mi.name)
+		var part := n.substr(n.find("_") + 1)
+		if part.begins_with("skin"):
+			mi.material_override = clay
+		elif not (part.begins_with("eye") or part.begins_with("hair") or part.ends_with("_fib") or part in ["teeth", "tongue", "lashes", "moustache"] or part.begins_with("cornea")):
+			mi.visible = false
+
+func _body() -> void:
+	_clay()
+	await _settle(10)
+	for lp in ["studio", "side"]:
+		preset(lp)
+		var t := "_" + lp
+		await shot("b01_front" + t, Vector3(0, 0.95, -4.2), Vector3(0, 0.92, 0), 30, 24)
+		await shot("b02_back" + t, Vector3(0, 0.95, 4.2), Vector3(0, 0.92, 0), 30)
+		await shot("b03_left" + t, Vector3(4.2, 0.95, 0), Vector3(0, 0.92, 0), 30)
+		await shot("b04_right" + t, Vector3(-4.2, 0.95, 0), Vector3(0, 0.92, 0), 30)
+		await shot("b05_34l" + t, Vector3(3.0, 1.0, -3.0), Vector3(0, 0.92, 0), 30)
+		await shot("b06_34r" + t, Vector3(-3.0, 1.0, -3.0), Vector3(0, 0.92, 0), 30)
+	preset("side")
+	await shot("c01_shoulders_front", Vector3(-0.5, 1.5, -1.05), Vector3(0, 1.38, 0), 34)
+	await shot("c02_collarbones", Vector3(0.15, 1.52, -0.75), Vector3(0, 1.42, 0), 30)
+	await shot("c03_chest", Vector3(-0.45, 1.3, -1.0), Vector3(0, 1.25, 0), 34)
+	await shot("c04_back", Vector3(0.6, 1.35, 1.2), Vector3(0, 1.2, 0), 36)
+	await shot("c05_abdomen", Vector3(-0.5, 1.05, -1.05), Vector3(0, 1.02, 0), 34)
+	await shot("c06_pelvis_side", Vector3(1.1, 0.95, -0.35), Vector3(0, 0.92, 0), 34)
+	var el := _bone("lowerarm_l")
+	await shot("c07_arm", el + Vector3(0.75, 0.15, -0.55), el + Vector3(0, 0.1, 0), 34)
+	var hl := _bone("hand_l")
+	await shot("c08_hand_back", hl + Vector3(0.32, 0.05, -0.3), hl + Vector3(0, -0.07, 0), 26)
+	await shot("c09_hand_palm", hl + Vector3(-0.18, -0.05, 0.32), hl + Vector3(0, -0.07, 0), 26)
+	var kn := _bone("calf_l")
+	await shot("c10_thigh", kn + Vector3(-0.6, 0.35, -0.9), kn + Vector3(0, 0.3, 0), 34)
+	await shot("c11_knee_front", kn + Vector3(-0.15, 0.05, -0.6), kn, 28)
+	await shot("c12_knee_side", kn + Vector3(0.6, 0.05, -0.15), kn, 28)
+	await shot("c13_calf", kn + Vector3(0.35, -0.25, 0.6), kn + Vector3(0, -0.25, 0), 30)
+	var an := _bone("foot_l")
+	await shot("c14_foot", an + Vector3(0.45, 0.2, -0.45), an + Vector3(0, -0.04, -0.06), 30)
+	await shot("c15_foot_inner", an + Vector3(-0.55, 0.1, -0.1), an + Vector3(0, -0.04, -0.06), 30)

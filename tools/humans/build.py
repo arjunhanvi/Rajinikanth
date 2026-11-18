@@ -89,6 +89,7 @@ class Char:
         else:
             UV = self.cyl_uv(P)
         p = Part(name, P, UV, src, inv.reshape(-1, 3))
+        p.tf = self.tri_face[sel]          # base face of each triangle (quads are rebuilt from this for subdivision)
         if colour is not None: p.C[:] = colour
         self.parts.append(p); return p
 
