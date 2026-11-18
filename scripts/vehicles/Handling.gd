@@ -205,8 +205,38 @@ static func suspend(veh: Vehicle, delta: float, full: bool) -> void:
 			acc.z = 0.0
 		sv += acc * dt
 		st += sv * dt
-	# never let the wheels sink: the body cannot go below the highest wheel contact by more than travel
-	st.x = clampf(st.x, mean - 0.06, mean + 0.12)
+	# hard contact: the tyres are part of the body, so no wheel may end up below the ground under it.
+	# Tilt toward the road shape first, then lift the body by whatever is still missing.
+	if full and not bool(p.lean):
+		for _it in 2:
+			var worst := 0.0
+			var worst_i := -1
+			for i in ws.size():
+				var w: Vector3 = ws[i]
+				var at := st.x - w.z * st.y + w.x * st.z      # wheel contact height with this pitch/roll
+				var short: float = float(hs[i]) - 0.025 - at  # 2.5 cm of tyre squash allowed
+				if short > worst:
+					worst = short
+					worst_i = i
+			if worst_i < 0:
+				break
+			var wi: Vector3 = ws[worst_i]
+			if absf(wi.z) > 0.2:
+				var dp := clampf(worst * 0.5 / -wi.z, -0.08, 0.08)   # half by pitching toward that wheel
+				st.y += dp
+				sv.y = maxf(sv.y, 0.0) if dp > 0.0 else minf(sv.y, 0.0)
+				worst *= 0.5
+			st.x += worst
+			sv.x = maxf(sv.x, 0.0)
+	elif bool(p.lean):
+		for i in ws.size():
+			var w2: Vector3 = ws[i]
+			var at2 := st.x - w2.z * st.y
+			var short2: float = float(hs[i]) - 0.025 - at2
+			if short2 > 0.0:
+				st.x += short2
+				sv.x = maxf(sv.x, 0.0)
+	st.x = clampf(st.x, mean - 0.06, mean + 0.25)
 	veh.susp = st
 	veh.susp_v = sv
 	veh._lean.position.y = st.x

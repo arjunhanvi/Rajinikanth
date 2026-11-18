@@ -61,15 +61,15 @@ const BTN := {
 	"jump": ["br", -112, -118, 46, "Jump", ["foot"], "jump"],
 	"crouch": ["br", -232, -96, 38, "Crouch", ["foot"], "crouch"],
 	"punch": ["br", -228, -206, 34, "Hit", ["foot"], "hit"],
-	"hbrake": ["br", -300, -330, 36, "", ["drive"], "hbrake"],
-	"horn": ["br", -112, -380, 46, "", ["drive"], "horn"],
+	"hbrake": ["br", -330, -300, 34, "", ["drive"], "hbrake"],
+	"horn": ["br", -215, -318, 44, "", ["drive"], "horn"],
 	"exit": ["tr", -44, 400, 26, "", ["drive"], "exit"],
 	"left": ["bl", 105, -115, 64, "<", ["drive"], ""],
 	"right": ["bl", 262, -115, 64, ">", ["drive"], ""],
 	"whistle": ["br", -110, -110, 60, "RIGHT!", ["bus"], ""],
 	"bell": ["br", -255, -100, 46, "BELL", ["bus"], ""],
 	"pause": ["tr", -44, 44, 26, "", ["foot", "drive", "bus", "ride"], "pause"],
-	"radio": ["tr", -44, 462, 26, "", ["drive"], "radio"],
+	"radio": ["tr", -108, 44, 26, "", ["drive"], "radio"],
 	"phone": ["tr", -44, 190, 26, "", ["foot", "drive"], "phone"],
 	"map": ["tr", -44, 252, 26, "", ["foot", "drive", "bus"], "map"],
 	"cam": ["tr", -44, 314, 26, "", ["foot", "drive", "ride"], "cam"],
@@ -629,7 +629,8 @@ func _draw_drive(al: float, font: Font) -> void:
 		var sr2 := steer_rect()
 		_label(font, "TILT TO STEER", Vector2(sr2.get_center().x, sr2.end.y - 20), 14, Color(1, 1, 1, al * 0.7))
 	# gauge: speed and gear, bottom centre
-	var gp := Vector2(size.x * 0.5, size.y - 60.0 - _safe().w)
+	var sr3 := steer_rect()
+	var gp := Vector2(sr3.position.x + 60.0, sr3.position.y - 62.0) if not Game.settings.lefty else Vector2(sr3.end.x - 60.0, sr3.position.y - 62.0)
 	draw_circle(gp, 46, Color(0.04, 0.04, 0.05, al * 0.5))
 	draw_arc(gp, 46, PI * 0.75, PI * 0.75 + PI * 1.5 * clampf(speed_kmh / 100.0, 0.0, 1.0), 40, Color(1, 0.76, 0.1, 0.9), 4.0, true)
 	var st := "%d" % int(round(speed_kmh))
