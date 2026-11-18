@@ -115,6 +115,19 @@ class Char:
         self.part('lashes', lash, colour=[0.03, 0.02, 0.02, 1])
         self.expr_parts = ['skin_a', 'teeth', 'tongue', 'lashes']
 
+    def add_pose_morphs(self, table, unit_d, thresh=0.004):
+        """Morphs from baked facial pose units (see faceunits.py). table: name -> {unit: weight}.
+        A part keeps a morph only if it actually moves (saves memory on a phone)."""
+        for nm, comp in table.items():
+            d = np.zeros_like(self.v)
+            for u, w in comp.items():
+                d += unit_d[u] * w
+            for p in self.parts:
+                if (p.name in self.expr_parts or getattr(p, 'morph_follow', False)) and p.src is not None:
+                    dp = d[p.src]
+                    if np.abs(dp).max() > thresh:
+                        p.morph[nm] = dp
+
     def add_morphs(self, table, prefix_dir=None, only=None):
         for nm, comp in table.items():
             d = np.zeros_like(self.v)
@@ -804,8 +817,9 @@ class Char:
                     d = np.array([0.0, -0.4, -1.0])
                 else:
                     d = np.array([0.0, -1.0, -0.35])
-                d = d + rng.normal(0, 0.15, 3)
-                L = rng.uniform(0.08, 0.16); w = rng.uniform(0.01, 0.014); lift = (0.003, 0.012, 0.02)
+                d = d + rng.normal(0, 0.12, 3)
+                # long and lifted: swept back up into the hair mass, not a short stubbly band
+                L = rng.uniform(0.14, 0.26); w = rng.uniform(0.009, 0.012); lift = (0.003, 0.02, 0.045)
             d = d - nrm * d.dot(nrm); d /= np.linalg.norm(d) + 1e-9
             side = np.cross(d, nrm); side /= np.linalg.norm(side) + 1e-9
             curl = rng.normal(0, 0.15)

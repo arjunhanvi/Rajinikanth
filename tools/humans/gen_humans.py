@@ -20,6 +20,31 @@ def face(seed, n=9, amp=0.55):
     r = np.random.default_rng(seed)
     return {pool[i]: float(r.uniform(0.2, 1.0) * amp) for i in r.choice(len(pool), n, replace=False)}
 
+# morphs built from MakeHuman facial pose units. The first 13 keep the names the game already drives;
+# the rest add left/right control, cheeks, lip shapes for speech and strain.
+FACS = {
+    "blink_l": {"LeftUpperLidClosed": 1.0, "LeftLowerLidUp": 0.15}, "blink_r": {"RightUpperLidClosed": 1.0, "RightLowerLidUp": 0.15},
+    "brow_up": {"LeftOuterBrowUp": 0.9, "RightOuterBrowUp": 0.9, "LeftInnerBrowUp": 0.6, "RightInnerBrowUp": 0.6, "LeftUpperLidOpen": 0.25, "RightUpperLidOpen": 0.25},
+    "brow_down": {"LeftBrowDown": 1.0, "RightBrowDown": 1.0, "NoseWrinkler": 0.25},
+    "brow_sad": {"LeftInnerBrowUp": 1.0, "RightInnerBrowUp": 1.0},
+    "smile": {"MouthLeftPullUp": 0.9, "MouthRightPullUp": 0.9, "LeftCheekUp": 0.6, "RightCheekUp": 0.6, "LeftLowerLidUp": 0.25, "RightLowerLidUp": 0.25, "NasolabialDeepener": 0.4},
+    "frown": {"MouthLeftPullDown": 1.0, "MouthRightPullDown": 1.0, "MouthLeftPlatysma": 0.15, "MouthRightPlatysma": 0.15},
+    "jaw_open": {"JawDrop": 1.0},
+    "lips_part": {"lowerLipDown": 0.6, "UpperLipUp": 0.35},
+    "pucker": {"LipsKiss": 1.0},
+    "wide": {"MouthLeftPullSide": 1.0, "MouthRightPullSide": 1.0},
+    "squint": {"LeftLowerLidUp": 1.0, "RightLowerLidUp": 1.0, "LeftCheekUp": 0.3, "RightCheekUp": 0.3},
+    "sneer": {"NoseWrinkler": 1.0, "UpperLipUp": 0.5},
+    # left/right and extra shapes
+    "smile_l": {"MouthLeftPullUp": 1.0, "LeftCheekUp": 0.5}, "smile_r": {"MouthRightPullUp": 1.0, "RightCheekUp": 0.5},
+    "brow_up_l": {"LeftOuterBrowUp": 1.0, "LeftInnerBrowUp": 0.5}, "brow_up_r": {"RightOuterBrowUp": 1.0, "RightInnerBrowUp": 0.5},
+    "brow_down_l": {"LeftBrowDown": 1.0}, "brow_down_r": {"RightBrowDown": 1.0},
+    "lids_wide": {"LeftUpperLidOpen": 1.0, "RightUpperLidOpen": 1.0},
+    "lower_lip_up": {"lowerLipUp": 1.0}, "upper_lip_up": {"UpperLipUp": 1.0},
+    "lip_corner_down_l": {"MouthLeftPullDown": 1.0}, "platysma": {"MouthLeftPlatysma": 1.0, "MouthRightPlatysma": 1.0},
+    "jaw_stretch": {"JawDropStretched": 1.0}, "cheeks_puff": {"CheeksPump": 1.0}, "chin_raise": {"lowerLipUp": 0.6, "ChinForward": 0.3},
+}
+
 def P(gender, age, weight, muscle, height, extra=None, race=None):
     return {'gender': gender, 'age': age, 'weight': weight, 'muscle': muscle, 'height': height, 'race': race or SOUTH, 'extra': extra or {}}
 
@@ -147,7 +172,7 @@ def make(base, core, name, spec, hero):
             # groomed fibres (about 1 mm wide, 1-3 strands each) for the brows, moustache, sideburns and a
             # soft hairline; the earlier 3.5 mm hard-cut cards broke up into specks, these are alpha-blended
             c.fibers('brows_fib', 'brows', fh_col, 1300, seed=21)
-            c.fibers('hairline_fib', 'hairline', fh_col, 2600, seed=22)
+            c.fibers('hairline_fib', 'hairline', fh_col, 2200, seed=22)
             c.fibers('sideburns_fib', 'sideburns', fh_col, 500, seed=23)
             c.fibers('lashes_fib', 'lashes', (0.02, 0.016, 0.014), 360, seed=25)
             for reg, ln in spec['face_hair']:
@@ -166,7 +191,14 @@ def make(base, core, name, spec, hero):
         if not female:
             c.face_hair('moustache', 'moustache', 0.09, 4); c.face_hair('beard', 'beard', 0.1, 4)
             c.glasses()
-    c.add_morphs(build.EXPRESSIONS)
+    if spec.get('cards'):
+        # the quality prototype: expressions from MakeHuman's facial pose units, skinned through its full
+        # face rig on this character's own mesh (left/right brows, lids, cheeks, nasolabial, lips, jaw)
+        import faceunits
+        units = sorted({u for comp in FACS.values() for u in comp})
+        c.add_pose_morphs(FACS, faceunits.bake(core, v, units))
+    else:
+        c.add_morphs(build.EXPRESSIONS)
     if not hero:
         c.add_morphs(build.IDENTITY, prefix_dir='', only=['skin_a'])
     g = gltf.Glb()

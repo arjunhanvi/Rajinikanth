@@ -1250,6 +1250,19 @@ func _m(nm: String, target: float, k: float) -> void:
 
 ## The face: blinking at irregular intervals, gaze that leads the head, speech,
 ## and moods that ease in and out through the expression morphs.
+const VISEMES := [
+	{"jaw_open": 0.45, "lips_part": 0.6},                      # aa
+	{"jaw_open": 0.2, "wide": 0.55, "lips_part": 0.45},         # e
+	{"jaw_open": 0.08, "wide": 0.75, "lips_part": 0.35},        # i
+	{"jaw_open": 0.3, "pucker": 0.55, "lips_part": 0.3},        # o
+	{"jaw_open": 0.1, "pucker": 0.9},                           # u
+	{"lower_lip_up": 0.35},                                     # m b p (closed)
+	{"lower_lip_up": 0.6, "upper_lip_up": 0.25, "lips_part": 0.2},   # f v
+	{"jaw_open": 0.25, "lips_part": 0.4},                       # l / t / d
+]
+var _vis := {}
+var _vis_t := 0.0
+
 func _face(delta: float) -> void:
 	_blink -= delta
 	var fast := 0.45 if mood == "nervous" else 1.0
@@ -1263,14 +1276,19 @@ func _face(delta: float) -> void:
 	var closed := sin(clampf(_blink_t / 0.17, 0.0, 1.0) * PI)
 	var talking := talk_t > 0.0 or state == "talk" or activity in ["argue", "laugh", "phone"]
 	var em := emotion
-	var w := {"blink": closed, "jaw_open": 0.0, "lips_part": 0.0, "smile": 0.0, "frown": 0.0, "brow_up": 0.0, "brow_down": 0.0, "brow_sad": 0.0, "squint": 0.0, "pucker": 0.0, "wide": 0.0, "sneer": 0.0}
+	var w := {"blink": closed, "jaw_open": 0.0, "lips_part": 0.0, "smile": 0.0, "frown": 0.0, "brow_up": 0.0, "brow_down": 0.0, "brow_sad": 0.0, "squint": 0.0, "pucker": 0.0, "wide": 0.0, "sneer": 0.0,
+		"smile_l": 0.0, "smile_r": 0.0, "brow_up_l": 0.0, "brow_up_r": 0.0, "brow_down_l": 0.0, "brow_down_r": 0.0, "lids_wide": 0.0,
+		"lower_lip_up": 0.0, "upper_lip_up": 0.0, "platysma": 0.0, "jaw_stretch": 0.0, "chin_raise": 0.0}
 	if talking:
-		var sy := absf(sin(_t * 9.5 + _seed)) * (0.45 + 0.55 * absf(sin(_t * 3.3 + _seed * 2.0)))
-		w.jaw_open = sy * 0.5
-		w.lips_part = 0.3 + sy * 0.3
-		w.pucker = maxf(0.0, sin(_t * 4.1 + _seed)) * 0.35
-		w.wide = maxf(0.0, sin(_t * 5.7)) * 0.25
-		w.brow_up = maxf(0.0, sin(_t * 1.9 + _seed)) * 0.35
+		# speech: a run of mouth shapes (open, wide, round, closed, lip-to-teeth), about nine a second,
+		# each blended into the next, with the brows lifting on stressed words
+		_vis_t -= delta
+		if _vis_t <= 0.0:
+			_vis_t = randf_range(0.08, 0.16)
+			_vis = VISEMES[randi() % VISEMES.size()]
+		for k in _vis:
+			w[k] = maxf(float(w.get(k, 0.0)), float(_vis[k]))
+		w.brow_up = maxf(0.0, sin(_t * 1.9 + _seed)) * 0.3
 	match mood:
 		"angry": em -= 0.9
 		"sad":
@@ -1283,13 +1301,23 @@ func _face(delta: float) -> void:
 		"glare":
 			em -= 0.85; w.squint = 0.55; w.lips_part = 0.05; w.blink = minf(w.blink, 0.15)
 		"smirk":
-			em += 0.45; w.sneer = 0.35; w.squint = 0.3
+			w.smile_l = 0.6; w.sneer = 0.2; w.squint = 0.25; w.brow_up_r = 0.2
 		"frustrated":
 			em -= 0.6; w.brow_sad = 0.3; w.lips_part = 0.25
 		"nervous":
-			w.brow_sad = 0.6; w.lips_part = 0.2; w.wide = 0.3
+			w.brow_sad = 0.6; w.lips_part = 0.2; w.wide = 0.3; w.lids_wide = 0.3; w.platysma = 0.25
 		"tired":
-			w.blink = maxf(w.blink, 0.5); w.frown = 0.3
+			w.blink = maxf(w.blink, 0.45); w.frown = 0.25; w.brow_sad = 0.25; w.jaw_open = maxf(w.jaw_open, 0.06)
+		"happy":
+			w.smile = 0.85; w.squint = 0.35; w.brow_up = 0.15; w.lips_part = 0.25
+		"irritated":
+			w.brow_down = 0.55; w.lower_lip_up = 0.35; w.lip_corner_down_l = 0.3; w.squint = 0.3; w.sneer = 0.15
+		"confused":
+			w.brow_up_l = 0.7; w.brow_down_r = 0.5; w.smile_r = 0.12; w.lips_part = 0.15; w.squint = 0.15
+		"surprised":
+			w.brow_up = 1.0; w.lids_wide = 0.8; w.jaw_open = maxf(w.jaw_open, 0.35); w.lips_part = 0.5
+		"neutral":
+			pass
 	if activity == "argue": em -= 0.8
 	if activity == "laugh":
 		em += 1.0
@@ -1301,7 +1329,7 @@ func _face(delta: float) -> void:
 		w.smile = clampf(em, 0.0, 1.0)
 		w.squint = maxf(w.squint, em * 0.3)
 	else:
-		w.brow_down = clampf(-em, 0.0, 1.0)
+		w.brow_down = clampf(-em * (0.7 if model in PROTO else 1.0), 0.0, 1.0)   # full-rig brows are strong: keep the eye clear
 		w.frown = clampf(-em * 0.6, 0.0, 1.0)
 		w.sneer = maxf(w.sneer, clampf(-em - 0.6, 0.0, 0.5))
 	var kf := 1.0 - exp(-9.0 * delta)

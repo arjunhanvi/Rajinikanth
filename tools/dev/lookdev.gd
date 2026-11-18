@@ -169,12 +169,16 @@ func _face() -> void:
 	await shot("f07_hair_top", Vector3(0.0, ey + 0.55, -0.35), Vector3(0, ey + 0.08, 0), 34)
 	await shot("f08_brow_moustache", Vector3(-0.18, ey - 0.02, -0.36), Vector3(0, ey - 0.04, 0), 26)
 	# expressions, front
-	for e in ["smile", "angry", "surprise", "sad"]:
+	var k := 0
+	for e in ["neutral", "happy", "irritated", "angry", "confused", "nervous", "tired", "surprised"]:
 		h.mood = e
-		await shot("f10_expr_" + e, Vector3(0, ey, -0.62), f, 30, 30)
+		await shot("e%d_%s" % [k, e], Vector3(0, ey, -0.62), f, 30, 34)
+		await shot("e%d_%s_34" % [k, e], Vector3(-0.4, ey + 0.01, -0.48), f, 30, 4)
+		k += 1
 	h.mood = ""
-	h.talk_t = 4.0
-	await shot("f11_talk", Vector3(0, ey, -0.62), f, 30, 26)
+	h.talk_t = 6.0
+	for i in 4:
+		await shot("t%d_talk" % i, Vector3(0, ey, -0.62), f, 30, 5 + i * 3)
 	h.talk_t = 0.0
 	await _settle(20)
 
