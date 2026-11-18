@@ -29,7 +29,7 @@ var _land_gap := 0.0
 var _seed := 0.0
 var pelvis_off := Vector3.ZERO  # current pelvis offset (skeleton space)
 var _swing_side := ""          # which foot is in the air ("" = both planted)
-var stance_width := 0.115
+var stance_width := 0.055     # each foot about 5.5 cm from the line of travel: a normal ~11 cm step width
 var run_mode := false
 var _run_cycle := 0.0
 # measurements for validation
@@ -79,11 +79,17 @@ func _ground_at(p: Vector3) -> Dictionary:
 
 ## Where a foot would stand if the body stopped right now.
 func _home(s: String, lead := 0.0) -> Vector3:
-	var p := h.global_position + _right() * _side_sign(s) * stance_width * h.body.scale.x + vel * lead
+	var p := h.global_position + _right() * _side_sign(s) * 0.095 * h.body.scale.x + vel * lead       # standing: feet about hip-width apart
 	var g := _ground_at(p)
 	return Vector3(p.x, g.y, p.z)
 
 ## Put both feet under the body (spawn, teleport, leaving a seat or a vehicle).
+## Test instrumentation: every footfall (side, world position, body position and velocity at that moment).
+var falls: Array = []
+func _log_fall(s: String, p: Vector3) -> void:
+	if falls.size() < 400:
+		falls.append({"s": s, "p": p, "body": h.global_position, "v": Vector2(vel.x, vel.z).length(), "run": run_mode})
+
 func reset() -> void:
 	foot_ground_ok = false
 	for s in feet:
@@ -119,12 +125,19 @@ func _target(s: String, remaining: float) -> Vector3:
 	# land under the body when running (short contact), further ahead when walking
 	var stance_half := lerpf(0.21, 0.07, clampf((spd - 1.6) / 2.5, 0.0, 1.0))
 	# where the body will be: current velocity plus what it is gaining (starting off, slowing down)
-	var tt := remaining + stance_half
 	var a := acc
 	a.y = 0.0
-	if a.length() > 6.0:
-		a = a.normalized() * 6.0
-	var travel := vel * tt + a * (0.5 * tt * tt)
+	if a.length() > 3.0:
+		a = a.normalized() * 3.0
+	# where the body will be when this foot lands, then a human heel-strike distance ahead of it
+	# (about 0.3 m when walking, 0.45 m running) - never a lunge
+	var body_at := vel * remaining + a * (0.5 * remaining * remaining)
+	var dirv := Vector3(vel.x, 0, vel.z)
+	var ahead := Vector3.ZERO
+	if dirv.length() > 0.05:
+		var run_k := clampf((spd - 2.0) / 2.0, 0.0, 1.0)
+		ahead = dirv.normalized() * minf(spd * stance_half, lerpf(0.25, 0.42, run_k) * h.body.scale.z)
+	var travel := body_at + ahead
 	if travel.dot(vel) < 0.0 and spd < 0.5:
 		travel = Vector3.ZERO                       # braking: don't reach backwards
 	var p := h.global_position + _right() * _side_sign(s) * stance_width * h.body.scale.x + travel
@@ -196,6 +209,7 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 		if t >= 1.0:
 			f.planted = true
 			f.lock = f.to
+			_log_fall(s, f.to)
 			f.yaw = facing_yaw() + _side_sign(s) * -0.1
 			f.land = 0.0
 			var other := "r" if s == "l" else "l"
@@ -215,7 +229,7 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 		for s in feet:
 			var f: Dictionary = feet[s]
 			var ph := fposmod(_run_cycle + (0.0 if s == "l" else 0.5), 1.0)
-			var side := _right() * _side_sign(s) * stance_width * 0.8 * h.body.scale.x
+			var side := _right() * _side_sign(s) * stance_width * 0.6 * h.body.scale.x
 			# a foot still planted from the walk, now far behind the body, lets go instead of dragging the body into a lunge
 			if f.planted and -((f.lock as Vector3) - pos).dot(vel.normalized()) > 0.5:
 				f.planted = false
@@ -243,6 +257,7 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 					var g := _ground_at(lp)
 					f.planted = true
 					f.lock = Vector3(lp.x, g.y, lp.z)
+					_log_fall(s, f.lock)
 					f.yaw = facing_yaw() + _side_sign(s) * -0.06
 					f.land = 0.4
 					stats.steps = int(stats.steps) + 1
@@ -272,7 +287,7 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 			var fl: Dictionary = feet[s]
 			if fl.planted and other_busy:
 				var behind := -((fl.lock as Vector3) - pos).dot(vel.normalized())
-				if behind > 0.42:
+				if behind > 0.38:
 					var sw0: Dictionary = feet[_swing_side]
 					sw0.dur = minf(float(sw0.dur), 0.28)
 		var can: bool = (not other_busy and _land_gap >= double_support)
@@ -289,7 +304,7 @@ func plan(delta: float, upper_free: bool) -> Dictionary:
 				if not f2.planted:
 					continue
 				var lag := (_target(s, step_dur) - (f2.lock as Vector3)).dot(vel.normalized())
-				if lag > best_lag or -((f2.lock as Vector3) - pos).dot(vel.normalized()) > 0.42:
+				if lag > best_lag or -((f2.lock as Vector3) - pos).dot(vel.normalized()) > 0.38:
 					best_lag = lag
 					best = s
 			if best != "":
@@ -362,7 +377,7 @@ func apply(delta: float) -> void:
 			yaw = f.yaw
 			var rel := (sole - pos).dot(_fwd())
 			if spd > 0.25:
-				pitch = clampf((-rel - 0.06) * 3.2, 0.0, 0.85)       # heel rises as the foot trails: toe-off
+				pitch = clampf((-rel - 0.05) * 3.4, 0.0, 1.0)        # heel rises as the foot trails: toe-off
 			pitch -= 0.22 * (1.0 - float(f.land))                    # heel strike, then the foot lays flat
 			n = _ground_at(sole).n
 		else:
@@ -414,11 +429,13 @@ func apply(delta: float) -> void:
 	for _pass in 2:
 		var need := 0.0
 		for s in feet:
+			if not bool(feet[s].planted):
+				continue        # a swinging leg bends at the knee; only feet on the ground set the hip height
 			var p0: Vector3 = rest["pelvis"]
 			var th: Vector3 = rest["thigh_" + s]
 			var hip: Vector3 = p0 + off + prot * (th - p0)
 			var a: Vector3 = _ankle_skel(s, targets[s], inv)
-			var lmax: float = (float(len1[s]) + float(len2[s])) * 0.985
+			var lmax: float = (float(len1[s]) + float(len2[s])) * 0.995    # the knee is almost straight at heel strike
 			var d: Vector3 = a - hip
 			if d.length() > lmax:
 				var horiz := Vector2(d.x, d.z).length()
@@ -428,6 +445,11 @@ func apply(delta: float) -> void:
 		need_total += need
 	off.y = maxf(off.y, -0.16)          # a person bends the knees, they do not sink to the floor
 	pelvis_off = pelvis_off.lerp(off, 1.0 - exp(-14.0 * delta))
+	if stats.has("pelvis_min"):
+		stats.pelvis_min = minf(float(stats.pelvis_min), pelvis_off.y)
+		stats.frames = int(stats.get("frames", 0)) + 1
+		if pelvis_off.y < -0.07:
+			stats.deep = int(stats.get("deep", 0)) + 1
 	if need_total < -0.001:
 		pelvis_off.y = minf(pelvis_off.y, off.y)   # a leg that cannot reach pulls the hips down now, not next frame
 	sk.set_bone_pose_position(bi["pelvis"], rest["pelvis"] + pelvis_off)

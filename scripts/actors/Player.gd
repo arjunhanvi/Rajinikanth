@@ -2,7 +2,7 @@ class_name Player
 extends CharacterBody3D
 ## The player: third-person on foot, driving, or working the aisle of a bus.
 
-const WALK := 1.55        # a natural walking pace (m/s)
+const WALK := 1.4         # a natural, unhurried walking pace (m/s)
 const RUN := 4.2        # a run, not a sprint (4.8 forced the legs into a crouch)
 const CROUCH := 1.3
 

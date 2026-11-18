@@ -1081,3 +1081,229 @@ func s_driving() -> void:
 		pl.exit_vehicle()
 
 var veh_cleanup: Array = []
+
+# ------------------------------------------------------------------ R1: movement test reel (fixed cameras, measured per segment)
+var _cap: Label
+var _r1 := {}
+
+func _caption(t: String) -> void:
+	if _cap == null:
+		var cl := CanvasLayer.new()
+		cl.layer = 100
+		add_child(cl)
+		_cap = Label.new()
+		_cap.position = Vector2(30, 24)
+		_cap.add_theme_font_size_override("font_size", 30)
+		_cap.add_theme_color_override("font_color", Color(1, 0.9, 0.3))
+		_cap.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		_cap.add_theme_constant_override("outline_size", 6)
+		cl.add_child(_cap)
+	_cap.text = t
+	print("[r1] segment: ", t, " at frame ", Engine.get_process_frames())
+
+func _seg_begin(gs) -> void:
+	gs.stats = {"slide_max": 0.0, "ground_err_max": 0.0, "samples": 0, "steps": 0, "reach_fail": 0, "pelvis_min": 0.0}
+	gs.falls.clear()
+
+func _seg_end(name: String, gs) -> void:
+	var st: Dictionary = gs.stats.duplicate()
+	st.erase("worst")
+	var lens := []
+	var widths := []
+	var F: Array = gs.falls
+	for i in range(1, F.size()):
+		var a: Dictionary = F[i - 1]
+		var b: Dictionary = F[i]
+		if a.s == b.s:
+			continue
+		var d: Vector3 = (b.p as Vector3) - (a.p as Vector3)
+		d.y = 0
+		var mv: Vector3 = (b.body as Vector3) - (a.body as Vector3)
+		mv.y = 0
+		if mv.length() < 0.05:
+			continue
+		var fwd := mv.normalized()
+		lens.append(absf(d.dot(fwd)))
+		widths.append(absf(d.dot(Vector3(-fwd.z, 0, fwd.x))))
+	var avg := func(arr: Array) -> float:
+		var t := 0.0
+		for x in arr: t += float(x)
+		return t / maxf(1.0, float(arr.size()))
+	st.step_len_avg = avg.call(lens)
+	st.step_len_max = lens.max() if lens.size() > 0 else 0.0
+	st.step_width_avg = avg.call(widths)
+	st.steps_measured = lens.size()
+	st.deep_pelvis_frac = float(st.get("deep", 0)) / maxf(1.0, float(st.get("frames", 1)))
+	_r1[name] = st
+	print("[r1] ", name, " ", JSON.stringify(st))
+
+func _walk_seg(name: String, gs, to: Vector3, cam: Vector3, run := false) -> void:
+	_caption(name)
+	var pl = world().player
+	_watch(func(): _tcam(cam, pl.global_position + Vector3(0, 0.95, 0), 38.0))
+	_seg_begin(gs)
+	_drive_to(to, run)
+	while _driving: await get_tree().process_frame
+	await wait(1.2)
+	_seg_end(name, gs)
+
+func s_r1() -> void:
+	var w = world()
+	var pl = await _raja_proto()
+	var raja: Human = pl.human
+	var gs = raja.gait
+	var C := _build_course()
+	w.busy = true
+	Game.s.time = 9.5
+	var F := Campus.frame()
+	var fwd: Vector3 = F.basis * Vector3(0, 0, 1)
+	var side: Vector3 = F.basis * Vector3(1, 0, 0)
+	# open paving beside the course for straight-line tests
+	await tp(_L(-19, 0, 44), _yaw_local(0, 1))
+	await wait(1.5)
+	_caption("1. standing idle")
+	_watch(func(): _tcam(_L(-19, 1.35, 47.2), pl.global_position + Vector3(0, 1.1, 0), 34.0))
+	_seg_begin(gs)
+	await wait(4.0)
+	_seg_end("idle", gs)
+	await _walk_seg("2. walking towards the camera", gs, _L(-19, 0, 52), _L(-19, 1.3, 55.5))
+	await _walk_seg("3. walking away", gs, _L(-19, 0, 44.5), _L(-19, 1.3, 55.5))
+	await _walk_seg("4. side-view walking", gs, _L(-19, 0, 53), _L(-14.5, 1.0, 48.5))
+	# turning while walking: a curve through four waypoints
+	_caption("5. turning while walking")
+	_watch(func(): _tcam(_L(-12.5, 3.2, 49), pl.global_position + Vector3(0, 0.9, 0), 42.0))
+	_seg_begin(gs)
+	for wp in [_L(-17, 0, 55), _L(-14, 0, 55.5), _L(-12, 0, 53), _L(-13, 0, 50)]:
+		_drive_to(wp)
+		while _driving: await get_tree().process_frame
+	await wait(1.0)
+	_seg_end("turning_walk", gs)
+	# start and stop
+	_caption("6. starting and stopping")
+	_watch(func(): _tcam(_L(-9.5, 1.0, 47), pl.global_position + Vector3(0, 0.9, 0), 36.0))
+	_seg_begin(gs)
+	for wp in [_L(-13, 0, 47.5), _L(-13, 0, 45)]:
+		_drive_to(wp)
+		while _driving: await get_tree().process_frame
+		await wait(1.6)
+	_seg_end("start_stop", gs)
+	# running
+	await tp(_L(-19, 0, 40), _yaw_local(0, 1))
+	await wait(1.0)
+	await _walk_seg("7. running towards the camera", gs, _L(-19, 0, 53), _L(-19, 1.2, 58), true)
+	await tp(_L(-12, 0, 40), _yaw_local(0, 1))
+	await wait(1.0)
+	await _walk_seg("8. side-view running (accelerate, run, decelerate)", gs, _L(-12, 0, 58), _L(-5.5, 1.0, 49), true)
+	# kerb and stairs (the course)
+	await tp(_L(-25, 0, 47.5), _yaw_local(0, 1))
+	await wait(1.0)
+	await _walk_seg("9. stepping onto and off a kerb", gs, _L(-25, 0, 54.5), _L(-22.2, 0.6, 51.2))
+	await _walk_seg("10. ramp up, stairs down", gs, _L(-25, 0, 63.6), _L(-22.0, 0.9, 60.5))
+	await _walk_seg("11. stairs up, ramp down", gs, _L(-25, 0, 54.5), _L(-22.0, 0.9, 60.5))
+	# sit, stand, reach, drink
+	await tp(_L(-25, 0, 65.4), _yaw_local(0, 1))
+	await wait(0.8)
+	_caption("12. sitting down")
+	_watch(func(): _tcam(_L(-22.9, 1.2, 66.0), pl.global_position + Vector3(0, 0.8, 0), 40.0))
+	_seg_begin(gs)
+	_drive_to(_L(-25, 0, 66.55))
+	while _driving: await get_tree().process_frame
+	var yaw_sit := _yaw_local(0, -1)
+	var y0: float = raja.rotation.y
+	for i in 20:
+		raja.rotation.y = lerp_angle(y0, yaw_sit, (i + 1) / 20.0)
+		await wait(0.05)
+	raja.sit_on(C.seat, yaw_sit)
+	await wait(2.2)
+	_caption("13. reaching for the glass, drinking")
+	var glass: MeshInstance3D = C.glass
+	var gp: Vector3 = glass.global_position
+	var shp: Vector3 = raja.skel.global_transform * raja.skel.get_bone_global_pose(raja.skel.find_bone("upperarm_r")).origin
+	var tw := Vector3(shp.x - gp.x, 0, shp.z - gp.z).normalized()
+	raja.reach_to("r", gp + tw * 0.05, "cylinder")
+	await wait(0.9)
+	_r1["glass_palm_err_m"] = raja.gait.palm("r").distance_to(gp + tw * 0.05)
+	var att := BoneAttachment3D.new()
+	att.bone_name = "hand_r"
+	raja.skel.add_child(att)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var gx := glass.global_transform
+	glass.reparent(att)
+	glass.global_transform = gx
+	raja.activity = "tea"
+	raja.held_grip["r"] = "cylinder"
+	raja.reach_release("r")
+	await wait(2.0)
+	raja.activity = ""
+	raja.held_grip.erase("r")
+	raja.reach_to("r", gp)
+	await wait(0.8)
+	var gx2 := glass.global_transform
+	glass.reparent(_stage)
+	glass.global_transform = gx2
+	glass.global_position = gp
+	raja.reach_release("r")
+	await wait(0.6)
+	_caption("14. standing up")
+	raja.stand_up()
+	await wait(2.2)
+	_seg_end("sit_reach_stand", gs)
+	# railing
+	raja.rotation.y = _yaw_local(0, 1)
+	_caption("15. walking with a hand on the railing")
+	_drive_to(_L(-25.95, 0, 70.2))
+	while _driving: await get_tree().process_frame
+	_seg_begin(gs)
+	var rail_err := [0.0]
+	_watch(func():
+		var p: Vector3 = pl.global_position
+		var lp: Vector3 = Campus.frame().affine_inverse() * p
+		var rt := _L(C.rail_x + 0.01, C.g + 1.03 + 0.04, lp.z + 0.12)
+		raja.reach_to("r", rt, "flat")
+		if raja.reach.has("r") and float(raja.reach.r.w) >= 0.999:
+			rail_err[0] = maxf(rail_err[0], raja.gait.palm("r").distance_to(rt))
+		_tcam(p - side * 1.9 + fwd * 1.6 + Vector3(0, 1.5, 0), p + Vector3(0, 0.95, 0), 44.0))
+	_drive_to(_L(-25.95, 0, 75.5))
+	while _driving: await get_tree().process_frame
+	_watch(Callable())
+	raja.reach_release("r")
+	_r1["rail_palm_err_max_m"] = rail_err[0]
+	await wait(0.8)
+	_seg_end("railing_walk", gs)
+	# push
+	_caption("16. pushing another person")
+	var other: Human = C.other
+	_drive_to(_L(-25.0, 0, 79.4))
+	while _driving: await get_tree().process_frame
+	raja.rotation.y = _yaw_local(0, 1)
+	other.global_position = pl.global_position + fwd * 0.68
+	await wait(0.8)
+	var pushing := [true]
+	var chest := func(dx: float) -> Vector3:
+		var sp: Vector3 = other.skel.global_transform * other.skel.get_bone_global_pose(other.skel.find_bone("spine_03")).origin
+		var to: Vector3 = (pl.global_position - other.global_position)
+		to.y = 0
+		to = to.normalized()
+		return sp + to * 0.13 + to.cross(Vector3.UP) * dx - Vector3(0, 0.05, 0)
+	_watch(func():
+		if pushing[0]:
+			raja.reach_to("l", chest.call(0.11), "flat")
+			raja.reach_to("r", chest.call(-0.11), "flat")
+		var mid: Vector3 = (pl.global_position + other.global_position) * 0.5
+		_tcam(mid + side * 2.6 + Vector3(0, 1.3, 0), mid + Vector3(0, 1.05, 0), 42.0))
+	await wait(0.6)
+	_r1["push_palm_err_m"] = [raja.gait.palm("l").distance_to(chest.call(0.11)), raja.gait.palm("r").distance_to(chest.call(-0.11))]
+	var t := 0.0
+	var o0 := other.global_position
+	while t < 0.9:
+		t += get_process_delta_time()
+		other.global_position = o0 + fwd * 0.95 * (1.0 - pow(1.0 - minf(t / 0.9, 1.0), 2.5))
+		if t > 0.25:
+			pushing[0] = false
+			raja.reach_release("l"); raja.reach_release("r")
+		await get_tree().process_frame
+	await wait(1.5)
+	_watch(Callable())
+	_caption("")
+	print("[r1] results ", JSON.stringify(_r1))

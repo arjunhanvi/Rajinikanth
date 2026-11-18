@@ -741,11 +741,28 @@ func _posture_pose(delta: float) -> Dictionary:
 	return o
 
 ## Reach with a hand: blend toward the target over ~0.4 s, hold, release by calling reach_release.
-func reach_to(side: String, target: Vector3) -> void:
+## grip: "" (relaxed), "cylinder" (a glass, a bottle), "bar" (a railing, a handle), "flat" (a table, a chest)
+func reach_to(side: String, target: Vector3, grip := "") -> void:
 	var r: Dictionary = reach.get(side, {"w": 0.0})
 	r["target"] = target
 	r["want"] = 1.0
+	r["grip"] = grip
 	reach[side] = r
+
+## Finger curl for one hand: the hand opens on the way in and closes round the object at contact.
+const GRIPS := {"cylinder": [0.62, 0.55], "bar": [0.9, 0.75], "flat": [0.05, 0.12]}
+var held_grip := {}     # side -> grip kind while something is held (e.g. the glass after it is picked up)
+func _hand_curl(s: String, base: float) -> Vector2:
+	var g: String = held_grip.get(s, "")
+	var w := 1.0
+	if reach.has(s) and String(reach[s].get("grip", "")) != "":
+		g = String(reach[s].grip)
+		w = float(reach[s].w)
+	if g == "" or not GRIPS.has(g):
+		return Vector2(base * 1.25, base * 0.5)
+	var close := smoothstep(0.82, 1.0, w)
+	var open := 0.04
+	return Vector2(lerpf(open, float(GRIPS[g][0]), close) * 1.25, lerpf(open, float(GRIPS[g][1]), close))
 
 func reach_release(side: String) -> void:
 	if reach.has(side):
@@ -1158,8 +1175,9 @@ func _process(delta: float) -> void:
 	_fist = lerpf(_fist, want_fist, k)
 	if near or detail >= 2:
 		for s in ["l", "r"]:
+			var hc := _hand_curl(s, _fist)
 			for f in ["index", "middle", "ring", "pinky", "thumb"]:
-				var amt := _fist * (1.25 if f != "thumb" else 0.5)
+				var amt := hc.x if f != "thumb" else hc.y
 				for kk in ["01", "02", "03"]:
 					var bn := "%s_%s_%s" % [f, kk, s]
 					var par: String = "hand_" + s if kk == "01" else "%s_%s_%s" % [f, "01" if kk == "02" else "02", s]
